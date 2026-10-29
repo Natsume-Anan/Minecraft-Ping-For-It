@@ -342,3 +342,42 @@ M3 拆成两轮，避免「渲染层大改」把机械改名拖成长期红。
 | D7 | 移除 Lombok | ✅ **完成（M3a `bed57c3`）**：8 文件手写 getter/setter，依赖已删；副作用 S1（`ClientConfig` 丢 `hashCode`）已在 M3b 修复 |
 | D8 | 测试基座放 M10 | ⬜ M10 |
 | D9 | 集成放发布前 | 🟡 **已桩化并迁出**（DH/VoiceChat/FTB/Sable 桩化，ModMenu 与渲染/UI 子系统进 `deferred/`），**M9/M7 恢复** |
+
+---
+
+## 事故记录 · 2026-10-29 23:07 工程目录被清空
+
+### 发生了什么
+
+- **23:07:35**：工程目录内容被外部操作清空（IDEA 日志记录 `Cannot find project config directory`、`not a git repository ... .git`），只剩 `.idea`。删除**绕过回收站**。
+- **23:20–23:40**：用 IDEA Local History 回滚 → **失败**。它只对“在 IDE 里打开过”的文件保存内容，工具写入的文件只有元数据，回滚产出 **357 个项目文件为 0 字节**（外加 621 个 `Mod_Project` 空文件）；回滚过程还把工作区**二次清空**（23:38）。
+- **结论：IDEA Local History 不能作为恢复手段。**
+
+### 怎么恢复的
+
+| 来源 | 内容 | 保真度 |
+|---|---|---|
+| `Downloads\Minecraft-Ping-For-It-0.4.2-pfi-beta1.tar.gz`（3.28 MB，回收站另有一份） | 上游 1.21.1 源码 513 java | **逐字节原样** |
+| DSH 会话日志（`~/.dsh/sessions/--F-Minecraft_Mod_Project-...--/*/session.v4.jsonl.zstd`，16 个会话 / 33,034 事件 / 1,361 次文件操作，多帧 zstd 解压） | src java 与 docs 共约 100 个文件，含 M6.5 的 `MarkerHudRenderer`/`MarkerLabelRenderer`/`WheelHudRenderer` | **逐字节原文**（有完整 write 的 21 个已验证 20 个一致） |
+| `Downloads\ping-for-it-template-26.3.zip` | `gradle-wrapper.jar`、`gradlew`、`gradlew.bat`、`.github/workflows/build.yml` | 原样 |
+| 文档与上下文 | `AGENTS.md`、`docs/reviews/09–12`、`TEAM.md` | 全文重写 |
+
+**重建方式**：上游源码全量落位 → 重做 M2/M3 的机械迁移（`ResourceLocation→Identifier` 90 处、`PayloadTypeRegistry.*Play`、`ComponentSerialization.CODEC`、`KeyMapping.Category`、`InputConstants` 等 14 类）→ Sable 集成整体移入 `deferred/` 并留无依赖桩（`Optional.empty()`，语义 = 集成不可用回退 anchor）。
+
+### 丢失内容（不可恢复）
+
+1. **`.git` 全部历史**：`pre-port` / `port-M2` / `port-M3` / `port-M4` / `port-M6.5` 五个 tag 及其 commit 全部消失。新仓库从零建立，里程碑日期与验证结论保留在本文档。
+2. `run/logs/*`：M4「22/22 配对」、M6「108 对 / pingType 3/3 一致」、M6.5 会话的**原始日志**没了，结论仍在文档。
+3. `run/saves/*`（测试世界）、`run/config/*`（首次启动重新生成）、`run/dsh-logs/*`。
+4. `build/` 与 `.gradle/` 产物（可重建）。
+
+### 恢复后的验证
+
+| 项目 | 结果 |
+|---|---|
+| `tools/compile-check.sh` | **main 0 error / 262 class；client 0 error / 83 class** |
+| `gradlew -g D:/Gradle build --offline` | **通过**（用户实测，2026-10-30 00:1x） |
+| 结构 | `deferred/` 96（92 原样 + 4 Sable）、`src/main/java` 162、`src/client/java` 55、资源与 tools 齐备 |
+| 待补 | 实机冒烟（ping / 掉落物 / 轮盘 / 屏外箭头四场景）、47 个「无原文」文件的逐项复核 |
+
+> **新基线**：`restore: rebuild the project after the 2026-10-29 directory wipe` 为恢复后第一个 commit，后续阶段以它为回滚点。
