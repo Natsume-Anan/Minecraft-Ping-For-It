@@ -1,0 +1,83 @@
+plugins {
+	id 'net.fabricmc.fabric-loom' version "${loom_version}"
+	id 'maven-publish'
+}
+
+base {
+	archivesName = "Ping-For-It"
+}
+
+repositories {
+	// Loom adds the essential maven repositories to download Minecraft and libraries from automatically.
+}
+
+loom {
+	splitEnvironmentSourceSets()
+
+	mods {
+		"pingforit" {
+			sourceSet sourceSets.main
+			sourceSet sourceSets.client
+		}
+	}
+}
+
+dependencies {
+	minecraft "com.mojang:minecraft:${project.minecraft_version}"
+	implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+	implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+
+	// Upstream common sources use org.jetbrains.annotations (Nullable/NotNull).
+	compileOnly "org.jetbrains:annotations:26.0.2"
+}
+
+// fabric.mod.json 从模板生成：不在 processResources 里用 filesMatching，
+// 这样 IDEA 的 Gradle 模型能正确解析资源过滤（避免 MatchingCopyAction 警告）。
+def generateModMetadata = tasks.register("generateModMetadata", Sync) {
+	from "src/main/templates/fabric.mod.json"
+	into layout.buildDirectory.dir("generated/modMetadata")
+	inputs.property "version", project.version
+	expand "version": project.version
+}
+
+sourceSets.main.resources.srcDir(generateModMetadata.flatMap { it.destinationDirectory })
+
+tasks.named("processResources") {
+	dependsOn generateModMetadata
+}
+
+tasks.withType(JavaCompile).configureEach {
+	it.options.release = 25
+}
+
+java {
+	withSourcesJar()
+
+	sourceCompatibility = JavaVersion.VERSION_25
+	targetCompatibility = JavaVersion.VERSION_25
+}
+
+jar {
+	def projectName = project.name
+	inputs.property "projectName", projectName
+
+	// 本项目使用 net.fabricmc.fabric-loom 的 no-remap 分支，不会创建 remapJar 任务，
+	// 最终产物直接来自 jar，所以 classifier 加在这里（决策 D4）。
+	archiveClassifier = "fabric-26.3"
+
+	from("LICENSE") {
+		rename { "${it}_$projectName" }
+	}
+}
+
+publishing {
+	publications {
+		create("mavenJava", MavenPublication) {
+			from components.java
+		}
+	}
+
+	repositories {
+		// Add repositories to publish to here.
+	}
+}

@@ -1,0 +1,54 @@
+compile-check: javac=C:\Program Files\Java\jdk-25\bin\javac.exe (javac 25.0.4.1)
+compile-check: classpath jars=156 (MC 3 + modules-2 cache)
+[main] sources=162
+[main] exit=0
+[main] errors=0
+[main] classes=262
+[main] log=F:/Minecraft_Mod_Project/Minecraft_26.3/Minecraft_26.3_Fabric/tools/.compile-check/javac-main.log
+[client] sources=58
+[client] exit=1
+[client] errors=43
+[client] classes=0
+[client] log=F:/Minecraft_Mod_Project/Minecraft_26.3/Minecraft_26.3_Fabric/tools/.compile-check/javac-client.log
+--- first errors (up to 40) ---
+src\client\java\nx\pingwheel\common\util\InputUtils.java:9: error: package org.lwjgl.glfw does not exist
+src\client\java\nx\pingwheel\common\integration\sable\client\SableClientCompanionAccess.java:9: error: package dev.ryanhcode.sable.companion does not exist
+src\client\java\nx\pingwheel\common\integration\sable\client\SableClientCompanionAccess.java:10: error: package dev.ryanhcode.sable.companion does not exist
+src\client\java\nx\pingwheel\common\integration\sable\client\SableClientCompanionAccess.java:11: error: package dev.ryanhcode.sable.companion does not exist
+src\client\java\nx\pingwheel\common\integration\sable\client\SableClientCompanionAccess.java:12: error: package dev.ryanhcode.sable.companion.math does not exist
+src\client\java\nx\pingwheel\common\integration\sable\client\SableClientCompanionAccess.java:13: error: package dev.ryanhcode.sable.companion.math does not exist
+src\client\java\nx\pingwheel\common\integration\sable\client\SableClientCompanionAccess.java:44: error: cannot find symbol
+src\client\java\nx\pingwheel\common\integration\sable\client\SableClientCompanionAccess.java:49: error: cannot find symbol
+src\client\java\nx\pingwheel\common\integration\sable\client\SableClientProvider.java:17: error: cannot find symbol
+src\client\java\nx\pingwheel\common\integration\sable\client\SableClientCompanionAccess.java:609: error: cannot find symbol
+src\client\java\nx\pingwheel\common\util\InputUtils.java:17: error: cannot find symbol
+src\client\java\nx\pingwheel\common\util\InputUtils.java:20: error: cannot find symbol
+src\client\java\nx\pingwheel\common\util\InputUtils.java:21: error: cannot find symbol
+src\client\java\nx\pingwheel\common\util\InputUtils.java:25: error: cannot find symbol
+src\client\java\nx\pingwheel\common\util\InputUtils.java:26: error: cannot find symbol
+src\client\java\nx\pingwheel\common\util\InputUtils.java:30: error: cannot find symbol
+src\client\java\nx\pingwheel\common\util\InputUtils.java:31: error: cannot find symbol
+src\client\java\nx\pingwheel\common\util\InputUtils.java:33: error: cannot find symbol
+src\client\java\nx\pingwheel\common\util\InputUtils.java:106: error: cannot find symbol
+src\client\java\nx\pingwheel\common\util\InputUtils.java:128: error: incompatible types: int cannot be converted to MouseButtonEvent
+src\client\java\nx\pingwheel\common\util\InputUtils.java:129: error: cannot find symbol
+src\client\java\nx\pingwheel\common\util\InputUtils.java:129: error: no suitable method found for matches(int,int)
+src\client\java\nx\pingwheel\common\util\InputUtils.java:130: error: cannot find symbol
+src\client\java\nx\pingwheel\common\util\InputUtils.java:130: error: no suitable method found for matches(int,int)
+src\client\java\nx\pingwheel\common\util\InputUtils.java:179: error: incompatible types: int cannot be converted to MouseButtonEvent
+src\client\java\nx\pingwheel\common\util\InputUtils.java:180: error: cannot find symbol
+src\client\java\nx\pingwheel\common\util\InputUtils.java:180: error: no suitable method found for matches(int,int)
+src\client\java\nx\pingwheel\common\util\InputUtils.java:181: error: cannot find symbol
+src\client\java\nx\pingwheel\common\util\InputUtils.java:181: error: no suitable method found for matches(int,int)
+src\client\java\nx\pingwheel\common\integration\sable\client\SableClientCompanionAccess.java:87: error: cannot find symbol
+src\client\java\nx\pingwheel\common\integration\sable\client\SableClientCompanionAccess.java:136: error: cannot find symbol
+src\client\java\nx\pingwheel\common\integration\sable\client\SableClientCompanionAccess.java:136: error: cannot find symbol
+src\client\java\nx\pingwheel\common\integration\sable\client\SableClientCompanionAccess.java:146: error: cannot find symbol
+src\client\java\nx\pingwheel\common\integration\sable\client\SableClientCompanionAccess.java:150: error: cannot find symbol
+src\client\java\nx\pingwheel\common\integration\sable\client\SableClientCompanionAccess.java:232: error: cannot find symbol
+src\client\java\nx\pingwheel\common\integration\sable\client\SableClientCompanionAccess.java:395: error: cannot find symbol
+src\client\java\nx\pingwheel\common\integration\sable\client\SableClientCompanionAccess.java:452: error: cannot find symbol
+src\client\java\nx\pingwheel\common\integration\sable\client\SableClientCompanionAccess.java:456: error: cannot find symbol
+src\client\java\nx\pingwheel\common\integration\sable\client\SableClientCompanionAccess.java:494: error: cannot find symbol
+src\client\java\nx\pingwheel\common\integration\sable\client\SableClientCompanionAccess.java:544: error: cannot find symbol
+[summary] main errors=0 classes=262 | client errors=43 classes=0

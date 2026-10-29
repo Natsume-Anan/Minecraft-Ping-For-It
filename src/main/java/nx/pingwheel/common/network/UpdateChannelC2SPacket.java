@@ -1,0 +1,43 @@
+package nx.pingwheel.common.network;
+
+import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.resources.Identifier;
+import org.jetbrains.annotations.NotNull;
+
+import static nx.pingwheel.common.Global.C2S_NAMESPACE;
+import static nx.pingwheel.common.network.ProtocolLimits.MAX_CHANNEL_LENGTH;
+
+public record UpdateChannelC2SPacket(String channel) implements IPacket {
+
+	public static final Identifier PACKET_ID = Identifier.fromNamespaceAndPath(C2S_NAMESPACE, "update-channel");
+	public static final Type<UpdateChannelC2SPacket> PACKET_TYPE = new Type<>(PACKET_ID);
+
+	public UpdateChannelC2SPacket() {
+		this((String)null);
+	}
+
+	public UpdateChannelC2SPacket(FriendlyByteBuf buf) {
+		this(buf.readUtf(MAX_CHANNEL_LENGTH));
+	}
+
+	public void write(FriendlyByteBuf buf) {
+		buf.writeUtf(channel, MAX_CHANNEL_LENGTH);
+	}
+
+	public boolean isCorrupt() {
+		return channel == null;
+	}
+
+	public Identifier getId() {
+		return PACKET_ID;
+	}
+
+	public static UpdateChannelC2SPacket readSafe(FriendlyByteBuf buf) {
+		return PacketHandler.readSafe(buf, UpdateChannelC2SPacket.class);
+	}
+
+	@Override
+	public @NotNull Type<UpdateChannelC2SPacket> type() {
+		return PACKET_TYPE;
+	}
+}

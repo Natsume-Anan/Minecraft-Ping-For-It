@@ -1,0 +1,163 @@
+{
+	"key.category.pingforit.name": "Ping For It",
+	"key.pingforit.ping_location": "Marcar ubicación",
+	"key.pingforit.toggle_pass_through_transparent_blocks": "Atravesar bloques transparentes",
+	"key.pingforit.toggle_mark_blacklisted_targets": "Marcar objetivos de la lista negra",
+	"key.pingforit.toggle_mark_fluids": "Marcar fluidos",
+	"key.pingforit.open_settings": "Abrir configuración",
+	"subtitles.pingforit.ping": "Alerta de ubicación marcada",
+
+	"settings.pingforit.title": "Configuración de Ping For It",
+	"settings.pingforit.client_settings": "Cliente",
+	"settings.pingforit.server_settings": "Servidor",
+	"settings.pingforit.server_settings.loading": "(Cargando…)",
+	"settings.pingforit.server_settings.locked": "(Bloqueado)",
+	"settings.pingforit.server_settings.validation": "Corrige los números enteros no negativos o contrae la sección para descartar los cambios del servidor.",
+	"settings.pingforit.server_settings.confirm.title": "¿Descartar los cambios del servidor?",
+	"settings.pingforit.server_settings.confirm.message": "¿Descartar los cambios del servidor sin guardar y contraer esta sección?",
+	"settings.pingforit.server_settings.confirm.discard": "Descartar",
+	"settings.pingforit.server_settings.confirm.cancel": "Seguir editando",
+	"settings.pingforit.ping_volume": "Volumen del ping: %s",
+	"settings.pingforit.ping_distance": "Distancia del ping: %s",
+	"settings.pingforit.item_icon_visible": "Íconos de objetos",
+	"settings.pingforit.direction_indicator_visible": "Indicador de dirección",
+	"settings.pingforit.pass_through_transparent_blocks": "Atravesar bloques transparentes",
+	"settings.pingforit.mark_blacklisted_targets": "Marcar objetivos de la lista negra",
+	"settings.pingforit.mark_fluids": "Marcar fluidos",
+	"settings.pingforit.player_info_mode": "Información del jugador",
+	"settings.pingforit.player_info_mode.hold.tooltip": "La información del jugador se muestra cuando se mantiene la tecla \"%s\" (%s)",
+	"settings.pingforit.team_color_mode": "Color de equipo",
+	"settings.pingforit.ping_size": "Tamaño del ping: %s",
+	"settings.pingforit.wheel_font_size": "Tamaño de fuente de opciones de la rueda: %s",
+	"settings.pingforit.wheel_target_font_size": "Tamaño de fuente del objetivo de la rueda: %s",
+	"settings.pingforit.reset_all": "Restablecer todo",
+	"settings.pingforit.reset_all.title": "¿Restablecer todos los ajustes?",
+	"settings.pingforit.reset_all.message": "¿Restablecer todos los ajustes de Ping For It a sus valores predeterminados?",
+	"settings.pingforit.channel": "Canal de pings",
+	"settings.pingforit.channel.tooltip": "Solo vas a enviar y recibir pings de jugadores en el mismo canal",
+	"settings.pingforit.channel.placeholder": "Sincronizado con %s",
+	"settings.pingforit.open_block_shape_blacklist_config": "Guardar, cerrar y abrir la configuración de formas de bloques...",
+	"settings.pingforit.open_block_shape_blacklist_config.tooltip": "Guarda y cierra los ajustes antes de abrir el archivo de configuración del cliente. Los cambios en las listas externas se aplican después de reiniciar el cliente.",
+	"settings.pingforit.entity_block_render_mode": "Geometría de bloques con entidad",
+	"settings.pingforit.entity_block_render_mode.tooltip": "Selecciona cómo se renderiza la geometría de los bloques con entidad.",
+	"settings.pingforit.entity_block_render_mode.all.tooltip": "Usa fuentes de geometría integradas y registradas por mods.",
+	"settings.pingforit.entity_block_render_mode.compatible.tooltip": "Usa solo las fuentes de geometría integradas.",
+	"settings.pingforit.entity_block_render_mode.voxel_shape_only.tooltip": "Omite las fuentes de geometría y usa el contorno VoxelShape.",
+	"settings.pingforit.default_channel_mode": "Modo del canal predeterminado",
+	"settings.pingforit.default_channel_mode.tooltip": "Controla el canal usado cuando no se selecciona ninguno.",
+	"settings.pingforit.player_tracking_enabled": "Seguimiento de jugadores",
+	"settings.pingforit.player_tracking_enabled.tooltip": "Permite que los pings identifiquen y sigan a los jugadores.",
+	"settings.pingforit.ms_to_regenerate": "Tiempo de regeneración (ms)",
+	"settings.pingforit.ms_to_regenerate.tooltip": "Milisegundos necesarios para regenerar un uso de ping.",
+	"settings.pingforit.rate_limit": "Límite de frecuencia",
+	"settings.pingforit.rate_limit.tooltip": "Máximo de usos de ping en la ventana de regeneración.",
+
+	"value.pingforit.vanilla_team": "Equipo Vanilla",
+	"value.pingforit.ftb_teams": "Equipos FTB",
+	"value.pingforit.voice_chat": "Chat de voz",
+	"value.pingforit.always": "Siempre",
+	"value.pingforit.compact": "Compacto",
+	"value.pingforit.hold": "Mantener",
+	"value.pingforit.full": "Completo",
+	"value.pingforit.ping_only": "Solo ping",
+	"value.pingforit.labels_only": "Solo etiquetas",
+	"value.pingforit.auto": "Automático",
+	"value.pingforit.disabled": "Desactivado",
+	"value.pingforit.enabled": "Activado",
+	"value.pingforit.global": "Global",
+	"value.pingforit.team_only": "Solo equipo",
+	"value.pingforit.all": "Todas",
+	"value.pingforit.compatible": "Compatible",
+	"value.pingforit.voxel_shape_only": "Solo VoxelShape",
+	"value.pingforit.hidden": "Oculto",
+	"value.pingforit.infinite": "∞",
+	"unit.pingforit.meters": "%sm",
+	"unit.pingforit.percent": "%s%%",
+	"unit.pingforit.milliseconds": "%sms",
+	
+	"command.pingforit.config.description": "abrir la interfaz de configuración",
+	"command.pingforit.channel.get.description": "ver tu canal actual",
+	"command.pingforit.channel.set.description": "configurar tu canal, usá \"\" para el canal predeterminado",
+	"command.pingforit.channel.get.response": "Canal actual: \"%s\"",
+	"command.pingforit.channel.get.response.default": "Estás usando el canal predeterminado",
+	"command.pingforit.channel.set.response": "Canal cambiado a \"%s\"",
+	"command.pingforit.channel.set.response.default": "Canal cambiado al canal predeterminado",
+	"command.pingforit.channel.set.reject": "El nombre del canal no puede tener más de %s caracteres",
+	"pingforit.chat.pingmsg": "%s: %s - %s",
+	"pingforit.chat.pingmsg.template": "{playerName} señala {targetName}: {pingType}",
+	"pingforit.chat.go_to.template.override": "{playerName} marca {targetName} como destino: {pingType}",
+	"pingforit.chat.loot.template.override": "{playerName} propone {pingType}: {targetName}",
+	"pingforit.chat.destroy.template.override": "{playerName} pide {pingType}: {targetName}",
+	"pingforit.chat.take.template.override": "{playerName} pide {pingType}: {targetName}",
+	"pingforit.chat.request.template.override": "{playerName} {pingType}: {targetName}",
+	"pingforit.chat.local_error.prefix": "[ping for it] ",
+	"pingforit.chat.target_gone": "El objetivo desapareció o murió",
+
+	"pingforit.ping_type.attention": "Atención",
+	"pingforit.ping_type.attention.phrase": "ATENCIÓN",
+	"pingforit.ping_type.danger": "Peligro",
+	"pingforit.ping_type.danger.phrase": "PELIGRO",
+	"pingforit.ping_type.go_to": "Ir ahí",
+	"pingforit.ping_type.go_to.phrase": "ANDÁ AHÍ",
+	"pingforit.ping_type.loot": "Saquear",
+	"pingforit.ping_type.loot.phrase": "SAQUEAR",
+	"pingforit.ping_type.destroy": "Destruir",
+	"pingforit.ping_type.destroy.phrase": "DESTRUIR",
+	"pingforit.ping_type.take": "Recoger",
+	"pingforit.ping_type.take.phrase": "RECOGER",
+	"pingforit.ping_type.request": "Pedido",
+	"pingforit.ping_type.request.phrase": "PEDIDO",
+
+	"pingforit.target.here": "ACÁ",
+	"pingforit.target.unknown": "Objetivo desconocido",
+	"settings.pingforit.long_press_compatibility_mode": "Modo de compatibilidad de pulsación larga",
+	"settings.pingforit.long_press_compatibility_mode.tooltip": "Reconoce clics rápidos como una sola pulsación larga virtual.",
+	"settings.pingforit.long_press_compatibility_slice_millis": "Intervalo de compatibilidad: %s",
+	"settings.pingforit.long_press_compatibility_slice_millis.tooltip": "Separación máxima entre clics consecutivos con el modo activado."
+  ,"settings.pingforit.sync_duration": "Duración de sincronización (segundos)"
+  ,"settings.pingforit.sync_duration.tooltip": "Cuánto tiempo permanecen activos en el servidor los marcadores recién creados."
+  ,"settings.pingforit.marker_display_duration": "Duración de visualización del marcador: %s"
+  ,"settings.pingforit.marker_display_duration.tooltip": "Cuánto tiempo se muestran localmente los marcadores. Seguir al servidor usa la duración congelada de cada marcador."
+  ,"value.pingforit.follow_server": "Seguir al servidor"
+  ,"unit.pingforit.seconds": "%ss"
+  ,"notice.pingforit.pass_through_transparent_blocks": "Marcar a través de bloques transparentes: "
+  ,"notice.pingforit.mark_blacklisted_targets": "Marcar objetivos de la lista negra: "
+  ,"notice.pingforit.mark_fluids": "Marcar líquidos: "
+  ,"notice.pingforit.on": "Activado"
+  ,"notice.pingforit.off": "Desactivado"
+  ,"settings.pingforit.configuration_notice_size": "Tamaño del aviso de configuración: %s"
+  ,"settings.pingforit.category.display": "Visualización de marcadores"
+  ,"settings.pingforit.category.display.button": "Visualización de marcadores..."
+  ,"settings.pingforit.category.selection": "Selección de objetivos"
+  ,"settings.pingforit.category.selection.button": "Selección de objetivos..."
+  ,"settings.pingforit.category.wheel_appearance": "Apariencia de la rueda"
+  ,"settings.pingforit.category.wheel_appearance.button": "Apariencia de la rueda..."
+  ,"settings.pingforit.category.input": "Interacción de entrada"
+  ,"settings.pingforit.category.input.button": "Interacción de entrada..."
+  ,"settings.pingforit.category.channel_notices": "Canal y avisos"
+  ,"settings.pingforit.category.channel_notices.button": "Canal y avisos..."
+  ,"settings.pingforit.category.geometry_config": "Renderizado y configuración"
+  ,"settings.pingforit.category.geometry_config.button": "Renderizado y configuración..."
+  ,"settings.pingforit.category.channel_players": "Canal y jugadores"
+  ,"settings.pingforit.category.channel_players.button": "Canal y jugadores..."
+  ,"settings.pingforit.category.send_rate": "Frecuencia de envío"
+  ,"settings.pingforit.category.send_rate.button": "Frecuencia de envío..."
+  ,"settings.pingforit.category.marker_duration": "Duración del marcador"
+  ,"settings.pingforit.category.marker_duration.button": "Duración del marcador..."
+  ,"settings.pingforit.group.marker_display": "Presentación de marcadores"
+  ,"settings.pingforit.group.input_timing": "Pulsación, tiempo límite y cancelación"
+  ,"settings.pingforit.group.channel": "Canal"
+  ,"settings.pingforit.group.geometry": "Renderizado de bloques-entidad"
+  ,"settings.pingforit.group.client_config_file": "Archivo de configuración del cliente"
+  ,"settings.pingforit.group.channel_players": "Canal y jugadores del servidor"
+  ,"settings.pingforit.group.send_rate": "Política de envíos del servidor"
+  ,"settings.pingforit.group.marker_duration": "Duración de marcadores del servidor"
+  ,"settings.pingforit.server_status.loading": "Cargando ajustes del servidor..."
+  ,"settings.pingforit.server_status.permission": "No tenés permiso para editar los ajustes del servidor."
+  ,"settings.pingforit.server_status.unavailable": "Los ajustes del servidor no están disponibles."
+  ,"settings.pingforit.server_status.ready": "Ajustes del servidor cargados. Los cambios se envían al salir."
+  ,"settings.pingforit.server_status.draft": "Los cambios del servidor se conservan entre categorías."
+  ,"settings.pingforit.reset_all.server_draft_warning": "Esto también descarta el borrador sin guardar del servidor."
+  ,"settings.pingforit.open_client_config": "Guardar, cerrar y abrir la configuración del cliente..."
+  ,"settings.pingforit.open_client_config.tooltip": "Guarda y cierra Ajustes antes de abrir el archivo completo de configuración del cliente. Los cambios externos se aplican al reiniciar el cliente."
+}

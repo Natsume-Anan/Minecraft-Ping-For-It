@@ -1,0 +1,155 @@
+{
+	"key.category.pingforit.name": "Ping For It",
+	"key.pingforit.ping_location": "Konumu Pingle",
+	"key.pingforit.toggle_pass_through_transparent_blocks": "Şeffaf Blokları Aş",
+	"key.pingforit.toggle_mark_blacklisted_targets": "Kara Listedeki Hedefleri İşaretle",
+	"key.pingforit.toggle_mark_fluids": "Sıvıları İşaretle",
+	"key.pingforit.open_settings": "Ayarları Aç",
+	"subtitles.pingforit.ping": "Konum Pingi Uyarısı",
+
+	"settings.pingforit.title": "Ping For It Yapılandırması",
+	"settings.pingforit.client_settings": "İstemci",
+	"settings.pingforit.server_settings": "Sunucu",
+	"settings.pingforit.server_settings.loading": "(Yükleniyor…)",
+	"settings.pingforit.server_settings.locked": "(Kilitli)",
+	"settings.pingforit.server_settings.validation": "Negatif olmayan tam sayıları düzeltin veya sunucu değişikliklerini atmak için bölümü daraltın.",
+	"settings.pingforit.server_settings.confirm.title": "Sunucu değişiklikleri atılsın mı?",
+	"settings.pingforit.server_settings.confirm.message": "Kaydedilmemiş sunucu değişiklikleri atılıp bu bölüm daraltılsın mı?",
+	"settings.pingforit.server_settings.confirm.discard": "At",
+	"settings.pingforit.server_settings.confirm.cancel": "Düzenlemeye devam et",
+	"settings.pingforit.ping_volume": "Ping Sesi: %s",
+	"settings.pingforit.ping_distance": "Ping Mesafesi: %s",
+	"settings.pingforit.item_icon_visible": "Eşya Simgeleri",
+	"settings.pingforit.direction_indicator_visible": "Yön Göstergesi",
+	"settings.pingforit.pass_through_transparent_blocks": "Şeffaf Blokları Aş",
+	"settings.pingforit.mark_blacklisted_targets": "Kara Listedeki Hedefleri İşaretle",
+	"settings.pingforit.mark_fluids": "Sıvıları İşaretle",
+	"settings.pingforit.ping_size": "Ping Boyutu: %s",
+	"settings.pingforit.wheel_font_size": "Tekerlek Seçenek Yazı Boyutu: %s",
+	"settings.pingforit.wheel_target_font_size": "Tekerlek Hedef Yazı Boyutu: %s",
+	"settings.pingforit.reset_all": "Tümünü Sıfırla",
+	"settings.pingforit.reset_all.title": "Tüm ayarlar sıfırlansın mı?",
+	"settings.pingforit.reset_all.message": "Ping For It ayarlarının tümü varsayılanlara sıfırlansın mı?",
+	"settings.pingforit.channel": "Ping Kanalı",
+	"settings.pingforit.channel.tooltip": "Sadece aynı kanaldaki oyuncularla Ping paylaşırsınız",
+	"settings.pingforit.channel.placeholder": "%s ile eşzamanlandı",
+	"settings.pingforit.open_block_shape_blacklist_config": "Kaydet, Kapat ve Blok Şekli Yapılandırmasını Aç...",
+	"settings.pingforit.open_block_shape_blacklist_config.tooltip": "İstemci yapılandırma dosyasını açmadan önce ayarları kaydeder ve kapatır. Harici listelerdeki değişiklikler istemci yeniden başlatıldıktan sonra uygulanır.",
+	"settings.pingforit.entity_block_render_mode": "Varlık Blok Geometrisi",
+	"settings.pingforit.entity_block_render_mode.tooltip": "Varlık blok geometrisinin nasıl oluşturulacağını seçer.",
+	"settings.pingforit.entity_block_render_mode.all.tooltip": "Yerleşik ve kayıtlı mod geometri kaynaklarını kullanır.",
+	"settings.pingforit.entity_block_render_mode.compatible.tooltip": "Yalnızca yerleşik varlık blok geometri kaynaklarını kullanır.",
+	"settings.pingforit.entity_block_render_mode.voxel_shape_only.tooltip": "Geometri kaynaklarını atlar ve VoxelShape ana hatlarını kullanır.",
+	"settings.pingforit.player_info_mode": "Oyuncu Bilgisi",
+	"settings.pingforit.player_info_mode.hold.tooltip": "Oyuncu bilgisi \"%s\" (%s) tuşu basılı tutulduğunda gösterilir",
+	"settings.pingforit.team_color_mode": "Takım Rengi",
+	"settings.pingforit.default_channel_mode": "Varsayılan Kanal Modu",
+	"settings.pingforit.default_channel_mode.tooltip": "Kanal seçilmediğinde kullanılacak kanalı belirler.",
+	"settings.pingforit.player_tracking_enabled": "Oyuncu Takibi",
+	"settings.pingforit.player_tracking_enabled.tooltip": "Pinglerin oyuncuları tanımlamasına ve takip etmesine izin verir.",
+	"settings.pingforit.ms_to_regenerate": "Yenilenme Süresi (ms)",
+	"settings.pingforit.ms_to_regenerate.tooltip": "Bir ping kullanımını yenilemek için gereken milisaniye.",
+	"settings.pingforit.rate_limit": "Hız Sınırı",
+	"settings.pingforit.rate_limit.tooltip": "Yenilenme penceresindeki en yüksek ping kullanım sayısı.",
+
+	"value.pingforit.auto": "Otomatik",
+	"value.pingforit.disabled": "Kapalı",
+	"value.pingforit.enabled": "Açık",
+	"value.pingforit.always": "Her Zaman",
+	"value.pingforit.compact": "Özet",
+	"value.pingforit.hold": "Basılı Tut",
+	"value.pingforit.full": "Tam",
+	"value.pingforit.ping_only": "Yalnızca Ping",
+	"value.pingforit.labels_only": "Yalnızca Etiketler",
+	"value.pingforit.global": "Global",
+	"value.pingforit.team_only": "Sadece Takım",
+	"value.pingforit.all": "Tümü",
+	"value.pingforit.compatible": "Uyumlu",
+	"value.pingforit.voxel_shape_only": "Yalnızca VoxelShape",
+	"value.pingforit.hidden": "Gizli",
+	"value.pingforit.infinite": "∞",
+	"unit.pingforit.meters": "%sm",
+	"unit.pingforit.percent": "%s%%",
+	"unit.pingforit.milliseconds": "%sms",
+
+	"command.pingforit.config.description": "ayar arayüzünü aç",
+	"command.pingforit.channel.get.description": "aktif kanalını al",
+	"command.pingforit.channel.set.description": "kanalını ayarla, varsayılan kanal için \"\" kullan",
+	"command.pingforit.channel.get.response": "Aktif Kanal: \"%s\"",
+	"command.pingforit.channel.get.response.default": "Varsayılan kanal kullanılıyor.",
+	"command.pingforit.channel.set.response": "\"%s\" kanalına ayarlandı",
+	"command.pingforit.channel.set.response.default": "Kanal varsayılana ayarlandı",
+	"command.pingforit.channel.set.reject": "Kanal adı uzunlukları %s ile sınırlı",
+	"pingforit.chat.pingmsg": "%s: %s: %s",
+	"pingforit.chat.pingmsg.template": "{playerName}: {pingType}: {targetName}",
+	"pingforit.chat.local_error.prefix": "[ping for it] ",
+	"pingforit.chat.target_gone": "Hedef kayboldu veya öldü",
+
+	"pingforit.ping_type.attention": "Dikkat",
+	"pingforit.ping_type.attention.phrase": "DİKKAT",
+	"pingforit.ping_type.danger": "Tehlike",
+	"pingforit.ping_type.danger.phrase": "TEHLİKE",
+	"pingforit.ping_type.go_to": "Oraya git",
+	"pingforit.ping_type.go_to.phrase": "GİDİLECEK YER",
+	"pingforit.ping_type.loot": "Yağmala",
+	"pingforit.ping_type.loot.phrase": "GANİMET",
+	"pingforit.ping_type.destroy": "Yok et",
+	"pingforit.ping_type.destroy.phrase": "YOK EDİLECEK",
+	"pingforit.ping_type.take": "Al",
+	"pingforit.ping_type.take.phrase": "ALINACAK",
+	"pingforit.ping_type.request": "Kullanmak istiyorum",
+	"pingforit.ping_type.request.phrase": "KULLANMA İSTEĞİ",
+
+	"pingforit.target.here": "BURASI",
+	"pingforit.target.unknown": "Bilinmeyen hedef"
+  ,"settings.pingforit.long_press_compatibility_mode": "Uzun basma uyumluluk modu"
+  ,"settings.pingforit.long_press_compatibility_mode.tooltip": "Hızlı tıklamaları tek bir sanal uzun basma olarak algılar."
+  ,"settings.pingforit.long_press_compatibility_slice_millis": "Uyumluluk zaman aralığı: %s"
+  ,"settings.pingforit.long_press_compatibility_slice_millis.tooltip": "Uyumluluk modu etkinken ardışık tıklamalar arasındaki en uzun süre."
+  ,"settings.pingforit.sync_duration": "Senkronizasyon Süresi (saniye)"
+  ,"settings.pingforit.sync_duration.tooltip": "Yeni oluşturulan işaretçilerin sunucuda ne kadar süre etkin kalacağını belirler."
+  ,"settings.pingforit.marker_display_duration": "İşaretçi Görüntüleme Süresi: %s"
+  ,"settings.pingforit.marker_display_duration.tooltip": "İşaretçilerin yerel olarak ne kadar süre görünür kalacağını belirler. Sunucuyu takip et, her işaretçinin dondurulmuş sunucu süresini kullanır."
+  ,"value.pingforit.follow_server": "Sunucuyu takip et"
+  ,"unit.pingforit.seconds": "%ss"
+  ,"notice.pingforit.pass_through_transparent_blocks": "Şeffaf bloklardan işaretle: "
+  ,"notice.pingforit.mark_blacklisted_targets": "Kara listedeki hedefleri işaretle: "
+  ,"notice.pingforit.mark_fluids": "Sıvıları işaretle: "
+  ,"notice.pingforit.on": "Açık"
+  ,"notice.pingforit.off": "Kapalı"
+  ,"settings.pingforit.configuration_notice_size": "Yapılandırma bildirimi boyutu: %s"
+  ,"settings.pingforit.category.display": "İşaretçi Görünümü"
+  ,"settings.pingforit.category.display.button": "İşaretçi Görünümü..."
+  ,"settings.pingforit.category.selection": "Hedef Seçimi"
+  ,"settings.pingforit.category.selection.button": "Hedef Seçimi..."
+  ,"settings.pingforit.category.wheel_appearance": "Çark Görünümü"
+  ,"settings.pingforit.category.wheel_appearance.button": "Çark Görünümü..."
+  ,"settings.pingforit.category.input": "Girdi Etkileşimi"
+  ,"settings.pingforit.category.input.button": "Girdi Etkileşimi..."
+  ,"settings.pingforit.category.channel_notices": "Kanal ve Bildirimler"
+  ,"settings.pingforit.category.channel_notices.button": "Kanal ve Bildirimler..."
+  ,"settings.pingforit.category.geometry_config": "İşleme ve Yapılandırma"
+  ,"settings.pingforit.category.geometry_config.button": "İşleme ve Yapılandırma..."
+  ,"settings.pingforit.category.channel_players": "Kanal ve Oyuncular"
+  ,"settings.pingforit.category.channel_players.button": "Kanal ve Oyuncular..."
+  ,"settings.pingforit.category.send_rate": "Gönderim Hızı"
+  ,"settings.pingforit.category.send_rate.button": "Gönderim Hızı..."
+  ,"settings.pingforit.category.marker_duration": "İşaretçi Süresi"
+  ,"settings.pingforit.category.marker_duration.button": "İşaretçi Süresi..."
+  ,"settings.pingforit.group.marker_display": "İşaretçi sunumu"
+  ,"settings.pingforit.group.input_timing": "Basış, zaman aşımı ve iptal"
+  ,"settings.pingforit.group.channel": "Kanal"
+  ,"settings.pingforit.group.geometry": "Varlık bloğu işleme"
+  ,"settings.pingforit.group.client_config_file": "İstemci yapılandırma dosyası"
+  ,"settings.pingforit.group.channel_players": "Sunucu kanalı ve oyuncu davranışı"
+  ,"settings.pingforit.group.send_rate": "Sunucu gönderim ilkesi"
+  ,"settings.pingforit.group.marker_duration": "Sunucu işaretçi ömrü"
+  ,"settings.pingforit.server_status.loading": "Sunucu ayarları yükleniyor..."
+  ,"settings.pingforit.server_status.permission": "Sunucu ayarlarını düzenleme izniniz yok."
+  ,"settings.pingforit.server_status.unavailable": "Sunucu ayarları kullanılamıyor."
+  ,"settings.pingforit.server_status.ready": "Sunucu ayarları yüklendi. Değişiklikler çıkarken gönderilir."
+  ,"settings.pingforit.server_status.draft": "Kaydedilmemiş sunucu değişiklikleri kategoriler arasında korunur."
+  ,"settings.pingforit.reset_all.server_draft_warning": "Bu işlem kaydedilmemiş sunucu taslağını da siler."
+  ,"settings.pingforit.open_client_config": "Kaydet, kapat ve istemci yapılandırmasını aç..."
+  ,"settings.pingforit.open_client_config.tooltip": "Ayarları kaydedip kapattıktan sonra tam istemci yapılandırma dosyasını açar. Harici değişiklikler istemci yeniden başlatıldıktan sonra uygulanır."
+}

@@ -1,0 +1,165 @@
+{
+	"key.category.pingforit.name": "Ping For It",
+	"key.pingforit.ping_location": "标记坐标",
+	"key.pingforit.toggle_pass_through_transparent_blocks": "切换穿透透明方块",
+	"key.pingforit.toggle_mark_blacklisted_targets": "切换标记黑名单目标",
+	"key.pingforit.toggle_mark_fluids": "切换标记流体",
+	"key.pingforit.open_settings": "打开设置",
+	"subtitles.pingforit.ping": "坐标标记提醒",
+
+	"settings.pingforit.title": "Ping For It 配置",
+	"settings.pingforit.client_settings": "客户端",
+	"settings.pingforit.server_settings": "服务端",
+	"settings.pingforit.server_settings.loading": "（正在加载…）",
+	"settings.pingforit.server_settings.locked": "（已锁定）",
+	"settings.pingforit.server_settings.validation": "请修正非负整数，或收起并放弃服务器更改。",
+	"settings.pingforit.server_settings.confirm.title": "放弃服务器更改？",
+	"settings.pingforit.server_settings.confirm.message": "放弃未保存的服务器更改并收起此部分？",
+	"settings.pingforit.server_settings.confirm.discard": "放弃",
+	"settings.pingforit.server_settings.confirm.cancel": "继续编辑",
+	"settings.pingforit.ping_volume": "标记音量: %s",
+	"settings.pingforit.ping_distance": "标记距离: %s",
+	"settings.pingforit.item_icon_visible": "物品图标",
+	"settings.pingforit.direction_indicator_visible": "方向指示器",
+	"settings.pingforit.pass_through_transparent_blocks": "穿透透明方块",
+	"settings.pingforit.mark_blacklisted_targets": "标记黑名单目标",
+	"settings.pingforit.mark_fluids": "标记流体",
+	"settings.pingforit.ping_size": "标记点尺寸: %s",
+	"settings.pingforit.wheel_inner_radius": "轮盘内半径: %s",
+	"settings.pingforit.wheel_outer_radius": "轮盘外半径: %s",
+	"settings.pingforit.wheel_opacity": "轮盘不透明度: %s",
+	"settings.pingforit.wheel_font_size": "轮盘选项字体大小: %s",
+	"settings.pingforit.wheel_target_font_size": "轮盘目标字体大小: %s",
+	"settings.pingforit.reset_all": "全部重置",
+	"settings.pingforit.reset_all.title": "重置所有设置？",
+	"settings.pingforit.reset_all.message": "要将 Ping For It 的所有设置恢复为默认值吗？",
+	"settings.pingforit.wheel_hold_millis": "轮盘长按时间: %s",
+	"settings.pingforit.wheel_timeout_millis": "轮盘超时时间: %s",
+	"settings.pingforit.cancel_half_cone_angle_degrees": "取消视野半角: %s",
+	"settings.pingforit.channel": "标记频道",
+	"settings.pingforit.channel.tooltip": "您只能与相同频道的玩家发送和接收标记。",
+	"settings.pingforit.channel.placeholder": "已与 %s 同步",
+	"settings.pingforit.open_block_shape_blacklist_config": "保存、关闭并打开方块形状配置...",
+	"settings.pingforit.open_block_shape_blacklist_config.tooltip": "打开客户端配置文件前会保存并关闭设置。外部列表的编辑将在重启客户端后生效。",
+	"settings.pingforit.entity_block_render_mode": "实体方块几何",
+	"settings.pingforit.entity_block_render_mode.tooltip": "选择实体方块几何的渲染方式。",
+	"settings.pingforit.entity_block_render_mode.all.tooltip": "使用内置和已注册的模组几何源。",
+	"settings.pingforit.entity_block_render_mode.compatible.tooltip": "仅使用内置的实体方块几何源。",
+	"settings.pingforit.entity_block_render_mode.voxel_shape_only.tooltip": "跳过几何源并使用 VoxelShape 轮廓。",
+	"settings.pingforit.player_info_mode": "玩家信息",
+	"settings.pingforit.player_info_mode.hold.tooltip": "按住“%s”（%s）键时显示玩家信息",
+	"settings.pingforit.team_color_mode": "队伍颜色",
+	"settings.pingforit.default_channel_mode": "默认频道模式",
+	"settings.pingforit.default_channel_mode.tooltip": "控制未选择频道时使用的频道。",
+	"settings.pingforit.player_tracking_enabled": "玩家追踪",
+	"settings.pingforit.player_tracking_enabled.tooltip": "允许标记识别并追踪玩家。",
+	"settings.pingforit.ms_to_regenerate": "恢复时间（毫秒）",
+	"settings.pingforit.ms_to_regenerate.tooltip": "恢复一次标记使用次数所需的毫秒数。",
+	"settings.pingforit.rate_limit": "频率限制",
+	"settings.pingforit.rate_limit.tooltip": "恢复时间窗口内允许的最大标记次数。",
+	"settings.pingforit.sync_duration": "同步持续时间（秒）",
+	"settings.pingforit.sync_duration.tooltip": "新创建的标记在服务器上保持激活的时间。",
+
+	"value.pingforit.auto": "自动",
+	"value.pingforit.disabled": "关闭",
+	"value.pingforit.enabled": "开启",
+	"value.pingforit.always": "始终",
+	"value.pingforit.compact": "简洁",
+	"value.pingforit.hold": "按住",
+	"value.pingforit.full": "完整",
+	"value.pingforit.ping_only": "仅标记",
+	"value.pingforit.labels_only": "仅标签",
+	"value.pingforit.global": "全局",
+	"value.pingforit.team_only": "仅队伍",
+	"value.pingforit.all": "全部",
+	"value.pingforit.compatible": "兼容",
+	"value.pingforit.voxel_shape_only": "仅 VoxelShape",
+	"value.pingforit.hidden": "隐藏",
+	"value.pingforit.infinite": "∞",
+	"unit.pingforit.meters": "%sm",
+	"unit.pingforit.percent": "%s%%",
+	"unit.pingforit.milliseconds": "%s毫秒",
+	"unit.pingforit.degrees": "%s°",
+	"unit.pingforit.pixels": "%s像素",
+
+	"command.pingforit.config.description": "打开配置界面",
+	"command.pingforit.channel.get.description": "获取当前频道",
+	"command.pingforit.channel.set.description": "设置您的频道,默认频道为 \"\" ",
+	"command.pingforit.channel.get.response": "当前频道: \"%s\"",
+	"command.pingforit.channel.get.response.default": "当前正在使用默认频道",
+	"command.pingforit.channel.set.response": "设置频道为\"%s\"",
+	"command.pingforit.channel.set.response.default": "将频道设置为默认频道",
+	"command.pingforit.channel.set.reject": "频道名称长度限制为 %s 个字符",
+	"pingforit.chat.pingmsg": "%s 请求 %s %s",
+	"pingforit.chat.pingmsg.template": "{playerName}: 请求 {pingType} {targetName}",
+	"pingforit.chat.danger.template.override": "{playerName}: {pingType} {targetName} !",
+	"pingforit.chat.request.template.override": "{playerName}: {pingType} {targetName}",
+	"pingforit.chat.local_error.prefix": "[ping for it] ",
+	"pingforit.chat.target_gone": "目标消失或死亡",
+
+	"pingforit.ping_type.attention": "注意",
+	"pingforit.ping_type.attention.phrase": "注意",
+	"pingforit.ping_type.danger": "危险",
+	"pingforit.ping_type.danger.phrase": "小心",
+	"pingforit.ping_type.go_to": "前往",
+	"pingforit.ping_type.go_to.phrase": "前往",
+	"pingforit.ping_type.loot": "拾取",
+	"pingforit.ping_type.loot.phrase": "拾取",
+	"pingforit.ping_type.destroy": "摧毁",
+	"pingforit.ping_type.destroy.phrase": "摧毁",
+	"pingforit.ping_type.take": "拿走",
+	"pingforit.ping_type.take.phrase": "拿走",
+	"pingforit.ping_type.request": "请求",
+	"pingforit.ping_type.request.phrase": "希望使用",
+
+	"pingforit.target.here": "此处",
+	"pingforit.target.unknown": "未知目标"
+  ,"settings.pingforit.long_press_compatibility_mode": "长按兼容模式"
+  ,"settings.pingforit.long_press_compatibility_mode.tooltip": "将快速连续点击识别为一次虚拟长按。"
+  ,"settings.pingforit.long_press_compatibility_slice_millis": "兼容时间片：%s"
+  ,"settings.pingforit.long_press_compatibility_slice_millis.tooltip": "启用兼容模式时相邻点击之间允许的最大间隔。"
+  ,"settings.pingforit.marker_display_duration": "标记显示时长: %s"
+  ,"settings.pingforit.marker_display_duration.tooltip": "标记在本地显示的时长。“跟随服务器”使用每个标记冻结的服务器时长。"
+  ,"value.pingforit.follow_server": "跟随服务器"
+  ,"unit.pingforit.seconds": "%ss"
+  ,"notice.pingforit.pass_through_transparent_blocks": "标记穿过透明方块: "
+  ,"notice.pingforit.mark_blacklisted_targets": "标记黑名单目标: "
+  ,"notice.pingforit.mark_fluids": "标记液体: "
+  ,"notice.pingforit.on": "开"
+  ,"notice.pingforit.off": "关"
+  ,"settings.pingforit.configuration_notice_size": "配置提示大小: %s"
+  ,"settings.pingforit.category.display": "标记显示"
+  ,"settings.pingforit.category.display.button": "标记显示..."
+  ,"settings.pingforit.category.selection": "目标选择"
+  ,"settings.pingforit.category.selection.button": "目标选择..."
+  ,"settings.pingforit.category.wheel_appearance": "轮盘外观"
+  ,"settings.pingforit.category.wheel_appearance.button": "轮盘外观..."
+  ,"settings.pingforit.category.input": "输入交互"
+  ,"settings.pingforit.category.input.button": "输入交互..."
+  ,"settings.pingforit.category.channel_notices": "频道与提示"
+  ,"settings.pingforit.category.channel_notices.button": "频道与提示..."
+  ,"settings.pingforit.category.geometry_config": "渲染与配置"
+  ,"settings.pingforit.category.geometry_config.button": "渲染与配置..."
+  ,"settings.pingforit.category.channel_players": "频道与玩家"
+  ,"settings.pingforit.category.channel_players.button": "频道与玩家..."
+  ,"settings.pingforit.category.send_rate": "发送速率"
+  ,"settings.pingforit.category.send_rate.button": "发送速率..."
+  ,"settings.pingforit.category.marker_duration": "标记持续时间"
+  ,"settings.pingforit.category.marker_duration.button": "标记持续时间..."
+  ,"settings.pingforit.group.marker_display": "标记呈现"
+  ,"settings.pingforit.group.input_timing": "按键、超时与取消"
+  ,"settings.pingforit.group.channel": "频道"
+  ,"settings.pingforit.group.geometry": "实体方块渲染"
+  ,"settings.pingforit.group.client_config_file": "客户端配置文件"
+  ,"settings.pingforit.group.channel_players": "服务器频道与玩家行为"
+  ,"settings.pingforit.group.send_rate": "服务器发送速率策略"
+  ,"settings.pingforit.group.marker_duration": "服务器标记生命周期"
+  ,"settings.pingforit.server_status.loading": "正在加载服务器设置..."
+  ,"settings.pingforit.server_status.permission": "你没有编辑服务器设置的权限。"
+  ,"settings.pingforit.server_status.unavailable": "服务器设置不可用。"
+  ,"settings.pingforit.server_status.ready": "服务器设置已加载。离开设置时会发送更改。"
+  ,"settings.pingforit.server_status.draft": "未保存的服务器更改会在分类之间保留。"
+  ,"settings.pingforit.reset_all.server_draft_warning": "这也会丢弃未保存的服务器设置草稿。"
+  ,"settings.pingforit.open_client_config": "保存、关闭并打开客户端配置..."
+  ,"settings.pingforit.open_client_config.tooltip": "保存并关闭设置，然后打开完整的客户端配置文件。外部编辑将在重启客户端后生效。"
+}
