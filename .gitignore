@@ -44,3 +44,4 @@ Mod_Project/
 tools/.compile-check/
 .tmp-decomp/
 tools/.*.txt
+logs/
