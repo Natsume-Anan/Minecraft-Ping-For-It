@@ -24,6 +24,7 @@ import nx.pingwheel.common.client.marker.MarkerOverlayState;
 import nx.pingwheel.common.client.duration.ClientMarkerDisplayDuration;
 import nx.pingwheel.common.client.rate.ClientCreateRateLimiter;
 import nx.pingwheel.common.client.rate.ClientRateLimitPolicy;
+import nx.pingwheel.common.interaction.state.WheelSelectionDiagnostics;
 import nx.pingwheel.common.chat.PingChatBuilder;
 import nx.pingwheel.common.config.ClientConfig;
 import nx.pingwheel.common.core.GameContext;
@@ -282,7 +283,8 @@ public final class ClientPingRuntime {
 				() -> ClientConfig.HANDLER.getConfig().getCancelHalfConeAngleDegrees()),
 			logger,
 			() -> ClientConfig.HANDLER.getConfig().getWheelHoldMillis(),
-			() -> ClientConfig.HANDLER.getConfig().getWheelTimeoutMillis());
+			() -> ClientConfig.HANDLER.getConfig().getWheelTimeoutMillis(),
+			ClientPingRuntime::wheelSelectionDiagnostics);
 
 		return new ClientPingRuntime(
 			new ClientMarkerStore(FALLBACK_EXPIRY_GRACE_TICKS, displayDurationPolicy),
@@ -1003,6 +1005,11 @@ public final class ClientPingRuntime {
 			sendCreatedChat(packet, snapshot, targetName);
 		}
 
+		// M4 acceptance line: one INFO per applied marker so a normal launch proves
+		// the server-authoritative create reached the client store.
+		logger.info("marker created: markerId=" + snapshot.id().value()
+			+ " kind=" + snapshot.target().kind()
+			+ " pingType=" + snapshot.pingTypeId());
 		logger.debug("marker created applied: markerId={} kind={} targetType={} pingType={}",
 			snapshot.id().value(),
 			snapshot.target().kind(),
@@ -1258,6 +1265,34 @@ public final class ClientPingRuntime {
 		Objects.requireNonNull(store, "store");
 		Objects.requireNonNull(markerId, "markerId");
 		return store.marker(markerId).isEmpty();
+	}
+
+	/**
+	 * Presentation-only diagnostics for the INFO wheel-select line (M6.5): the
+	 * GUI scale factor and the cursor position in GUI-scaled coordinates, read
+	 * from the same {@code MouseHandler#getScaledXPos/YPos} source as the wheel
+	 * hit test, so a normal launch proves which scale the sector ran at.
+	 *
+	 * <p>Consulted once per committed wheel selection, never per frame.
+	 */
+	private static WheelSelectionDiagnostics wheelSelectionDiagnostics() {
+		Minecraft game = Minecraft.getInstance();
+
+		if (game == null || game.mouseHandler == null) {
+			return null;
+		}
+
+		var window = game.getWindow();
+
+		if (window.getScreenWidth() <= 0 || window.getScreenHeight() <= 0
+			|| window.getGuiScaledWidth() <= 0 || window.getGuiScaledHeight() <= 0) {
+			return null;
+		}
+
+		return new WheelSelectionDiagnostics(
+			window.getGuiScale(),
+			game.mouseHandler.getScaledXPos(window),
+			game.mouseHandler.getScaledYPos(window));
 	}
 
 	private static TargetKind targetKindOf(TargetKey targetKey) {

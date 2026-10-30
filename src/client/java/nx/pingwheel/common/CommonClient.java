@@ -88,6 +88,8 @@ public class CommonClient {
 		// A new world deserves a fresh HUD failure report: a transient first-frame
 		// failure must not silence a later, different failure forever.
 		hudFailureLogged = false;
+		// Re-arm the wheel renderer's one-shot failure report for the new world.
+		WheelHudRenderer.resetFailureFlag();
 		pingRuntime = createPingRuntimeIfInWorld();
 
 		IPlatformNetworkService.INSTANCE.sendToServer(new UpdateChannelC2SPacket(ClientConfig.HANDLER.getConfig().getChannel()));
@@ -102,6 +104,7 @@ public class CommonClient {
 		storedRateLimitPolicy = ClientRateLimitPolicy.DEFAULT;
 		storedSyncDurationPolicy = ClientSyncDurationPolicy.DEFAULT;
 		hudFailureLogged = false;
+		WheelHudRenderer.resetFailureFlag();
 		MarkerOverlayState.INSTANCE.clear();
 		GameContext.clearRenderEntityLookupCache();
 		SelectionToggleNoticeState.INSTANCE.clear();

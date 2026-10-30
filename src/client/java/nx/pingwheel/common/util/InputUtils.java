@@ -34,7 +34,10 @@ public class InputUtils {
 		InputConstants.Type.KEYBOARD,
 		InputConstants.KEY_LALT,
 		SETTINGS_CATEGORY);
-	public static final KeyMapping KEY_BINDING_SETTINGS = new KeyMapping(LanguageUtils.keyOf("key", "open_settings"), InputConstants.Type.KEYBOARD, -1, SETTINGS_CATEGORY);
+	// 26.3 indexes the SDL scancode array by this value directly, so an unbound
+	// default must be UNKNOWN (0) - a literal -1 makes ByteBuffer#get(-1) throw
+	// IndexOutOfBoundsException from KeyMapping#setAll when a world finishes loading.
+	public static final KeyMapping KEY_BINDING_SETTINGS = new KeyMapping(LanguageUtils.keyOf("key", "open_settings"), InputConstants.Type.KEYBOARD, InputConstants.UNKNOWN.getValue(), SETTINGS_CATEGORY);
 
 	/** The physical key and armed state of the current claimed hold. */
 	private static final ClaimedInputState<ClaimedKey> PING_INPUT_STATE = new ClaimedInputState<>();

@@ -97,6 +97,7 @@ export GRADLE_USER_HOME="D:/Gradle"
 8. **屏外箭头「最终 2.5px」是上游行为**，不要放大。
 9. **26.3 物品渲染拆两步**：`item(stack,x,y)` 只画模型，必须再调 `itemDecorations(font,stack,x,y)` 才有数量/耐久条。
 10. **不要再依赖 IDEA Local History 恢复**（只存打开过的文件内容）。
+11. **`InputConstants.isKeyDown` 直接按值索引 SDL 扫描码缓冲区**：26.3 里 `isKeyDown(int)` 内部是 `SDL_GetKeyboardState().get(key)`，所以任何 KeyMapping 的默认键**绝不能写 `-1`**（上游 1.21.1 用 `Type.KEYSYM, -1` 是合法的，因为走 GLFW）。未绑定键必须用 `InputConstants.UNKNOWN.getValue()`（=0）。写 `-1` 会在世界加载完成、`KeyMapping.setAll()` 时抛 `IndexOutOfBoundsException` 闪退（2026-10-30 12:17/12:18 两次崩溃的根因）。
 
 ## 8. 团队分工与写入范围
 
