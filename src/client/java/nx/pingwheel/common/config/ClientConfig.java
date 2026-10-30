@@ -531,6 +531,168 @@ public class ClientConfig implements IConfig {
 	public void setSafeZoneBottom(int safeZoneBottom) {
 		this.safeZoneBottom = safeZoneBottom;
 	}
+
+	/**
+	 * Hand-written value semantics (Lombok was removed in the port): the config
+	 * handler compares {@code config.hashCode()} to decide whether a save can be
+	 * skipped, so identity hashing would rewrite the file on every save.
+	 *
+	 * <p>Field order and the value format follow the pre-port generated members
+	 * exactly; {@code channel} is deliberately excluded from {@code toString()}
+	 * (it is per-server connection state, not a user setting) but participates in
+	 * equality, because two configs that differ only in channel are different
+	 * states.
+	 */
+	@Override
+	public String toString() {
+		return "ClientConfig(pingVolume="
+			+ getPingVolume()
+			+ ", pingDistance="
+			+ getPingDistance()
+			+ ", itemIconVisible="
+			+ isItemIconVisible()
+			+ ", directionIndicatorVisible="
+			+ isDirectionIndicatorVisible()
+			+ ", passThroughTransparentBlocks="
+			+ isPassThroughTransparentBlocks()
+			+ ", markBlacklistedTargets="
+			+ isMarkBlacklistedTargets()
+			+ ", markFluids="
+			+ isMarkFluids()
+			+ ", playerInfoMode="
+			+ getPlayerInfoMode()
+			+ ", teamColorMode="
+			+ getTeamColorMode()
+			+ ", entityBlockRenderMode="
+			+ getEntityBlockRenderMode()
+			+ ", pingSize="
+			+ getPingSize()
+			+ ", configurationNoticeSize="
+			+ getConfigurationNoticeSize()
+			+ ", wheelHoldMillis="
+			+ getWheelHoldMillis()
+			+ ", longPressCompatibilityMode="
+			+ isLongPressCompatibilityMode()
+			+ ", longPressCompatibilitySliceMillis="
+			+ getLongPressCompatibilitySliceMillis()
+			+ ", wheelTimeoutMillis="
+			+ getWheelTimeoutMillis()
+			+ ", cancelHalfConeAngleDegrees="
+			+ getCancelHalfConeAngleDegrees()
+			+ ", wheelInnerRadius="
+			+ getWheelInnerRadius()
+			+ ", wheelOuterRadius="
+			+ getWheelOuterRadius()
+			+ ", wheelOpacity="
+			+ getWheelOpacity()
+			+ ", wheelFontSize="
+			+ getWheelFontSize()
+			+ ", wheelTargetFontSize="
+			+ getWheelTargetFontSize()
+			+ ", markerDisplayDuration="
+			+ getMarkerDisplayDuration()
+			+ ", blockDisplayWhitelist="
+			+ getBlockDisplayWhitelist()
+			+ ", blockShapeBlacklist="
+			+ getBlockShapeBlacklist()
+			+ ", raycastDistance="
+			+ getRaycastDistance()
+			+ ", safeZoneLeft="
+			+ getSafeZoneLeft()
+			+ ", safeZoneRight="
+			+ getSafeZoneRight()
+			+ ", safeZoneTop="
+			+ getSafeZoneTop()
+			+ ", safeZoneBottom="
+			+ getSafeZoneBottom()
+			+ ")";
+	}
+
+	protected boolean canEqual(Object other) {
+		return other instanceof ClientConfig;
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (o == this) {
+			return true;
+		}
+
+		if (!(o instanceof ClientConfig other) || !other.canEqual(this)) {
+			return false;
+		}
+
+		return getPingVolume() == other.getPingVolume()
+			&& getPingDistance() == other.getPingDistance()
+			&& isItemIconVisible() == other.isItemIconVisible()
+			&& isDirectionIndicatorVisible() == other.isDirectionIndicatorVisible()
+			&& isPassThroughTransparentBlocks() == other.isPassThroughTransparentBlocks()
+			&& isMarkBlacklistedTargets() == other.isMarkBlacklistedTargets()
+			&& isMarkFluids() == other.isMarkFluids()
+			&& getPingSize() == other.getPingSize()
+			&& getConfigurationNoticeSize() == other.getConfigurationNoticeSize()
+			&& getWheelHoldMillis() == other.getWheelHoldMillis()
+			&& isLongPressCompatibilityMode() == other.isLongPressCompatibilityMode()
+			&& getLongPressCompatibilitySliceMillis() == other.getLongPressCompatibilitySliceMillis()
+			&& getWheelTimeoutMillis() == other.getWheelTimeoutMillis()
+			&& getCancelHalfConeAngleDegrees() == other.getCancelHalfConeAngleDegrees()
+			&& getWheelInnerRadius() == other.getWheelInnerRadius()
+			&& getWheelOuterRadius() == other.getWheelOuterRadius()
+			&& getWheelOpacity() == other.getWheelOpacity()
+			&& getWheelFontSize() == other.getWheelFontSize()
+			&& getWheelTargetFontSize() == other.getWheelTargetFontSize()
+			&& getMarkerDisplayDuration() == other.getMarkerDisplayDuration()
+			&& getRaycastDistance() == other.getRaycastDistance()
+			&& getSafeZoneLeft() == other.getSafeZoneLeft()
+			&& getSafeZoneRight() == other.getSafeZoneRight()
+			&& getSafeZoneTop() == other.getSafeZoneTop()
+			&& getSafeZoneBottom() == other.getSafeZoneBottom()
+			&& java.util.Objects.equals(getPlayerInfoMode(), other.getPlayerInfoMode())
+			&& java.util.Objects.equals(getTeamColorMode(), other.getTeamColorMode())
+			&& java.util.Objects.equals(getEntityBlockRenderMode(), other.getEntityBlockRenderMode())
+			&& java.util.Objects.equals(getBlockDisplayWhitelist(), other.getBlockDisplayWhitelist())
+			&& java.util.Objects.equals(getBlockShapeBlacklist(), other.getBlockShapeBlacklist())
+			&& java.util.Objects.equals(getChannel(), other.getChannel())
+			&& java.util.Objects.equals(getServerChannels(), other.getServerChannels());
+	}
+
+	@Override
+	public int hashCode() {
+		int result = 1;
+		result = result * 59 + getPingVolume();
+		result = result * 59 + getPingDistance();
+		result = result * 59 + (isItemIconVisible() ? 79 : 97);
+		result = result * 59 + (isDirectionIndicatorVisible() ? 79 : 97);
+		result = result * 59 + (isPassThroughTransparentBlocks() ? 79 : 97);
+		result = result * 59 + (isMarkBlacklistedTargets() ? 79 : 97);
+		result = result * 59 + (isMarkFluids() ? 79 : 97);
+		result = result * 59 + getPingSize();
+		result = result * 59 + getConfigurationNoticeSize();
+		result = result * 59 + getWheelHoldMillis();
+		result = result * 59 + (isLongPressCompatibilityMode() ? 79 : 97);
+		result = result * 59 + getLongPressCompatibilitySliceMillis();
+		result = result * 59 + getWheelTimeoutMillis();
+		result = result * 59 + getCancelHalfConeAngleDegrees();
+		result = result * 59 + getWheelInnerRadius();
+		result = result * 59 + getWheelOuterRadius();
+		result = result * 59 + getWheelOpacity();
+		result = result * 59 + getWheelFontSize();
+		result = result * 59 + getWheelTargetFontSize();
+		result = result * 59 + getMarkerDisplayDuration();
+		result = result * 59 + getRaycastDistance();
+		result = result * 59 + getSafeZoneLeft();
+		result = result * 59 + getSafeZoneRight();
+		result = result * 59 + getSafeZoneTop();
+		result = result * 59 + getSafeZoneBottom();
+		result = result * 59 + java.util.Objects.hashCode(getPlayerInfoMode());
+		result = result * 59 + java.util.Objects.hashCode(getTeamColorMode());
+		result = result * 59 + java.util.Objects.hashCode(getEntityBlockRenderMode());
+		result = result * 59 + java.util.Objects.hashCode(getBlockDisplayWhitelist());
+		result = result * 59 + java.util.Objects.hashCode(getBlockShapeBlacklist());
+		result = result * 59 + java.util.Objects.hashCode(getChannel());
+		return result;
+	}
+
 }
 
 @FunctionalInterface

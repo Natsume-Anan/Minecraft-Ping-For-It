@@ -3,54 +3,83 @@ package nx.pingwheel.common.client.outline;
 import java.util.List;
 import java.util.Objects;
 
+import net.minecraft.world.level.block.RenderShape;
+import net.minecraft.world.level.block.state.BlockState;
+
 /**
- * Minimal M3b placeholder for the compiled block-display policy.
+ * The compiled block-display (glow) policy: a whitelist and a shape blacklist
+ * of {@link BlockDisplayWhitelist} entries, plus the per-target-type routing
+ * decision.
  *
- * <p>The upstream implementation resolves whitelist entries against the block
- * registry and caches per-{@code BlockState} render decisions. That whole
- * pipeline lives in {@code deferred/client/outline/} until M7 (rendering /
- * outline rebuild), so this class only keeps the API shape that
- * {@code ClientConfig} needs.
- *
- * <p>TODO(M7): restore the real policy from
- * {@code deferred/client/outline/BlockDisplayPolicy.java}. The policy is a
- * transient, non-serialized cache, so replacing this placeholder does not
- * change the persisted JSON shape.
+ * <p>Restored from the 10/26 build (decompiled): the M3b placeholder only kept
+ * the source entries, so the native-glow routing decision had silently
+ * disappeared. Whitelist/blacklist evaluation is pure and headless-safe: it
+ * resolves block registry ids and {@code Block} tag keys only, never optional
+ * mod classes.
  */
 public final class BlockDisplayPolicy {
 
-	private static final BlockDisplayPolicy DEFAULT = new BlockDisplayPolicy(List.of("*:*"), List.of());
+	private final BlockDisplayWhitelist whitelist;
+	private final BlockDisplayWhitelist blacklist;
 
-	private final List<String> whitelist;
-	private final List<String> blacklist;
+	private BlockDisplayPolicy(BlockDisplayWhitelist whitelist, BlockDisplayWhitelist blacklist) {
+		this.whitelist = Objects.requireNonNull(whitelist, "whitelist");
+		this.blacklist = Objects.requireNonNull(blacklist, "blacklist");
+	}
 
-	private BlockDisplayPolicy(List<String> whitelist, List<String> blacklist) {
-		this.whitelist = whitelist;
-		this.blacklist = blacklist;
+	public static BlockDisplayPolicy compile(List<String> whitelistEntries, List<String> blacklistEntries) {
+		BlockDisplayWhitelist.validateEntries(whitelistEntries, "blockDisplayWhitelist");
+		BlockDisplayWhitelist.validateEntries(blacklistEntries, "blockShapeBlacklist");
+
+		return new BlockDisplayPolicy(
+			new BlockDisplayWhitelist(whitelistEntries),
+			new BlockDisplayWhitelist(blacklistEntries));
 	}
 
 	public static BlockDisplayPolicy defaults() {
-		return DEFAULT;
+		return compile(BlockDisplayWhitelist.DEFAULT_ENTRIES, List.of());
 	}
 
-	/**
-	 * TODO(M7): return a policy that actually resolves registry ids, tags and
-	 * block shapes. Until then the compiled form only retains the source
-	 * entries so diagnostics and callers keep working.
-	 */
-	public static BlockDisplayPolicy compile(List<String> whitelist, List<String> blacklist) {
-		return new BlockDisplayPolicy(
-			List.copyOf(Objects.requireNonNullElse(whitelist, List.of())),
-			List.copyOf(Objects.requireNonNullElse(blacklist, List.of())));
+	public List<String> whitelistEntries() {
+		return this.whitelist.entries();
 	}
 
-	/** The whitelist entries this policy was compiled from. */
-	public List<String> whitelist() {
-		return whitelist;
+	public List<String> blacklistEntries() {
+		return this.blacklist.entries();
 	}
 
-	/** The shape-blacklist entries this policy was compiled from. */
-	public List<String> blacklist() {
-		return blacklist;
+	public boolean shouldUseNativeGlow(String targetTypeId, BlockState state) {
+		Objects.requireNonNull(targetTypeId, "targetTypeId");
+		Objects.requireNonNull(state, "state");
+
+		boolean whitelistMatches = switch (targetTypeId) {
+			case "block" -> this.whitelist.matchesOrdinaryBlock(state, BlockTagLookup.minecraft());
+			case "entity_block" -> this.whitelist.matchesEntityBlock(state, BlockTagLookup.minecraft());
+			default -> false;
+		};
+
+		return whitelistMatches && !this.blacklist.matches(state, BlockTagLookup.minecraft());
+	}
+
+	public boolean shouldUseNativeGlow(
+		String targetTypeId,
+		net.minecraft.resources.Identifier blockKey,
+		boolean hasBlockEntity,
+		RenderShape renderShape,
+		BlockTagLookup tagLookup
+	) {
+		Objects.requireNonNull(targetTypeId, "targetTypeId");
+		Objects.requireNonNull(renderShape, "renderShape");
+		Objects.requireNonNull(tagLookup, "tagLookup");
+
+		boolean whitelistMatches = switch (targetTypeId) {
+			case "block" -> !hasBlockEntity
+				&& renderShape == RenderShape.MODEL
+				&& this.whitelist.matches(blockKey, tagLookup);
+			case "entity_block" -> hasBlockEntity && this.whitelist.matches(blockKey, tagLookup);
+			default -> false;
+		};
+
+		return whitelistMatches && !this.blacklist.matches(blockKey, tagLookup);
 	}
 }
