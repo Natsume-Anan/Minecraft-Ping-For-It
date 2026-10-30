@@ -1,10 +1,9 @@
-# Automatically build the project and run any configured tests for every push
-# and submitted pull request. This can help catch issues that only occur on
-# certain platforms or Java versions, and provides a first line of defence
-# against bad commits.
-
+# Ping For It (MC 26.3 / Fabric) — build and upload the shippable jar
 name: build
-on: [pull_request, push]
+
+on:
+  push:
+  pull_request:
 
 jobs:
   build:
@@ -12,19 +11,25 @@ jobs:
     steps:
       - name: checkout repository
         uses: actions/checkout@v6
+
       - name: validate gradle wrapper
         uses: gradle/actions/wrapper-validation@v6
-      - name: setup jdk
+
+      - name: setup jdk 25
         uses: actions/setup-java@v5
         with:
           java-version: '25'
           distribution: 'microsoft'
+
       - name: make gradle wrapper executable
         run: chmod +x ./gradlew
+
       - name: build
         run: ./gradlew build
-      - name: capture build artifacts
+
+      - name: upload artifacts
         uses: actions/upload-artifact@v7
         with:
-          name: Artifacts
-          path: build/libs/
+          name: Ping-For-It
+          path: build/libs/Ping-For-It-*.jar
+          if-no-files-found: error

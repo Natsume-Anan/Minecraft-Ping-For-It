@@ -2,38 +2,43 @@
 
 > 团队唯一事实来源：现状、目录、构建、已验证结论、已知坑、待办。
 > 配套文档：[docs/PORTING-PLAN.md](docs/PORTING-PLAN.md)｜[docs/PORTING-PROGRESS.md](docs/PORTING-PROGRESS.md)｜[docs/FEATURES.md](docs/FEATURES.md)
-> 维护者：Lead｜**最后更新：2026-10-29（数据事故后重建中）**
+> 维护者：Lead｜**最后更新：2026-10-30（事故已恢复，tag `restore-2026-10-29`）**
 
-## 0. 2026-10-29 23:07 数据事故（先读）
+## 0. 2026-10-29 数据事故与恢复（先读）
 
-工程目录被外部操作清空，IDEA Local History 回滚只恢复了空壳（文件 0 字节），`.git` 丢失。当前状态：
+**已恢复（2026-10-30）**：工程目录曾被外部操作清空、`.git` 丢失、IDEA Local History 只回了空壳。重建后基线为 tag **`restore-2026-10-29`**（提交 `bca73e0`，事故记录 `87bceb2`）。
 
-- 源码：从**会话日志**恢复 90 个 java（含 M6.5 的 `MarkerHudRenderer`/`MarkerLabelRenderer`）+ 从**上游 tarball** 重建其余部分（进行中）。
-- 上游源码：已从 `C:\Users\65653\Downloads\Minecraft-Ping-For-It-0.4.2-pfi-beta1.tar.gz` 解压到 `Mod_Project/`，**617 文件 / 513 java，完好**。
-- 依赖 jar：`.gradle/` 被删，但 `D:\Gradle\caches\fabric-loom\26.3\` 下的 MC jar 与 `D:\Gradle\caches\modules-2` 下的 Fabric jar 都还在。
-- git 历史（`pre-port`/`port-M2`/`port-M3`/`port-M4`/`port-M6.5` 全部 tag）丢失，恢复后重建仓库并补记。
-- **不要再依赖 IDEA Local History 做恢复**；它对工具写入的文件只存元数据、不存内容。
+| 项 | 恢复后状态 |
+|---|---|
+| 规模 | `src/main` **162** java + `src/client` **55** java + `deferred/` **96** java（事故前为 165/54/92，差异与保真度见 `docs/reviews/14-restore-verification.md`、`15-restore-baseline-audit.md`） |
+| 编译 | `tools/compile-check` **0 error / 0 error**（两源集）；用户终端 `gradlew clean build` **通过**（2026-10-30 12:07） |
+| 产物 | `build/libs/Ping-For-It-0.4.2-pfi-beta1-fabric-26.3.jar`：**649 KB / 345 class / major 69 / `id=pingforit` / `version=0.4.2-pfi-beta1`** |
+| 依赖 | `.gradle/` 已重建；`D:\Gradle\caches` 里的 MC 26.3 与 Fabric API jar 未受影响 |
+| git 历史 | 原 tag（`pre-port`/`port-M2`/`port-M3`/`port-M4`/`port-M6.5`）随 `.git` 丢失；**语义保留在 `docs/PORTING-PROGRESS.md` 的阶段记录里**，恢复基线以 `restore-2026-10-29` 起算 |
+| 上游源码 | `Mod_Project/Minecraft-Ping-For-It-0.4.2-pfi-beta1`（从 Downloads 的 tar.gz 重新解压，617 文件 / 513 java 完好） |
+
+> 教训：**不要再依赖 IDEA Local History 做恢复**——它对工具写入的文件只存元数据、不存内容。
 
 ## 1. 定位与现状
 
 - 上游 **Ping For It `0.4.2-pfi-beta1`** 的 **MC 26.3 + Fabric 单端**移植（决策 D1，只保留 Fabric 端）。
 - 身份：`mod id = pingforit`、`rootProject.name = pingforit`、Java 包 **`nx.pingwheel`**（D3）、maven group `isharmla.mod`。
 - 版本：`0.4.2-pfi-beta1`，**必须符合 `x.x.x-pfi-qualifier`**（`config/PingForItVersion.java` 的正则）。
-- 目标规模：`src/main` 165 java + `src/client` 54 java + `deferred/` 92 java（不参与编译）。
-- 进度：**M0–M6.5 已完成**（tag 已丢失，见 §0），**M5、M7+ 未开始**。
+- 规模（恢复后实测）：`src/main` **162** java + `src/client` **55** java + `deferred/` **96** java（不参与编译）。
+- 进度：**M0–M6.5 已完成**；原 tag 随 `.git` 丢失，语义见 `docs/PORTING-PROGRESS.md`，恢复基线 tag `restore-2026-10-29`。**M5、M7+ 未开始**。
 
 ## 2. 目录职责
 
 ```
 build.gradle / settings.gradle / gradle.properties   构建入口（id/version 唯一来源）
 gradle/wrapper/                                      固定 Gradle 9.8.2
-src/main/java/            165 java  双端共用业务层（marker/core/network/config/domain/math/…）
+src/main/java/            162 java  双端共用业务层（marker/core/network/config/domain/math/…）
 src/main/resources/             assets/pingforit（lang、音效、贴图）、icon.png
 src/main/templates/fabric.mod.json  元数据模板（构建时生成到 build/generated/modMetadata）
-src/client/java/           54 java  仅客户端：HUD、输入、命令、平台适配、客户端 mixin
+src/client/java/           55 java  仅客户端：HUD、输入、命令、平台适配、客户端 mixin
 src/client/resources/            pingforit.mixins.json（JAVA_25，client 列表）
-deferred/                  92 java  26.3 无对应原语的渲染/UI 子系统，不参与编译，M7 取回
-tools/compile-check.sh|.ps1       本地 javac 两源集校验，不启动 Gradle（重建中）
+deferred/                  96 java  26.3 无对应原语的渲染/UI 子系统，不参与编译，M7 取回
+tools/compile-check.sh|.ps1       本地 javac 两源集校验（已重建），不启动 Gradle
 docs/                             PLAN / PROGRESS / FEATURES / reviews / TEAM.md
 Mod_Project/                      上游源码（已重新解压，**.gitignore 排除**）
 run/ build/ .gradle/ .idea/       运行与构建产物（gitignore）
@@ -69,16 +74,16 @@ export GRADLE_USER_HOME="D:/Gradle"
 | Loom | `1.19.3`（no-remap 插件） |
 | Gradle | `9.8.2` |
 
-## 6. 已验证结论（事故前）
+## 6. 已验证结论
 
 | 验证点 | 证据 |
 | --- | --- |
-| 构建通过 | `Ping-For-It-0.4.2-pfi-beta1-fabric-26.3.jar`，346 class / major 69 / `id=pingforit` |
+| 构建通过（事故前） | `Ping-For-It-0.4.2-pfi-beta1-fabric-26.3.jar`，346 class / major 69 / `id=pingforit` |
 | 启动不卡加载条 | 20:11:23 启动 → 20:11:34 `Sound engine started` + 12 atlas |
 | 进世界 + 闭环 | 22 对 `send ping` / `marker created` 1:1 |
 | M6 轮盘 | 3 次 select → send → marker，pingType 三方 3/3 一致 |
 | M6.5 HUD | 菱形/物品图标+装饰/三段文本+头颅/2.5px 箭头，与上游逐项对齐；`compile-check` main 264 class / client 85 class，0 error |
-| 事故后 | 源码重建中，未重新验证 |
+| **恢复后（2026-10-30）** | `compile-check` 两源集 **0 error**；`gradlew clean build` **通过**（12:07）；jar **649 KB / 345 class / major 69 / id=pingforit**；CI workflow 已改为本项目的 `./gradlew build` + 上传 `Ping-For-It-*.jar` |
 
 ## 7. 已知坑与约束
 
@@ -109,7 +114,7 @@ export GRADLE_USER_HOME="D:/Gradle"
 
 | 阶段 | 待办 | 状态 |
 | --- | --- | --- |
-| 事故恢复 | 源码重建（2号）、compile-check 重建（4号）、文档重写（1号）、git 重建 | 🔄 进行中 |
+| 事故恢复 | 源码重建、compile-check 重建、文档重写、git 重建 | ✅ 完成（2026-10-30，tag `restore-2026-10-29`） |
 | M5 | 服务端权威完善（受众/赢家/限流/移除/过期） | ⬜ |
 | M7 | 渲染重建：`deferred/` 描边/世界渲染按 26.3 管线重写 | ⬜（最大风险，预研见 `docs/reviews/12-m7-feasibility.md`） |
 | M8 | 配置/命令/UI + 资源重载迁 v1 | ⬜ |

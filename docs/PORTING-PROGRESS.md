@@ -14,11 +14,12 @@
 | M4 | MVP 闭环（无描边） | ✅ **完成**：冒烟 22/22 配对、HUD 0 失败、正常退出；tag `port-M4`（annotated `5cb059c` → `a6cef45`） | 2026-10-29 | tag `port-M4` |
 | M5 | 服务端权威完善 | ⬜ 待办 | — | — |
 | M6 | 轮盘与 7 类型 | ✅ 完成（评审 `08-m6-review.md`） | 2026-10-29 | — |
-| M6.5 | 标记 HUD 上游对齐 | ✅ 完成（`d6015d7`，tag `port-M6.5`） | 2026-10-29 | tag `port-M6.5`（`78c944a`） |
+| M6.5 | 标记 HUD 上游对齐 | ✅ 完成（`d6015d7`；原 tag `port-M6.5` 随 `.git` 丢失，语义保留在该提交说明里） | 2026-10-29 | ~~tag `port-M6.5`（`78c944a`）~~（已丢失，见 §事故恢复） |
 | M7 | 渲染重建 | ⬜ 待办 | — | — |
 | M8 | 配置 / 命令 / UI | ⬜ 待办（含**资源重载 API 迁移**，消除 deprecation note） | — | — |
 | M9 | 可选集成 | ⬜ 待办 | — | — |
 | M10 | 验证与发布 | ⬜ 待办（**含合规：LICENSE 换 MIT + THIRD-PARTY-NOTICES**） | — | — |
+| 事故恢复 | 目录重建 + 重新验证 | ✅ 完成 | 2026-10-30 | tag `restore-2026-10-29` |
 
 > **合规待办（M10 处理，非 M3 缺陷）**：已实测 jar 内 `LICENSE_pingforit` 内容是工程自带的 **CC0 1.0** 模板，而上游 Ping For It 为 **MIT** → M10 需替换为上游 MIT 全文，并补 `THIRD-PARTY-NOTICES`（上游仓库已有 `THIRD-PARTY-NOTICES.md` 可作底本）。
 
