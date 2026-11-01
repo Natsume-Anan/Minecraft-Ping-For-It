@@ -8,6 +8,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.LongStream;
 
 import nx.pingwheel.common.config.ByteMultiplier;
 import nx.pingwheel.common.config.IntLimit;
@@ -30,6 +31,7 @@ import nx.pingwheel.common.presentation.source.SyncPublisher;
 import nx.pingwheel.common.presentation.inventory.minecraft.InventoryItemBudget;
 import org.junit.jupiter.api.Test;
 import org.jetbrains.annotations.Nullable;
+import org.jetbrains.annotations.Unmodifiable;
 import static org.junit.jupiter.api.Assertions.*;
 
 /** Production producer seams; typed diagnostics only, with no Minecraft startup. */
@@ -292,34 +294,45 @@ class InventoryBudgetDelayIntegrationTest {
 		}
 	}
 	@Test void backendUsesServerTicksAcrossAccountingPeriodsAndIngressCannotAccelerateNotice() {
+		long origin = 0, thresholdAt = origin + BudgetDelayMonitor.notificationThresholdTicks();
+		long beforeThresholdAt = thresholdAt - 1;
+		int periodTicks = 10;
+		long thresholdPeriod = (thresholdAt - origin) / periodTicks;
+		long closedAt = origin + (thresholdPeriod + 1) * periodTicks;
+		// Only observed periods can close a delayed buffer; skipped periods emit no WARN.
+		@Unmodifiable List<Long> observedPeriods = LongStream.of(origin, origin + 1, beforeThresholdAt, thresholdAt)
+			.map(at -> (at - origin) / periodTicks).distinct().boxed().toList();
 		var notices = new ArrayList<Set<Module>>(); var warnings = new ArrayList<BudgetDelayMonitor.CycleSummary>();
 		var monitor = new BudgetDelayMonitor(warnings::add, modules -> { notices.add(Set.copyOf(modules)); return true; });
-		var sink = new RecordingSink(monitor); var host = new InventoryBackendTest.Host(); var settings = explicitSettings(10, 10);
-		// A forty-slot sweep under one physical visit per tick stays resource-delayed
-		// across period rollovers instead of a refilled logical quota resolving it.
+		var sink = new RecordingSink(monitor); var host = new InventoryBackendTest.Host(); var settings = explicitSettings(periodTicks, periodTicks);
+		// The sweep outlasts the four observed ticks under one physical visit per tick;
+		// jumping across periods is not equivalent to scanning on every elapsed tick.
 		settings.setPhysicalSlotsPerTick(IntLimit.finite(1)); var reads = new AtomicInteger();
 		var runtime = runtime((input, cap) -> Optional.of(new InventoryRuntimeTest.Source(input, reads, 40)), settings, sink);
 		try (var backend = new InventoryBackend(host, runtime, 1, sink)) {
-			helloOpen(backend, host, settings); monitor.finishTick(0, true);
-			backend.tick(1, settings); monitor.finishTick(1, true);
+			helloOpen(backend, host, settings); monitor.finishTick(origin, true);
+			backend.tick(origin + 1, settings); monitor.finishTick(origin + 1, true);
 			var refusal = sink.events.stream().filter(event -> event.hasReason(Reason.PHYSICAL_SLOTS)).findFirst().orElseThrow();
-			assertEquals(0, refusal.serverTick()); assertEquals(0, refusal.cycleId());
+			assertEquals(origin, refusal.serverTick()); assertEquals(0, refusal.cycleId());
 			for (int repeat = 0; repeat < 30; repeat++) {
-				backend.handle(InventoryBackendTest.A, null, 1, settings); backend.tick(1, settings); monitor.finishTick(1, true);
+				backend.handle(InventoryBackendTest.A, null, origin + 1, settings); backend.tick(origin + 1, settings); monitor.finishTick(origin + 1, true);
 			}
 			assertTrue(notices.isEmpty());
 			assertEquals(2, reads.get(), "same-tick ingress does not refund the spent physical allowance");
-			backend.tick(19, settings); monitor.finishTick(19, true); assertTrue(notices.isEmpty());
-			monitor.finishTick(20, true); assertTrue(notices.isEmpty(), "late flush cannot age consumed evidence");
-			backend.tick(20, settings); monitor.finishTick(20, true);
+			backend.tick(beforeThresholdAt, settings); monitor.finishTick(beforeThresholdAt, true); assertTrue(notices.isEmpty());
+			monitor.finishTick(thresholdAt, true); assertTrue(notices.isEmpty(), "late flush cannot age consumed evidence");
+			backend.tick(thresholdAt, settings); monitor.finishTick(thresholdAt, true);
 			assertEquals(List.of(Set.of(Module.INVENTORY_PREVIEW)), notices);
-			assertEquals(2, runtime.previewPeriodId(), "twenty elapsed ticks span only two accounting periods");
-			assertEquals(20, sink.states.get(sink.states.size() - 2).serverTick());
+			assertEquals(thresholdPeriod, runtime.previewPeriodId(), "accounting periods follow the explicit cadence, not notice qualification");
+			assertEquals(thresholdAt, sink.states.get(sink.states.size() - 2).serverTick());
 			assertEquals(4, reads.get(), "only the four distinct observed ticks admit physical visits");
-			assertEquals(2, warnings.size(), "WARN follows real cycle closures independently of the notice streak");
-			backend.tick(30, settings); monitor.finishTick(30, true);
-			assertEquals(3, warnings.size()); assertEquals(0, warnings.getFirst().cycleId());
-			assertEquals(19, sink.ends.getFirst().serverTick());
+			assertEquals(observedPeriods.subList(0, observedPeriods.size() - 1), warnings.stream().map(BudgetDelayMonitor.CycleSummary::cycleId).toList(),
+				"WARN follows real cycle closures independently of the notice streak");
+			backend.tick(closedAt, settings); monitor.finishTick(closedAt, true);
+			assertEquals(observedPeriods, warnings.stream().map(BudgetDelayMonitor.CycleSummary::cycleId).toList());
+			assertEquals(beforeThresholdAt, sink.ends.getFirst().serverTick());
+			assertEquals(1, sink.ends.stream().filter(call -> call.module() == Module.INVENTORY_PREVIEW
+				&& call.cycleId() == thresholdPeriod && call.serverTick() == closedAt).count());
 		}
 	}
 	@Test void invalidityRemovesOutstandingPreviewDelayBeforeCycleClose() {
@@ -347,20 +360,6 @@ class InventoryBudgetDelayIntegrationTest {
 			backend.tick(7, settings); int beforeExpiry = reads.get(); backend.tick(8, settings); backend.tick(9, settings);
 			assertNotEquals(DelayState.DELAYED, sink.lastState(Module.INVENTORY_TRACKING, cycle)); assertEquals(beforeExpiry, reads.get());
 			backend.tick(10, settings); assertEquals(1, sink.endCount(Module.INVENTORY_TRACKING, cycle));
-		}
-	}
-	@Test void requestScopedResyncRepairsWithoutRecaptureExtraOfferOrDelayClaim() {
-		var sink = new RecordingSink(); var host = new InventoryBackendTest.Host(); var settings = explicitSettings(10, 10); var reads = new AtomicInteger();
-		var runtime = runtime((input, cap) -> Optional.of(new InventoryRuntimeTest.Source(input, reads, 1)), settings, sink);
-		try (var backend = new InventoryBackend(host, runtime, 1, sink)) {
-			helloOpen(backend, host, settings); assertEquals(1, reads.get());
-			long offers = host.packets.stream().filter(packet -> packet.kind() == InventoryS2CPacket.Kind.OFFER).count();
-			var before = host.packets.stream().filter(packet -> packet.kind() == InventoryS2CPacket.Kind.PREVIEW && !packet.entries().isEmpty()).reduce((a, b) -> b).orElseThrow();
-			backend.handle(InventoryBackendTest.A, InventoryC2SPacket.resync(host.epoch(InventoryBackendTest.A), 1).stamp(100, 1), 1, settings); backend.tick(1, settings);
-			var repaired = host.packets.stream().filter(packet -> packet.kind() == InventoryS2CPacket.Kind.PREVIEW && !packet.entries().isEmpty()).reduce((a, b) -> b).orElseThrow();
-			assertEquals(before.baselineId(), repaired.baselineId()); assertTrue(repaired.watermark() > before.watermark());
-			assertEquals(offers, host.packets.stream().filter(packet -> packet.kind() == InventoryS2CPacket.Kind.OFFER).count()); assertEquals(1, reads.get()); assertTrue(sink.events.isEmpty());
-			int settled = host.packets.size(); backend.tick(2, settings); assertEquals(settled, host.packets.size());
 		}
 	}
 	@Test void negotiationControlsAndTransportOnlyFailuresAreNeverBudgetDelays() {
@@ -594,7 +593,7 @@ class InventoryBudgetDelayIntegrationTest {
 			assertEquals(1, reasonEventCount(sink, Module.INVENTORY_TRACKING, Reason.PUBLICATION_WORK));
 		}
 	}
-	@Test void deliveredPreviewSkipsDuplicateEncodingButRepairStillReportsItsNewRevisionAndChecksValidity() {
+	@Test void deliveredPreviewSkipsDuplicateEncodingUnderMemoryPressureAndStillChecksValidity() {
 		var sink = new RecordingSink(); var host = new InventoryBackendTest.Host(); var settings = explicitSettings(10, 10);
 		settings.setDisplayByteMultiplier(BigDecimal.valueOf(2));
 		settings.getPreview().setMaxVariantsPerClientPeriod(IntLimit.finite(256));
@@ -613,9 +612,12 @@ class InventoryBudgetDelayIntegrationTest {
 			helloOpen(backend, host, settings);
 			for (int now = 1; now <= 8; now++) backend.tick(now, settings);
 			assertEquals(160, reads.get());
-			var complete = host.packets.stream().filter(packet -> packet.kind() == InventoryS2CPacket.Kind.PREVIEW && packet.completeScan()).reduce((a, b) -> b).orElseThrow();
+			assertTrue(host.packets.stream().anyMatch(packet -> packet.kind() == InventoryS2CPacket.Kind.PREVIEW && packet.completeScan()));
 			assertEquals(160, host.packets.stream().flatMap(packet -> packet.entries().stream()).map(InventoryS2CPacket.Entry::key).distinct().count());
-			assertTrue(sink.events.isEmpty());
+			// Each frame now admits its own final source validation. A wide cut can
+			// legitimately record provider delay before delivery, under unchanged caps.
+			assertFalse(runtime.delayed(Module.INVENTORY_PREVIEW));
+			int deliveredEvents = sink.events.size();
 			// Enough for the actual authority workspace, less than cumulative
 			// domain encoding (160 independently serviceable 8 KiB displays).
 			long headroom = InventoryItemBudget.workspaceUpperBound((int) settings.effectiveDisplayBytes()) + 1024 * 1024;
@@ -624,17 +626,10 @@ class InventoryBudgetDelayIntegrationTest {
 				int frames = host.packets.size(), checked = validations.get();
 				backend.tick(9, settings); backend.tick(10, settings);
 				assertEquals(frames, host.packets.size()); assertEquals(160, reads.get()); assertTrue(validations.get() > checked);
-				assertTrue(sink.events.isEmpty(), "no observed delay means no delayed-cycle WARN input");
+				assertEquals(deliveredEvents, sink.events.size(), "an already delivered cut must not add encoding or final-validation delays");
 				assertNotEquals(DelayState.DELAYED, sink.lastState(Module.INVENTORY_PREVIEW, runtime.previewPeriodId()));
-				backend.handle(InventoryBackendTest.A, InventoryC2SPacket.resync(host.epoch(InventoryBackendTest.A), 1).stamp(100, 1), 11, settings);
-				backend.tick(11, settings);
-				assertTrue(sink.sawReason(Module.INVENTORY_PREVIEW, Reason.MEMORY));
-				assertEquals(DelayState.DELAYED, sink.lastState(Module.INVENTORY_PREVIEW, runtime.previewPeriodId()));
-				assertEquals(160, reads.get());
 			} finally { pressure.close(); }
-			backend.tick(12, settings);
-			var replay = host.packets.stream().filter(packet -> packet.kind() == InventoryS2CPacket.Kind.PREVIEW && !packet.entries().isEmpty()).reduce((a, b) -> b).orElseThrow();
-			assertTrue(replay.watermark() > complete.watermark()); assertEquals(complete.baselineId(), replay.baselineId());
+			int frames = host.packets.size(); backend.tick(12, settings); assertEquals(frames, host.packets.size());
 			assertNotEquals(DelayState.DELAYED, sink.lastState(Module.INVENTORY_PREVIEW, runtime.previewPeriodId())); assertEquals(160, reads.get());
 			sourceValidity[0] = false; backend.tick(13, settings);
 			assertEquals(InventoryS2CPacket.Status.INVALID, host.packets.getLast().status()); assertEquals(160, reads.get());

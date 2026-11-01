@@ -15,7 +15,10 @@ class InventoryConfigValuesTest {
 	@ParameterizedTest
 	@EnumSource(Field.class)
 	void eachLeafMergePreservesEveryUnselectedCurrentValue(Field selected) {
-		var current = InventoryConfigValues.defaults();
+		// Leave room for either size leaf's replacement without changing its unselected partner.
+		var current = InventoryConfigValues.defaults()
+			.with(Field.DISPLAY_BYTE_MULTIPLIER, new Value(false, new BigDecimal("2")))
+			.with(Field.FRAME_BYTE_MULTIPLIER, new Value(false, new BigDecimal("2")));
 		var replacement = current;
 		for (Field field : Field.values()) replacement = replacement.with(field, different(current, field));
 		var snapshot = new ServerConfigSnapshot(true, ChannelMode.AUTO, true, 1000, 5, 23, current);
@@ -93,7 +96,9 @@ class InventoryConfigValuesTest {
 		var applied = ServerConfigUpdateService.apply(true, snapshot, update).snapshot();
 		assertEquals(Value.limit(true, 513), applied.inventory().value(Field.PREVIEW_MAX_SLOTS_SERVER));
 		assertEquals(Value.limit(true, 65), applied.inventory().value(Field.PENDING_MEMORY_MIB));
-		assertEquals(4294967296L, applied.inventory().toSettings().pendingMemoryBytes());
+		assertEquals(InventoryLimits.INTERNAL_PENDING_MEMORY_MIB_GUARD * 1024L * 1024L,
+			applied.inventory().toSettings().pendingMemoryBytes(),
+			"unlimited pending memory uses the finite internal guard instead of the retained 65 MiB");
 		assertEquals(Value.scalar(7), applied.inventory().value(Field.PREVIEW_PERIOD_TICKS));
 		assertEquals(9, applied.rateLimit());
 	}
@@ -117,24 +122,27 @@ class InventoryConfigValuesTest {
 	}
 
 	@Test
-	void maskIsExactlyTwentyOneNewLeavesAndFiveOriginalFields() {
+	void masksPreserveLegacyLeavesAndMonitoringWhileAppendingIndependentBooleanBits() {
 		int mask = 0;
 		for (Field field : Field.values()) {
 			assertEquals(0, mask & field.mask());
 			mask |= field.mask();
 		}
-		assertEquals(21, Field.values().length);
-		assertEquals(((1 << 26) - 1) & ~31, mask);
-		assertEquals((1 << 27) - 1, ServerConfigUpdate.ALL_FIELDS);
+		assertEquals(23, Field.values().length);
+		assertEquals((((1 << 26) - 1) & ~31) | (1 << 27) | (1 << 28), mask);
+		assertEquals((1 << 29) - 1, ServerConfigUpdate.ALL_FIELDS);
+		for (Field field : Field.values()) {
+			if (!field.isBoolean()) assertEquals(1 << (field.ordinal() + 5), field.mask());
+		}
+		assertEquals(1 << 26, ServerConfigUpdate.BUDGET_DELAY_NOTIFICATIONS_ENABLED);
+		assertEquals(1 << 27, Field.TRACKING_DISTINGUISH_FACES.mask());
+		assertEquals(1 << 28, Field.TRACKING_DISTINGUISH_PLAYERS.mask());
 		assertEquals(Field.DISPLAY_BYTE_MULTIPLIER.mask(), ServerConfigUpdate.INVENTORY_DISPLAY_BYTE_MULTIPLIER);
 		assertEquals(Field.FRAME_BYTE_MULTIPLIER.mask(), ServerConfigUpdate.INVENTORY_FRAME_BYTE_MULTIPLIER);
 	}
 
 	@Test
 	void sizeScaleLeavesAreFiniteExactScalarsAndUnlimitedIsRejected() {
-		var defaults = InventoryConfigValues.defaults();
-		assertEquals(new Value(false, BigDecimal.ONE), defaults.value(Field.DISPLAY_BYTE_MULTIPLIER));
-		assertEquals(new Value(false, BigDecimal.ONE), defaults.value(Field.FRAME_BYTE_MULTIPLIER));
 		assertFalse(Field.DISPLAY_BYTE_MULTIPLIER.supportsUnlimited());
 		assertFalse(Field.FRAME_BYTE_MULTIPLIER.supportsUnlimited());
 		assertFalse(Field.DISPLAY_BYTE_MULTIPLIER.isSafe(new Value(true, BigDecimal.ONE)));
@@ -149,12 +157,21 @@ class InventoryConfigValuesTest {
 
 	@Test
 	void pairCompatibilityRequiresBothLeavesAndTheFrameMetadataReserve() {
-		assertTrue(InventoryConfigValues.defaults().isSizePairCompatible());
-		var largeDisplay = InventoryConfigValues.defaults()
-			.with(Field.DISPLAY_BYTE_MULTIPLIER, new Value(false, new BigDecimal("32")));
-		assertFalse(largeDisplay.isSizePairCompatible());
-		assertTrue(largeDisplay.with(Field.FRAME_BYTE_MULTIPLIER, new Value(false, new BigDecimal("4.25")))
-			.isSizePairCompatible());
+		var legalPair = InventoryConfigValues.defaults()
+			.with(Field.DISPLAY_BYTE_MULTIPLIER, new Value(false, new BigDecimal("2")))
+			.with(Field.FRAME_BYTE_MULTIPLIER, new Value(false, new BigDecimal("4.25")));
+		assertTrue(legalPair.isSizePairCompatible());
+		assertFalse(legalPair.with(Field.DISPLAY_BYTE_MULTIPLIER, null).isSizePairCompatible());
+		assertFalse(legalPair.with(Field.FRAME_BYTE_MULTIPLIER, null).isSizePairCompatible());
+
+		// A 32x display budget is 128 KiB; the 2 KiB metadata reserve does not fit
+		// in a 4x (128 KiB) frame, while the next quarter-multiplier step does.
+		var largestDisplay = legalPair
+			.with(Field.DISPLAY_BYTE_MULTIPLIER, new Value(false, new BigDecimal("32")))
+			.with(Field.FRAME_BYTE_MULTIPLIER, new Value(false, new BigDecimal("4")));
+		assertFalse(largestDisplay.isSizePairCompatible());
+		assertTrue(largestDisplay.with(Field.FRAME_BYTE_MULTIPLIER,
+			new Value(false, new BigDecimal("4.25"))).isSizePairCompatible());
 	}
 
 	@Test
@@ -211,8 +228,55 @@ class InventoryConfigValuesTest {
 		assertNotSame(current.inventory(), new ServerConfigSnapshot(true, ChannelMode.AUTO, true, 0, 0, 7).inventory());
 	}
 
+	@ParameterizedTest
+	@EnumSource(value = Field.class, names = {"TRACKING_DISTINGUISH_FACES", "TRACKING_DISTINGUISH_PLAYERS"})
+	void booleanLeavesRejectNumericDraftsUnlimitedAndNonBooleanInternalValues(Field field) {
+		assertEquals(InventoryConfigValues.Kind.BOOLEAN, field.kind());
+		assertFalse(field.supportsUnlimited());
+		assertTrue(field.parse("true", false).orElseThrow().booleanValue());
+		assertFalse(field.parse("false", false).orElseThrow().booleanValue());
+		for (String invalid : java.util.List.of("0", "1", "2", "TRUE", "", "0.5", "NaN")) {
+			assertTrue(field.parse(invalid, false).isEmpty(), invalid);
+		}
+		assertTrue(field.parse("true", true).isEmpty());
+		for (Value invalid : java.util.List.of(Value.scalar(-1), Value.scalar(2), Value.limit(true, 1),
+			new Value(false, new BigDecimal("0.5")), new Value(false, null))) {
+			assertFalse(field.isSafe(invalid));
+			assertThrows(IllegalStateException.class, invalid::booleanValue);
+		}
+		assertThrows(UnsupportedOperationException.class, () -> InventoryConfigValues.defaults().fields().clear());
+	}
+
+	@Test
+	void unselectedTrueFlagsSurviveNumericReconstructionAndSingleFlagMergePreservesConcurrentChanges() {
+		var current = InventoryConfigValues.defaults()
+			.with(Field.TRACKING_DISTINGUISH_FACES, Value.bool(true))
+			.with(Field.TRACKING_DISTINGUISH_PLAYERS, Value.bool(true))
+			.with(Field.PENDING_MEMORY_MIB, Value.limit(true, 65));
+		var authoritative = new ServerConfigSnapshot(true, ChannelMode.AUTO, true, 1000, 19, 23, current);
+		var stale = InventoryConfigValues.defaults().with(Field.TRACKING_PERIOD_TICKS, Value.scalar(7));
+		var numeric = new ServerConfigUpdate(Field.TRACKING_PERIOD_TICKS.mask(), ChannelMode.AUTO, true, 1, 2, 3, stale);
+		var merged = numeric.appliedTo(authoritative).orElseThrow();
+		var persisted = merged.inventory().toSettings();
+		assertTrue(persisted.getTracking().isDistinguishFaces());
+		assertTrue(persisted.getTracking().isDistinguishPlayers());
+		assertEquals(7, persisted.getTracking().getPeriodTicks());
+		assertEquals(65, persisted.getPendingMemoryMiB().getValue());
+		assertEquals(19, merged.rateLimit());
+
+		var faceOnly = new ServerConfigUpdate(Field.TRACKING_DISTINGUISH_FACES.mask(),
+			ChannelMode.DISABLED, false, 0, 0, 7, InventoryConfigValues.defaults());
+		var faceMerged = faceOnly.appliedTo(merged).orElseThrow();
+		assertFalse(faceMerged.inventory().toSettings().getTracking().isDistinguishFaces());
+		assertTrue(faceMerged.inventory().toSettings().getTracking().isDistinguishPlayers());
+		assertEquals(Value.scalar(7), faceMerged.inventory().value(Field.TRACKING_PERIOD_TICKS));
+		assertEquals(Value.limit(true, 65), faceMerged.inventory().value(Field.PENDING_MEMORY_MIB));
+		assertEquals(19, faceMerged.rateLimit());
+	}
+
 	private static Value different(InventoryConfigValues values, Field field) {
 		Value current = values.value(field);
+		if (field.isBoolean()) return Value.bool(!current.booleanValue());
 		if (field.isSizeScale()) return new Value(false, field.sizeScale().next(current.value()));
 		return field.isMultiplier() ? new Value(true, field.grid().next(current.value()))
 			: new Value(field.supportsUnlimited(), current.value().intValueExact() == field.maximum()

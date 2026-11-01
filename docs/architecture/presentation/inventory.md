@@ -17,13 +17,13 @@ identity and processing boundary, and the size-only default-icon exception, are
 explained by
 [D0012](../../decisions/D0012-explicit-patch-identity-and-display.md). The native
 read-cost and mixed-time accuracy boundary is explained by
-[D0013](../../decisions/D0013-native-incremental-inventory-sweeps.md). The
-preview-seeded initial display and separation of selection intent from current
-item presence are explained by
-[D0014](../../decisions/D0014-preview-seeded-inventory-tracking.md). The rationale
+[D0013](../../decisions/D0013-native-incremental-inventory-sweeps.md). The rationale
 for metadata reuse and bounded on-demand scratch, rather than validity or content
 caches, is recorded in
-[D0015](../../decisions/D0015-inventory-metadata-reuse-and-scratch.md).
+[D0015](../../decisions/D0015-inventory-metadata-reuse-and-scratch.md). Certified
+observation pooling and active-prefix admission without shared authority are
+explained by
+[D0017](../../decisions/D0017-certified-tracking-observation-pools.md).
 
 Coverage scope and pending runtime evidence for the ordinary-block and
 provider-confirmed external preview and tracking, item-choice create and native
@@ -42,16 +42,29 @@ Marker lifetime remains owned by
 An ordinary-block source identity is the dimension, the block position, and the
 original block registry ID, or a canonical container alias. For a double chest,
 the source identity is a canonical alias over both half positions and the
-original registry ID, so either half addresses the same source; the original
-hit half's position remains the target and marker identity, and the alias is
-source identity only. A consumer binds tracking to the live Ping and the
-original target identity. Ping identity is not part of the physical source key,
+original registry ID, so either half addresses the same physical source. The
+original hit half remains the physical target and exact read binding; the
+marker separately retains its server-frozen
+[logical group key](../identity/target_model.md#frozen-logical-block-groups).
+A consumer binds tracking to the live Ping and original physical target.
+Ping identity and logical grouping are not part of the physical source key,
 no source-instance generation is introduced, and a block-state or property
 change with the same registry ID is not a new source. A capture observation,
 including a complete detached snapshot, is evidence about the source, never its
 identity: it does not become the source key, a source-instance generation, or a
 protocol baseline generation. Detecting a destroyed, missing or otherwise
 unavailable source is an invalidity, not an empty result.
+
+The exact source binding and generic read scope include the read owner's UUID
+and frozen face. They remain unchanged even when the inventory-local
+[certified Tracking pool](#certified-tracking-observation-pools) permits reuse
+across independently authorized bindings. Equal container groups or equal
+permissions alone do not establish equivalent views. Compatible consumers may
+share a paid slot journal regardless of selected item, under the
+[observation eligibility rules](shared_sources.md#observation-eligibility-and-sharing).
+Tracking remains one logical consumer per accepted marker, not one per Vault or
+chest group; aggregation and publication stay independent. Removing a marker
+releases its own references without ending surviving consumers.
 
 An external source identity is the provider scope, the provider-confirmed
 sub-level, the canonical container alias, and the frozen read context of owner
@@ -67,8 +80,8 @@ not establish physical identity. A committed source is addressed by its active
 lease's current tracking point, so a locator refresh does not create a new
 source and a stale locator is never adopted as the read position.
 
-On invalidity, tracking stops publishing valid updates, discards or cancels
-queued old valid state, and sends the invalidation status. That status is
+On invalidity or source unavailability, tracking stops publishing valid updates,
+discards or cancels queued old valid state, and sends `INVALID`. That status is
 control information: it is prioritized independently of item quotas and is
 charged to total bytes under [shared sources](shared_sources.md#sync-publication).
 A pairing, slot-mapping or other view-topology change during an in-progress
@@ -96,8 +109,11 @@ The hard tracking deadline follows the Ping's own marker lifetime: tracking
 ends exactly at the marker's expiry, and there is no independent inventory
 tracking-duration setting and no earlier tracking-only grey interval. At expiry
 or removal, all scanning and recovery probing stop, and an expired or removed
-Ping never recovers. Other preview or tracking consumers must not reactivate an
-expired consumer.
+Ping never recovers. Client inventory cleanup follows the accepted presentation
+marker lifecycle: presentation removal, including expiry, clears the marker's
+inventory state and known-marker eligibility. Inventory revision fences and the
+presentation and marker tombstones continue to reject late data. Other preview
+or tracking consumers must not reactivate an expired consumer.
 
 External providers keep their established stable target IDs, leases and removal
 rules. The ordinary-block replacement tolerance neither extends nor revives an
@@ -107,6 +123,102 @@ invalidates the old observation; recovery re-resolves the provider scope and a
 wrong sub-level or tracking point is rejected rather than adopted, and the
 fresh baseline preserves the marker, its hard expiry and the current lease.
 Entity and private-inventory contexts require their own owning contract.
+
+## Certified Tracking observation pools
+
+Certified native Preview and Tracking use independently authorized associations
+to a shared physical observation from its creation, under every partition-policy
+combination. They may pool across exact bindings only when
+the provider certifies an identical ordered read graph. The initial supported
+routes are exact ordinary vanilla chests and trapped chests, including their
+verified pairs, and the ordinary NeoForge
+[Create Vault route](../../integrations/create.md#vault-inventory-provider).
+Unknown providers, decorators, generic capabilities, external/Sable bindings,
+detached snapshots and cursorless enumeration keep exact owner/face isolation.
+Stable cursors or in-place revalidation alone do not certify widened sharing;
+support for other containers is not implied.
+
+Certification is admitted metadata work, with no content read or cached
+permission result. It establishes the concrete route, current world and registry
+objects, exact member objects, ordered membership, segment boundaries and every
+ordered member-local visible address. Matching aliases, slot totals or hashes
+alone are insufficient. Hit-relative roles and face labels may be normalized
+only after the physical address sequence is proven identical. Each participant
+retains its own exact binding, proof and owner-authorized read port for scanning
+and completed evidence; one participant's successful check never authorizes
+another.
+
+The pool key combines the certified graph and the round's frozen partition
+policy. It additionally includes the owner when player separation is enabled and
+the frozen face when face separation is enabled. The independent switches and
+their defaults are catalogued by
+[server configuration](../../config/server.md#inventory-policy-object). Disabling
+a partition permits certified equivalent-view reuse, never different visible
+slots or bypassed owner authority. A new Tracking consumer may join an active
+Preview- or Tracking-origin observation. A new Preview may borrow an active
+Tracking cohort under the same policy, or join an active participant with an equal
+exact source key and generic read scope. This does not create a general
+Preview-only cross-player or cross-face pool. Tracking presence means an actual
+scanning association, not a departed creator, historical marker or future handoff
+hold. Unsupported routes retain their exact legacy eligibility rules.
+
+Admission selects the oldest eligible active round with equal full graph and
+proof, matching current unsealed policy, and a successfully admitted current
+`VALID` check through the new consumer's own binding. The round must still own a
+physical journal and actual scanning demand, have no failed or terminal
+preparation/projection, and have either no last result or a readable `CONTINUE`.
+Eligibility is checked again after metadata callbacks. `COMPLETE`, including
+same-tick completion, `INCOMPLETE`, failed, unavailable, released and closed rounds
+cannot admit a new unrelated association. Attachment before physical completion
+does not grant entitlement unless the association was installed while eligible.
+There is no completed-result cache for a new request or selection.
+
+Each admitted consumer starts its own cursor and accumulator at zero and replays
+the journal from its beginning; it never copies another consumer's partial sum.
+The prefix may predate attachment or marker creation. Its earlier observations
+and later unread-slot values form the accepted mixed-time sweep, under
+[native incremental reads](#native-incremental-reads). Consumers already associated
+may finish replay after physical completion. Already-granted Tracking successor
+entitlements retain their bounded completed/sealed handoff exception; adopting
+one does not grant completed evidence to an unrelated newcomer.
+
+An eligible, budget-admitted cohort can consume a failure-free N-slot round with
+N content getters, while [logical quotas](#budgets-queues-and-memory) and each
+participant's authority checks still apply. This is not a schedule-independent
+guarantee that every selection shares one round: admission or cadence deferral
+may postpone a first association until an earlier round is complete, when that
+round is ineligible. Fewer physical getters do not waive logical replay costs.
+
+An ordinary restart excludes that consumer's previous, abandoned and already
+consumed generations, but may join a newer still-active compatible round begun
+before the restart. Staggered cohorts may converge without a global capture
+timer or reset of partial peer progress. Invalidity and recovery impose a stricter
+sequence floor: a surviving peer's pre-invalidity round cannot supply recovery.
+These sequences are local eligibility bookkeeping, not source or wire identity.
+
+One shared round owns the committed slot journal and one catalogue, including
+collision history and detached display metadata. The consumer advancing its tail
+uses its own authorized port, not the creator's authority. Creator departure or
+owner-only denial releases that participant without resetting an authorized
+peer, which continues from the committed end. Checks distinguish valid,
+authority-denied, structurally invalid, unavailable and deferred outcomes. A
+common structural or unclassified read failure may invalidate the shared
+observation. An authority/read failure appends none of the attempted page;
+attempted getters, processing and catalogue growth remain paid, and retrying its
+tail is not a refund. Capacity exhaustion instead retains its explicitly
+incomplete validated prefix under the existing native-read rules. A defer moves
+no cursor and creates no completion or absence-derived zero.
+
+Policy is copied from its primitive values on runtime advance, including a
+same-object mutation in the same tick, and frozen for each round. A change seals
+old rounds against all new certified associations, including Preview, and new
+successor entitlements. Existing scans and already-established Tracking successor
+entitlements finish under their old policy; new scans use the current policy,
+and reversing a switch does not reopen a sealed round. Bounded overlapping
+generations preserve serviceable peer progress; abandoned work must not strand
+replacement capacity or keep an
+unbounded chain alive. A policy change alone does not invalidate data, retire a
+seed, reset a baseline, refund paid work or alter marker lifetime.
 
 ## Preview
 
@@ -121,7 +233,11 @@ exist.
 Holding the ping key starts a bounded initial inventory preview on a new
 request path; it does not reuse the legacy subscription route. The preview is
 served from one initial observation sweep and has no periodic capture cycle of
-its own. A preview may
+its own. Its original rows, references and evidence remain request-owned after
+completion, subject to their current validity rules. An open completed Preview
+receives no future Tracking successor entitlement or legacy handoff hold and
+cannot stall later Tracking sweeps merely by staying open. It is not force-closed,
+restarted or periodically recaptured. A preview may
 begin before the Ping exists and therefore has its own request and session
 identity, which must not be equated with a Ping or with the inventory snapshot
 identity. A preview request binds to one bounded server target at open time and
@@ -129,10 +245,10 @@ never changes that target; the authoritative target is derived server-side, and
 no player identity or client-selected item count travels on the request. The
 server assigns bounded opaque entry keys scoped to the request, not item IDs.
 Opening the request runs the existing authority gates plus nonallocating
-provider validation for an external candidate; it creates no TargetKey, marker
-identity, provider reference or tracking state. The request identity scopes
-preview state and publication within the inventory session; quota accounting is
-owned by [Budgets, queues and memory](#budgets-queues-and-memory).
+provider validation for an external candidate; it creates no marker identity,
+provider reference or tracking state and resolves no marker group key. The
+request identity scopes preview state and publication within the inventory
+session; quota accounting is owned by [Budgets, queues and memory](#budgets-queues-and-memory).
 
 The preview-to-tracking handoff follows the existing create authority first:
 the server materializes an external candidate once, then binds the preview's
@@ -144,12 +260,25 @@ same-registry candidates and different hit roots cannot cross-bind. The
 owner's current read authority and the preview's original source/layout evidence
 are revalidated through metadata checks, the selection reference and annotation
 are checked, and retained memory is admitted before the tracking lease is
-stored. Any failure releases the acquired reference and stores nothing. No
-item-presence witness, additional item-content getter, fallback search or
-asynchronous selection deadline is part of this handoff. The tracking lease
-keeps the committed input and one detached selected value as the initial display
-seed under [Tracking](#tracking); it never retains the preview as a tracking
-observation, and no preview Ping is invented. The
+stored. Any failure releases the acquired reference and stores nothing.
+
+Selection expresses intent to track the selected item at an authorized source,
+not proof that its previously observed slot still contains it. Ordinary input
+and output may empty that slot between preview and selection while the source,
+binding and selected identity remain valid. Searching other slots at creation
+would not turn a changing inventory into a fixed snapshot. No item-presence
+witness, additional item-content getter, fallback search or asynchronous
+selection deadline is part of this handoff.
+
+The tracking lease keeps the committed input and one detached selected value as
+the initial display seed under [Tracking](#tracking); it never retains the
+preview's consumer state as tracking state, and no preview Ping is invented. A
+certified partial selection attempts metadata-only join admission while Preview
+still owns the active round, before normal Preview close, to pin Tracking's own
+association. This attempt starts no physical round or catalogue and performs no
+content getter. No match or resource defer does not reject an otherwise valid
+synchronous create; a current invalid admission does. A completed Preview cannot
+supply this join; any reuse must independently satisfy active admission. The
 committed tracking association is installed after the marker is stored and
 before the created notification is published, so the recipient's atomic initial
 can project the inventory selection kind
@@ -173,8 +302,8 @@ partial, and the retained count may be newer than the last row delivered to the
 client. No client-screen quantity authorizes the seed. Current target, source,
 owner/face binding, read permission, annotation, rate, channel, audience,
 selection-capacity and memory gates still apply. Item absence at the old
-observed slot does not veto an otherwise valid selection: the new scan decides
-the subsequent count. The new Ping's whole-marker type is the
+observed slot does not veto an otherwise valid selection: the complete tracking
+observation decides the subsequent count. The new Ping's whole-marker type is the
 frozen Target Type's default Ping Type; the chosen Ping Type travels as a
 separate item annotation rather than as the whole-marker type. The item
 annotation's eligible Ping Type set is the target's effective
@@ -216,34 +345,6 @@ lose another key's latest value and must not repackage duplicates. Preview
 selection references support both normal and component-fallback forms, and
 component identity must work in both.
 
-### Request-scoped corrective replay
-
-A `RESYNC` without a marker ID schedules a corrective replay for that open
-preview request. It reconstructs the currently authorized cumulative retained
-projection, including earlier discovered entries rather than only the latest
-sparse batch, and its truthful status. The replay keeps the same baseline,
-state fence, opaque entry keys and selection references, with a strictly newer
-publication watermark. It is not a new capture, a new `OPEN`, a repeated
-selection, or an `OFFER` renegotiation, and creates no marker or tracking state.
-
-The resynchronization cooldown defined under [Tracking](#tracking) applies per
-open request, and repeated repairs coalesce into bounded waiting work. Repair does
-not restart an admitted publication, its completion controls, or the original
-scan cursor; the initial scan may continue while replay waits. Current
-authorization, source validity, size-cap reconciliation, pending admitted
-publication, and the existing work, memory, queue and byte budgets still gate
-replay. Repair cannot unblock fenced data or bypass an updated size offer.
-Unknown, never-opened, closed or purged requests allocate no replacement
-session. Marker-bearing repair dispatch is exclusive under the
-[network protocol](../network/protocol.md#inventory-previewtracking-route-inventory-v1).
-
-A partial retained observation remains partial, with its actual quality and
-completion state; replay cannot turn missing or not-yet-seen data into zero. A
-completed empty observation remains an explicit empty result. Before any
-observation, the request remains updating and its existing initial scan
-continues. An invalid terminal request replays invalid status without valid
-quantities, resurrected selection references or a restarted capture.
-
 ## Tracking
 
 Tracking is a baseline snapshot plus an absolute stream of the Ping's selected
@@ -258,8 +359,10 @@ permission and completeness rules are owned below.
 A successful single-item selection retains only its selected identity, bounded
 display and authoritative long count independently of the preview. Closing the
 preview releases its ownership of the catalogue, journal and unselected values
-without losing this seed. The seed is presentation history, not a
-`CaptureResult`, completed observation, native sweep evidence or tracking accumulator.
+without losing this seed. The preview subtotal reflects what the preview has
+observed, not what the complete tracking observation will find. The seed is
+provisional presentation history, not a `CaptureResult`, completed observation,
+native sweep evidence or tracking accumulator.
 
 The initial tracking publication carries that quantity with `UPDATING` and
 `completeScan=false`, even if the preview itself completed. An exact seed is not
@@ -279,9 +382,12 @@ Admission, replays and failures still create, materialize, rate-charge and store
 at most once under the existing correlated selection outcome; there is no
 pending-selection or cancellation state added by the bootstrap.
 
-Tracking starts at a fresh observation floor with zeroed accumulators. It cannot
-attach an older preview/shared round, continue the preview cursor or add the seed
-to a scan total. While this first scan is partial, the seed remains the displayed
+Tracking starts with its own zeroed cursor and accumulators. Certified active
+admission follows the [pool rules](#certified-tracking-observation-pools), so the
+first complete result may legitimately include pre-creation slot observations.
+Other routes retain their fresh observation floor. Neither route continues the
+Preview consumer's cursor, adds the seed to a scan total, or fabricates capture
+evidence from it. While this first scan is partial, the seed remains the displayed
 quantity, not its partial accumulator. The first complete usable scan explicitly
 supersedes the seed at a newer item revision, even when the counts are equal,
 including equal aggregates. If the selected item is absent it publishes zero;
@@ -395,6 +501,39 @@ compare partial fragments with a future state. A gap or mismatch schedules a
 snapshot repair under the cooldown and waiting rules above. Writing an update into the send queue is not proof
 that the client applied it, and a mismatch alone does not justify a TCP-loss
 conclusion.
+
+### Publication authority and progress
+
+Offered, admitted and delivered cuts each retain the exact historical binding
+and proof for their own observation. A newer offer cannot authorize an older
+admitted cut; a heartbeat uses delivered evidence rather than the latest offer.
+This ownership pins source metadata, not the shared journal or catalogue. The
+bootstrap uses its own admitted metadata evidence without another item getter
+or retained preview round.
+
+Every quantity-bearing frame, including a provisional seed, and every
+success-bearing completion, checksum or heartbeat receives a fresh owner/source
+check immediately before irreversible transport handoff. It runs after actual
+encoding/budget measurement and wire eligibility, with current recipient,
+session, known-marker and expiry checks. An earlier same-tick approval is not a
+permission cache. Failure-only controls need no successful source grant. A
+defer advances no part index, delivered watermark or heartbeat and spends no
+wire bytes for an unhanded frame; attempted validation remains paid. Source
+failures are latched. Affected valid publications are withdrawn through normal
+failure handling outside publisher iteration, so callback-driven revocation
+cannot corrupt the iteration. Owner-only failure stays local while authorized
+pooled peers retain their progress. Invalidity still follows the permanent
+seed-retirement and grey history rules above.
+
+Before scan or ingress work on each new tick, one rotating pending valid-frame
+context may reserve validation capacity from the existing probe, provider-work,
+item-work and workspace ledgers. Same-tick ingress neither resets the ledgers
+nor creates another protected opportunity. Reservation is not permission: the
+actual outgoing cut is checked fresh at handoff. Other frames use remaining
+capacity, and newly queued work may wait until the next tick. This adds no
+unmetered budget or guarantee under insufficient memory/wire capacity or an
+unserviceable proof. Fewer shared getters do not remove per-player authority
+metadata work or promise lower CPU, memory or allocation rate.
 
 ## Item variants and component fallback
 
@@ -578,8 +717,9 @@ retained exact or folded key under the [handoff rules](#preview), without a live
 item-presence witness. This all-ID sweep remains subject to permissions, and an
 incomplete scan must not claim an aggregate total.
 Preview folding is scoped to the current preview request: closing that request
-ends the fold, and a reopened preview starts a fresh scan that may choose exact
-or folded presentation for the same item ID again. A valid handoff preserves
+ends its fold, and reopening creates new request-local projection state. Physical
+reuse still follows the [observation eligibility rules](#certified-tracking-observation-pools),
+not the old request's references. A valid handoff preserves
 the selected exact or aggregate meaning under the [tracking rules](#tracking);
 it does not retarget retired references. If a fresh tracking scan folds a selected
 exact item ID, the queued exact seed is retired: its exact subtotal cannot be
@@ -625,7 +765,7 @@ the same items from an already-read slot into an unread slot can instead count
 them twice; completion does not certify that such movement did not occur.
 
 Preview may expose the paid prefix with updating status. A selected-preview
-bootstrap is the separate retained display policy above; fresh tracking totals,
+bootstrap is the separate retained display policy above; tracking totals,
 absence-derived zero and completion still require the complete usable sweep
 defined above. Completion quality is owned by [status presentation](#status-presentation).
 
@@ -691,6 +831,18 @@ accounting. Quota identity is preview-client for preview and target for
 tracking, and neither is multiplied per recipient. The server-authoritative
 per-client and global send-byte multipliers scale the byte allowances; they are
 server settings, not a client display scale or UI preference.
+
+For tracking, target means the marker's frozen logical key. Active selected
+variant capacity, logical slot consumption (`TrackingSubject`) and each
+recipient/target `STREAM` allowance therefore span different physical member
+hits of the same supported group. This is quota grouping, not proof of read
+equivalence: separate physical rounds still spend that group allowance
+independently, whether separated by policy or incompatible source evidence.
+Within one round, consumers of the same tracking subject and
+paid prefix do not pay logical consumption twice. Preview-client and global
+ledgers, snapshot bytes per client, and baselines per marker/recipient keep
+their separate scopes. Group equality never relaxes the exact original target
+and physical read-root checks in [preview selection](#preview).
 
 The tracking variant quota bounds the distinct active selected variant
 categories across Pings for the same target. Repeated selections of one category
@@ -783,8 +935,8 @@ each keep an independent finite engineering bound.
 The selected-preview seed and its bounded identity/display ownership have a
 retained charge independent of the preview. Its publication, repair, recipient
 indexes and historical client display obey the existing memory, queue and byte
-bounds; copying one selected value does not pin the preview source round or
-admit its unselected catalogue into tracking.
+bounds; copying one selected value does not by itself pin the preview source
+round or admit its unselected catalogue into tracking.
 
 Owned source metadata, including frozen views, member layouts and slot mappings,
 has a retained charge separate from fixed round state. Pre-resolution admission
@@ -804,6 +956,16 @@ source, resident pre/post and held-member gates without an unrelated all-member
 capture-support audit; explicit capture retains that audit. Initial discovery
 keeps its conservative reservation even when a provider declines optional scope
 scratch. Refused admission advances no cursor and invokes no guarded operation.
+
+The audited coordinated Vault read admits five full common-validation envelopes
+per attempted slot: four successful gates and one possible failure
+reclassification, plus one local resident-operation envelope. Synchronous
+operation state, root budget and refusal bookkeeping overlap those checks and
+are admitted before callbacks. Attempted allocation and work accumulate across
+slots while workspace follows peak overlap. Runtime page-entry/page-exit and
+association checks remain separately paid. The provider-specific ordering and
+opt-in are owned by [Create](../../integrations/create.md#vault-inventory-provider);
+generic certified chests, legacy and external reads retain their previous path.
 
 Item processing keeps effect-copy descriptors and encoding-planner scratch local
 to one root, allocating each group only when used. Descriptor ranges preserve
@@ -834,6 +996,12 @@ again. Display tightening separately admits validation of a replacement
 definition before later replay uses it. Only count copies of already validated
 immutable definitions use that shortcut; newly supplied observations still pass
 normal bounds and identity-mode validation.
+
+On each backend tick, tracking consumers are processed before preview consumers;
+each population rotates its own processing order. Equal physical keys alone do
+not grant a new request an observation: certified active admission follows the
+[pool rules](#certified-tracking-observation-pools), while other routes retain
+[generic attachment eligibility](shared_sources.md#observation-eligibility-and-sharing).
 
 Slot capacity and catalogue variant/payload capacity are independent
 finite guards: admitting a large repeated-item inventory does not promise the
@@ -953,6 +1121,9 @@ invalidity owned by
 not a completed mixed view. Any registered member source follows the same
 all-members precheck: every member is gated before any member content is read,
 and a failing member makes the source unavailable rather than partially empty.
+Initial and final certified checks, catalogue creation and reads gate loaded
+members and a chest's cross-chunk partner before querying their state; no
+partner query may force-load or inspect an unloaded chunk.
 
 Shared reads are reference-counted and a leaving consumer must not block other
 consumers. A shared value is detached and immutable; world and provider objects

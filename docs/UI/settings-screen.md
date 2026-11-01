@@ -25,11 +25,20 @@ A category opens a leaf page:
 
 - the root scope tabs are hidden;
 - the title identifies the scope and the category;
-- related options may be introduced by plain-text, non-interactive subgroup
+- related options are introduced by plain-text, non-interactive subgroup
   headings rather than interactive boxes or collapsing sections;
 - options use native option widgets; and
-- the layout is two-column when the options fit and full-width only where a
-  control needs the whole width.
+- only explicitly related pairs share a row; every singleton occupies its own
+  full-width row rather than filling an unrelated half-row.
+
+A pair stacks vertically, in its original order, when the viewport is too narrow
+for native half-width controls or either current translated label does not fit
+its half-width control. This also applies to presentation-editor pairs, including
+Allow/Block and selector/action rows. The native full-width list maximum is
+retained; rows and headings fit inside the GUI-scaled viewport with room for the
+scrollbar, and footer controls stay inside the viewport without overlapping the
+scrollable content. A clipped subgroup heading exposes its complete localized
+text through a native tooltip without becoming interactive.
 
 The footer is fixed. Back and Escape return to the current scope overview;
 Done and Escape at the root close the screen. Keyboard traversal uses the
@@ -41,32 +50,45 @@ does not discard the session or a draft.
 
 ## Category layout
 
+The lists below give overview order, then subgroup and row order within each
+category. Paired controls are marked explicitly; all other controls are
+full-width singletons. Localized category labels retain their stable navigation
+identities.
+
 The client scope has seven categories:
 
-- **Marker Display**: Ping Distance, Marker Display Duration, Ping Size, Item
-  Icons, Direction Indicator, Player Info, and Team Color.
+- **Markers & Range**:
+  - Reach and display duration: Ping Distance, then Marker Display Duration.
+  - Marker presentation: Ping Size, then paired Item Icons and Direction
+    Indicator.
+  - Author presentation: paired Player Info and Team Color.
 - **Target Selection**: Mark Transparent Blocks, Mark Blacklisted
-  Targets, and Mark Fluids.
-- **Wheel Appearance**: Root Menu Distance, Submenu Size, Inventory Max Width,
-  Inventory Max Height, Wheel Opacity, Wheel Target Opacity, Wheel Target Font
-  Size, Wheel Option Font Size, Show Gesture Trail, Trail Length, Trail Opacity,
-  and Reduce Selector Motion. Trail Length controls retained trail points;
-  Trail Opacity controls only the trail's
-  visibility strength, independently of wheel and target opacity.
-- **Input Interaction**: Wheel Hold Time, Gesture Skips Long Press, Minimum
-  Gesture Hold, Long-Press Compatibility Mode, Compatibility Time Slice,
-  Cancel Cone Half-Angle, Double-Click Danger Window, and Double-Click Danger
-  Angle,
-  followed by a Spatial selector gestures subgroup with Center Deadzone, Entry
-  Stroke Length, Entry Dwell, Require Sustained Hover to Return, Back-Hover
-  Dwell, Content Intent Selection, and Inventory Selection Stay Open.
-  The Content Intent Selection toggle enables the additional property and
-  inventory-item Ping Type selection menus in the Content hierarchy; its
-  tooltip states that a change applies to the next hold.
-- **Channel & Notices**: Ping Channel, Ping Volume, and Configuration Notice
-  Size.
-- **Rendering & Config**: Entity Block Geometry and the configuration-file
-  action.
+  Targets, and Mark Fluids under a target-selection heading.
+- **Wheel Appearance**:
+  - Layout: paired Root Menu Distance and Submenu Size, then paired Inventory
+    Max Width and Inventory Max Height.
+  - Readability: paired Wheel Opacity and Wheel Target Opacity, then paired
+    Wheel Option Font Size and Wheel Target Font Size.
+  - Gesture trail: Show Gesture Trail, then paired Trail Length and Trail
+    Opacity.
+  - Motion: Reduce Selector Motion.
+- **Controls & Gestures**:
+  - Opening: Wheel Hold Time, then paired Gesture Skips Long Press and Minimum
+    Gesture Hold.
+  - Compatibility: Long-Press Compatibility Mode, then Compatibility Time Slice.
+  - Double-click Danger: Double-Click Danger Window, then Double-Click Danger
+    Angle.
+  - Marker cancellation: Cancel Cone Half-Angle.
+  - Spatial selector gestures: paired Center Deadzone and Entry Stroke Length,
+    then Entry Dwell, then paired Require Sustained Hover to Return and
+    Back-Hover Dwell.
+  - Content selection: Content Intent Selection, then Inventory Selection Stay
+    Open.
+- **Channel, Sound & Notices**: Ping Channel as a full-width text input under
+  Channel, followed by Ping Volume and Configuration Notice Size under Sound
+  and notices.
+- **Rendering & Config**: Entity Block Geometry under entity-block rendering,
+  followed by the configuration-file action under its own heading.
 - **Performance**: a Wheel options subgroup with Precise Selection Capture
   Period.
 
@@ -81,16 +103,22 @@ The server scope has five categories:
   preview subgroup with Preview Period, Preview Variants per Client Period,
   Preview Slots per Client, Preview Slots Server-wide, Preview Targets per
   Client, Preview Client Byte Multiplier, and Preview Global Byte Multiplier;
-  and an Inventory tracking subgroup with Tracking Period, Tracking Variants
-  per Target, Tracking Slots per Target, Tracking Slots Server-wide, Tracking
+  and an Inventory tracking subgroup with Tracking Period, Separate Tracking by
+  Face, Separate Tracking by Player, Tracking Variants per Target, Tracking Slots
+  per Target, Tracking Slots Server-wide, Tracking
   Stream Byte Multiplier, Tracking Snapshot Byte Multiplier, Tracking Global
   Byte Multiplier, Resync Cooldown, Heartbeat Cadence, and Byte Smoothing
   Window.
 - **Server Presentation**: Server Policy.
 
+All ordinary server controls occupy full-width rows, including the Monitoring,
+Shared inventory budgets, Inventory preview, and Inventory tracking subgroups.
+The independent Server Policy editor retains its native controls and related
+Allow/Block pairs.
+
 Each option's value semantics and persisted form remain owned by the
-configuration catalogues, and this page owns only which options are exposed
-under which category and whether a group edits local or server policy.
+configuration catalogues. This page owns their UI placement, layout and help,
+and whether a group edits local or server policy.
 
 The screen exposes no controls for the hidden native raycast cap or the four
 direction-indicator safe-area insets; their file semantics remain in the client
@@ -98,6 +126,38 @@ catalogue. The retired wheel radius and wheel timeout keys are also absent from
 the screen and have no persisted meaning
 ([client configuration](../config/client.md#obsolete-keys)). There is no
 user-facing reload control.
+
+## Contextual help and localization
+
+Every exposed value control provides native hover and keyboard-focus help that
+identifies its scope and explains the effect the player can observe. Numeric
+help explains decreasing and increasing the value; boolean help explains both
+off and on; enum help explains every mode rather than relying on mode names.
+Help preserves meaningful zero or unlimited states, interactions with related
+settings, and when edits take effect, including next-hold application where
+applicable. It must not promise a distinction that the implementation does not
+produce.
+
+All twelve category buttons have scope-appropriate descriptions of what the
+category contains. The client and server Performance descriptions distinguish
+local capture work from server monitoring and inventory administration.
+
+Navigation and action controls also provide native hover and keyboard-focus
+help. Scope/category navigation and Back distinguish navigation from final
+close; Done describes the close-time persistence attempt without promising
+server acknowledgement. Reset and configuration-file help explain the
+consequences in [File action and reset](#file-action-and-reset), including the
+client-only reset scope, draft discard, and save/close/open-file behavior;
+file-action help also explains external-edit reload timing. Presentation-editor
+help distinguishes changing the displayed view or requesting a refresh from
+sending a mutation through its independent route.
+
+Labels, subgroup headings, tooltips, notices, and assembled visible format
+strings, including presentation field outcomes and name/value text, are
+localized in every bundled locale. Technical field IDs and selectors retain
+their literal identities. Help uses native tooltip behavior, not a custom
+tooltip renderer. Configuration catalogues remain the owners of detailed value
+meanings.
 
 ## Input interaction controls
 
@@ -151,6 +211,16 @@ makes a clean draft dirty. The authoritative snapshot's extra integer stop
 remains available throughout the editing session even after another value is selected,
 so selecting it again can revert the leaf to clean.
 
+Separate Tracking by Face and Separate Tracking by Player are native boolean
+toggles immediately after Tracking Period, in that order, each in its own
+full-width row. Their native hover and keyboard-focus help is localized in all
+bundled locales and explains Off and On, current player permissions and
+face-visible slots, and next-scan application while running scans finish under
+the previous setting. Keys and defaults remain owned by
+[server configuration](../config/server.md#inventory-policy-object), and certified
+view reuse and transition semantics by
+[inventory pools](../architecture/presentation/inventory.md#certified-tracking-observation-pools).
+
 Each setting that supports unlimited mode has one explicit unlimited stop after
 its maximum finite stop. Selecting that tail stop changes only the mode and
 retains the finite value; selecting a finite stop exits unlimited mode and uses
@@ -166,16 +236,12 @@ owned by [server configuration](../config/server.md#inventory-policy-object).
 The display slider's maximum follows the current frame value; lowering the
 frame can lower the display value in the same atomic adjustment, which updates
 both leaves and recomputes their dirty bits against the authoritative snapshot,
-and shows a polite localized notice; the screen never raises the frame by
-itself to fit a display value. These two leaves have no
-unlimited mode. The server's merged-pair validation, including its rejection of
-a conflicting pair without mutating an unselected member, and the
+and shows a polite localized notice directly after the Frame Byte Size row; the
+screen never raises the frame by itself to fit a display value. These two leaves
+have no unlimited mode. The server's merged-pair validation, including its
+rejection of a conflicting pair without mutating an unselected member, and the
 no-acknowledgement transaction are owned by
 [changing server configuration](../architecture/config/changing-server-config.md).
-
-Each inventory tooltip briefly identifies its scope and the player-visible
-effect of reducing or increasing the setting, such as preview progress,
-tracking responsiveness, or retained item detail.
 
 These controls belong to the shared ordinary server settings session and its
 correlated snapshot, not to a separate inventory session; the draft, close, and
@@ -217,6 +283,9 @@ rebuilds, navigation, and server events, and a successful server add clears only
 that list's unchanged draft, while a failed, denied, or timed-out add keeps its
 text for correction. Refresh asks the server for a fresh correlated rule-view
 read and is available again for retry after a bounded no-response timeout.
+Policy mutation actions send their requests when activated rather than waiting
+for final root close; typing a selector draft alone sends no mutation. Their
+help makes this distinction from the ordinary server-settings draft explicit.
 
 The rule-view route, its disclosure, correlation, revision, and pending
 lifecycle are owned by
@@ -263,7 +332,7 @@ so the screen does not promise that the server applied or persisted an update.
 The ordinary server settings are one shared session within the screen, not a
 per-category or per-visit section. This session covers the Channel & Players,
 Send Rate, Marker Duration, and Performance categories, including the monitoring
-toggle and the twenty-one inventory administration leaves. Entering the server
+toggle and the twenty-three inventory administration leaves. Entering the server
 scope shows its overview and requests the current server configuration when the
 client holds a live connection and the session holds no loaded or in-flight
 snapshot. The loaded snapshot, the draft, and any in-flight request are retained
@@ -294,7 +363,8 @@ and [security](../architecture/security.md) own.
 The draft begins when an editable authoritative snapshot is accepted. Controls
 are inert unless `canEdit` holds. Each control recomputes dirty bits against the
 authoritative snapshot. The original numeric fields must parse as non-negative
-integers; each inventory leaf validates under its own numeric kind, bounds and,
+integers; inventory booleans use their two toggle states, while each numeric
+inventory leaf validates under its own kind, bounds and,
 for decimal settings, exact grid and size-pair constraints. An empty, malformed
 or out-of-range draft, or a decimal draft outside its exact grid, remains dirty
 but makes the update plan unavailable; an in-range integer between UI-only

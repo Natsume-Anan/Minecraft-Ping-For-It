@@ -14,6 +14,24 @@ The current suite covers:
 - config-version marker, precedence, migration, client/server recovery, and
   future-version preservation seams.
 
+`ConfigHandlerResetTest` also covers independent client selector objects and
+mutable remembered-channel maps, reset replacing both, stale references being
+unable to affect a later save, and post-reset edits surviving save and reload.
+Its server reset fixture checks detached inventory and presentation state:
+editing pre-reset references cannot replace the fresh defaults on save/reload.
+These reset-isolation cases are source-reviewed automated coverage, with no
+passing run recorded here; they do not exercise live settings editors.
+
+`ConfigDefaultsIsolationTest` covers active server-default initialization in a
+fresh isolated classloader with client/presentation default groups, platform
+services, configuration models/handlers and selected optional integrations
+unavailable. Project helpers are child-loaded; explicit denial probes and a
+`ModContext` probe exercise direct and transitive platform denial. The initialized
+server channel-mode enum remains usable through name/value lookup without
+pinning its selected default. This is source-reviewed isolated-initialization
+coverage, with no passing run recorded here; it does not establish game startup,
+loader-specific dedicated-server initialization or multiplayer behavior.
+
 `ConfigHandlerDiagnosticsTest` covers filesystem-backed load-validation,
 backup, save and recovery-reset failures. Warning reports retain long original
 message tails and root causes within the diagnostic bound, without an attached
@@ -49,14 +67,19 @@ recovery contracts remain owned by
 explicit unlimited caps keep their finite value and use the caller-owned finite
 guard, finite caps clamp to positive instead of a disable sentinel, confirmed
 finite boundaries clamp, zero heartbeat disables only the periodic cadence, the
-two multiplier grids normalize piecewise values, the five byte multipliers
-stay independent and control only their own scope, the snapshot fragment and
+two multiplier grids normalize piecewise values, byte budgets scale their own
+scope's base and queues follow their corresponding global allowances, the five
+byte multipliers stay independent and control only their own scope, the snapshot fragment and
 per-client period scopes stay equal, unlimited byte multipliers stay finite,
 the step helpers cross boundaries and saturate, pending-memory steps follow the
-piecewise stops, and independent defaults do not alias. The two finite size
-leaves have exact byte/quanta conversion and repair a
-conflicting pair downward with frame priority and the reserved metadata
-headroom while never raising the frame, and they remain independent of the five
+piecewise stops, and independent defaults do not alias. The isolation fixture
+exercises all nine caps and five send-byte multipliers within and across fresh
+settings, checks that later construction cannot inherit mutations, and restores
+null nested objects to values equivalent to fresh construction without aliasing.
+These isolation cases are source-reviewed automated coverage, with no passing
+run recorded here. The two finite size leaves have exact byte/quanta conversion
+and repair a conflicting pair downward with frame priority and the reserved
+metadata headroom while never raising the frame, and they remain independent of the five
 send-byte multipliers; `InventorySizeScaleTest` covers the ordered legal
 positions and their exact byte and quanta conversion, half-up normalization,
 pair legality, frame-priority reconcile and ordered position stepping.
@@ -83,9 +106,7 @@ the submenu radius scale and precise capture period, raw-JSON validation and a
 frozen snapshot clamp every value without resetting boolean choices, a frozen
 session snapshot never follows later config edits, root distance and gesture
 preferences stay independent in both mutation directions, and fresh defaults do
-not alias another client's mutable preferences. The suite also contains literal
-tuning assertions for spatial distance defaults and bounds and the Precise
-capture period; these do not establish a half-scale relationship.
+not alias another client's mutable preferences.
 `SpatialSelectorMigrationTest` contains filesystem-backed cases for the obsolete
 preference catalogued by
 [client configuration](../../config/client.md#obsolete-keys): fresh output omits
@@ -144,6 +165,24 @@ model and persistence seams only: no server-administration path, remote change
 route, settings-widget interaction, scheduler consumption or full client
 selector runtime is exercised.
 
+`ByteMultiplierDefaultsTest` covers owning-field fallback substitution with
+distinct non-unit values on both grids: missing objects, empty objects and null
+values restore the supplied fallback; explicit values take precedence;
+validation is idempotent and retains unlimited mode. Byte calculation leaves
+missing values unmaterialized and explicit values unnormalized, while unlimited
+mode returns the caller's guard before consulting the grid. The compatibility
+APIs retain their finite one-times meaning.
+`InventorySettingsPersistenceTest` exercises all five send-byte multiplier
+fields through filesystem-backed load: omitted or null objects, empty objects,
+missing or null values, and unlimited mode without a value restore each owning
+field's default without changing explicit siblings. Same-version load and
+untouched save preserve the original bytes; omitted and unlimited-without-value
+cases materialize the restored value on a real save and retain it after reload.
+Explicit zero and negative values clamp to their grid minimum while sibling
+multipliers and caps retain their values. These multiplier cases are
+source-reviewed automated coverage, with no passing run recorded here; they do
+not exercise scheduler consumption or live administration.
+
 The inventory-panel fraction fixtures in `SpatialSelectorSettingsTest` check
 missing and individually null members against model initialization without
 changing the other dimension, a safe snapshot leaving a raw null member
@@ -167,9 +206,13 @@ selector-layout evidence. The preference contract remains owned by
 [client configuration](../../config/client.md#spatial-selector-interaction).
 
 `GestureSkipHoldConfigTest` covers fresh, missing and null shortcut preferences
-defaulting to opt-in disabled, minimum-wait clamping through setters,
-validation and snapshot construction, frozen preference/wait values, and older
-snapshot constructor forms leaving the shortcut disabled. It exercises
+staying opt-in disabled, missing/null waits and older snapshot constructor waits
+matching a fresh model, and minimum-wait clamping through setters, validation
+and snapshot construction. Explicit input/expected pairs check integer extremes
+and just-outside values saturating to the corresponding bound, with both
+endpoints and an interior value retained. Held snapshots keep their preference
+and wait after live edits; older constructor forms keep the shortcut disabled.
+It exercises
 compatibility clearing an enabled preference without later restoring it,
 preventing re-enablement while compatibility is active, and retaining the
 configured wait. Filesystem-backed cases cover explicit round-trip values,
@@ -189,8 +232,9 @@ The two press preferences and the stay-open choice have source-reviewed model,
 handler, codec, catalog and resource coverage. None of it is a recorded run.
 
 `DoubleClickDangerConfigTest` covers the two press preferences as model and
-handler seams: defaults and bounds independent from the cancel half-cone;
-missing, null and out-of-range JSON values defaulting or clamping; compatibility
+handler seams: explicit window and angle values remaining independent of the
+cancel half-cone in both mutation directions; missing and null JSON values using
+model-default fallback and out-of-range values clamping; compatibility
 clearing the angle and rejecting non-zero until disabled; validation and update
 enforcing the same zero; NaN recovering to the default while infinity clamps;
 string NaN loading as a finite default; filesystem-backed same-version
@@ -203,7 +247,7 @@ recovery for an undecodable value (defaults plus a broken-file backup), with a
 failed backup installing the protection that declines angle writes.
 
 `ClientConfigBoundsTest` exercises direct window and angle clamps, including NaN
-and positive infinity, and also contains literal default assertions.
+and positive infinity.
 `SpatialSelectorSettingsTest` covers the inventory stay-open choice defaulting
 closed, missing and null
 members staying closed, the live setter affecting the next snapshot, and a held
@@ -211,7 +255,7 @@ snapshot retaining its frozen choice. `ClientConfigLocalizationTest` covers the
 eight bundled locales' labels and tooltips, placeholder signatures, the
 shared off value, and the pinned Chinese and English off strings.
 `SettingsCategoryCatalogTest` places the window, angle and stay-open controls
-once each in the Input Interaction category. `OptionUtilsDecimalTest` covers
+once each in the client input category. `OptionUtilsDecimalTest` covers
 every half-degree stop, out-of-range rejection, and the complete
 `<setting name>: <off value>` label at zero. These are model, handler, codec,
 catalog and resource seams, not a recorded run, live widget input, or a
@@ -241,13 +285,13 @@ rejection beside an invalid inventory size pair. The independent raw packet
 fixtures cover the final strict boolean, shorter superseded shapes, truncation,
 invalid boolean bytes, trailing bytes and unknown mask bits. The
 [transaction](../../architecture/config/changing-server-config.md) and
-[wire](../../architecture/network/protocol.md#server-configuration-routes-server-config-request-v4-server-config-update-v4-server-config-snapshot-v4)
+[wire](../../architecture/network/protocol.md#server-configuration-routes-server-config-request-v5-server-config-update-v5-server-config-snapshot-v5)
 owners retain the exact field selection and grammar. These model and packet seams
 do not establish the live settings UI, permission changes over a connection,
 actual packet exchange, or persistence behavior in a running client/server
 session.
 
-`InventoryConfigValuesTest` covers the twenty-one-leaf admin inventory value
+`InventoryConfigValuesTest` covers the twenty-three-leaf admin inventory value
 model: each leaf's merge preserves every unselected current value and stays
 independent of the rate-limit, channel, sync and monitoring fields; the two
 finite size leaves are exact scalar multipliers with no unlimited mode, a
@@ -265,7 +309,7 @@ every legal grid value exact on the wire; truncation, old-prefix, and trailing
 data rejecting without throwing; an invalid encoded leaf or malformed mode
 rejecting the whole packet; and invalid zero or overflowing quanta, unknown
 masks, missing inventory, nonpositive caps, and out-of-range scalars failing
-closed without clamping. The refreshed version-four, memory mode, revised-bound
+closed without clamping. The refreshed version-five, memory mode, revised-bound
 and literal non-step integer fixtures are inventoried
 [below](#server-performance-contract-verification).
 `ServerConfigVarNumbersTest`
@@ -294,17 +338,47 @@ defaults, retained false without a same-version rewrite, explicit save/reload,
 unknown-data preservation and future-version protection for the switch
 catalogued by
 [server configuration](../../config/server.md#persisted-fields). These are headless
-model and wire seams: no `ServerCore` or live administration path exercises
-them.
+model and wire seams; the additional packet-facing `ServerCore` fixture below
+is headless rather than a live administration session.
+
+The Tracking partition additions have dedicated model, persistence, transaction,
+widget and strict-wire assertions in the
+[publication-stage input](build-checks.md#tracking-pool-publication-stage-run):
+
+- `InventorySettingsPersistenceTest` checks absent/null defaults, all four
+  independent boolean pairs, explicit sibling preservation, unchanged
+  same-version bytes on load/no-op save, real save/reload, existing migration and
+  future-version protection without a new version boundary.
+- `InventoryConfigValuesTest`, `ServerInventoryDraftTest` and
+  `ServerSettingsModelTest` cover strict boolean values, dirty/revert and
+  boolean-only plans, unselected numeric/flag preservation and read-only,
+  revocation, stale-response and disconnect gates.
+- `ServerConfigVarNumbersTest`, `ServerInventoryConfigPacketsTest` and
+  `ModIdentityTest` cover all three v5 IDs and independent literal-frame order,
+  retained original mask bits, both new bits, all four flag combinations,
+  malformed boolean bytes, truncation, trailing bytes and superseded v4 shapes.
+- `ServerCoreTrackingConfigTest` enters the real packet-facing core with
+  constructor-free server/player fixtures: a numeric-only update preserves both
+  unselected flags through settings reconstruction and persistence, a face-only
+  edit preserves the player flag, permission denial and malicious values/masks
+  leave authority unchanged, and the snapshot round-trips the actual values.
+- `InventoryPerformanceOptionTest` constructs both actual full-width native
+  toggle factories, checks help presence, exactly-own-leaf dirty/revert and stale
+  callbacks after revocation/disconnect. Catalog and eight-locale resource
+  fixtures cover placement and Off/On, current authority and next-scan help;
+  they do not establish assembled live tooltip delivery or translation quality.
 
 ## Server performance contract verification
 
 The [UI](../../UI/settings-screen.md#server-performance-category),
 [configuration](../../config/server.md#inventory-policy-object),
 [revisioning](../../architecture/config/revisioning.md#same-version-shape-normalization)
-and [wire](../../architecture/network/protocol.md#server-configuration-routes-server-config-request-v4-server-config-update-v4-server-config-snapshot-v4)
+and [wire](../../architecture/network/protocol.md#server-configuration-routes-server-config-request-v5-server-config-update-v5-server-config-snapshot-v5)
 contracts have passing automated evidence in the
-[combined-tree run](build-checks.md#server-performance-combined-tree-run):
+[combined-tree run](build-checks.md#automated-verification-results) for the earlier
+numeric surface and in the
+[publication-stage run](build-checks.md#tracking-pool-publication-stage-run) for
+the v5/boolean additions:
 
 - `InventoryPerformanceOptionTest` constructs the actual replacement-slider
   factory headlessly for every replaced leaf. Construction invokes no edit
@@ -334,9 +408,11 @@ contracts have passing automated evidence in the
   preservation evidence is specific to guarded normalization/writeback, not a
   general ordinary-save guarantee.
 - `ServerInventoryConfigPacketsTest`, `ServerConfigVarNumbersTest` and
-  `ModIdentityTest` exercise the version-four IDs, leaf round trips, strict
+  `ModIdentityTest` exercise the version-five IDs, leaf round trips, strict
   field bounds, exact decimal quanta, canonical numbers and independent raw
-  fixtures for the memory mode byte, retained finite value and fixed ordering.
+  fixtures for the memory mode byte, retained finite value, Tracking partition
+  booleans and fixed ordering. The earlier combined-tree run predates these
+  boolean additions; their execution input is scoped above.
   Superseded scalar payloads, malformed modes, truncation and trailing bytes
   reject without publication or mutation. Source inspection confirms that all
   three loaders register through those packet constants; their builds compile
@@ -344,8 +420,10 @@ contracts have passing automated evidence in the
   tests.
   Inventory `OFFER` value-bound evidence is owned by
   [inventory verification](inventory.md#resynchronization-and-budget-policy-verification).
-- Localization fixtures passed across all eight bundled locales; detailed
-  coverage is inventoried under
+- The server Performance localization fixtures passed across all eight bundled
+  locales in the [combined-tree run](build-checks.md#automated-verification-results);
+  the expanded settings-resource coverage below is not a claim of another passing
+  run. Detailed coverage is inventoried under
   [Settings-screen navigation, catalog, layout and localization](#settings-screen-navigation-catalog-layout-and-localization).
 
 Live verification limits remain under [Known automated gaps](#known-automated-gaps).
@@ -353,8 +431,10 @@ Live verification limits remain under [Known automated gaps](#known-automated-ga
 ## Settings-screen navigation, catalog, layout and localization
 
 The [configuration UI](../../UI/settings-screen.md) scope, category, and page
-behavior has model, catalog, geometry, and resource seams rather than live
-screen evidence:
+behavior has model, catalog, geometry, headless native-widget/list, and resource
+seams rather than live screen evidence. The section/row catalog, responsive
+layout, native widget/list, localized-title, and expanded settings-resource cases
+below describe source-reviewed coverage rather than a recorded full-suite run:
 
 - `SettingsNavigationModelTest` covers the initial client overview, per-scope
   overview selection, each category opening its own leaf page within its scope,
@@ -373,20 +453,19 @@ screen evidence:
   invalid field, retaining a shared `ServerSettingsModel` draft across
   navigation, and keeping a server leaf open when a permission revocation
   retains a viewable snapshot while forcing the scope overview without one;
-- `SettingsCategoryCatalogTest` covers exactly-once placement of every existing
-  control in the approved category order and immutable per-category lists,
-  including the inventory width and height caps immediately after Submenu Size
-  and the trail controls in Wheel Appearance, the content-intent control
-  in the client Input Interaction spatial group, the gesture shortcut and
-  minimum-wait controls immediately after Wheel Hold Time, the input group
-  without a separate inventory mouse-sensitivity control, the client scope
-  without a presentation category, the client
-  Performance category exposing exactly the precise capture period control, the
-  server Presentation category, and the server Performance category exposing
-  the monitoring control first and every inventory leaf exactly once and only in
-  the server scope; invalid-inventory focus routing skips the monitoring control,
-  and the two size leaves follow pending memory in the shared inventory budgets
-  group; it does not cover full-width layout flags or actual widget placement;
+- `SettingsCategoryCatalogTest` covers all 73 catalog entries exactly once in
+  their approved categories, including the 71 value controls and two non-value
+  entries. Independent expectations check section headings, section/row order,
+  flattened order, the confirmed semantic pairs rather than unrelated packing,
+  and singleton rows for ordinary server controls. It checks nonempty sections,
+  defensive copies and immutable descriptor collections, and rejection of blank
+  headings, empty sections/rows, oversized rows, and duplicate members in a
+  pair. Every category has a distinct description key, including scope-distinct
+  Performance keys. Inventory leaves remain server-only, and invalid-inventory
+  routing skips the monitoring toggle and follows the owning control order.
+  This is descriptor coverage, not native placement or focus dispatch; the
+  [UI contract](../../UI/settings-screen.md#category-layout) owns the detailed
+  category and grouping rules;
 - `PresentationFieldOutcomeTest` covers the server policy role: the advertised
   manifest default, exact and wildcard allow rules winning over block rules,
   exact membership toggles mapping to single list operations, whitelist-only
@@ -397,14 +476,65 @@ screen evidence:
   coverage was removed with the client receive/display policy; it is a pure
   decision model and does not construct the settings screen or exercise widget
   state;
-- `SettingsScreenLayoutTest` covers computed root and leaf header, footer, list
-  viewport, and button geometry at representative compact, standard, and large
-  GUI sizes and clamped tiny-size viewports without negative space; it does not
-  establish row reachability or actual widget placement;
+- `SettingsScreenLayoutTest` covers responsive content-column width and
+  centering, the native maximum, scrollbar clearance, equal pair widths, and
+  eligibility to share a row based on viewport width and both supplied label
+  measurements. Footer action widths and positions clamp to the available
+  viewport. Root/leaf list and footer boundaries are checked at compact,
+  standard, large, and tiny sizes; zero-size layouts and zero/negative content
+  or action widths avoid negative geometry. These are computed bounds and
+  supplied-measurement seams, not actual font fitting, rendered rows, or row
+  reachability;
+- `SettingsRowWidgetsTest` positions real native `Button` instances as
+  full-width singletons and equal non-overlapping pairs. It checks their native
+  hit/focus rectangles move with the geometry, old positions and pair gaps stop
+  being hits, positioning and focus acquisition invoke no callback, and the
+  retained buttons still own their callbacks. Narrow-to-wide repositioning
+  retains focus. Zero-width single/pair rows become hidden and inert to native
+  hit, focus-path, mouse and keyboard probes, then recover without changing
+  editable/read-only state. Pair eligibility measures both current native
+  messages after label changes without activating either control. Measurement
+  is deterministic, not a live Minecraft font; these cases do not construct a
+  `SettingsScreen` or `OptionsList`, render controls, exercise `EditBox` dispatch,
+  or change server permissions;
+- `SettingsOptionsListTest` constructs the production native options list and
+  exercises overview and editor row reflow from wide to narrow and back, keeping
+  row-major order and the same controls without invoking callbacks. Editor
+  reflow retains selector text, caret/selection, focus, scroll and list/entry
+  dragging state without invoking the text responder. Pair eligibility is
+  reevaluated from current captions and the original untrimmed selector label;
+  label updates alone do not reflow during input. An unusable width or height
+  clears native slider focus/dragging and fences focus paths, stale focus
+  restoration, key press/release, character, mouse click/drag/release and scroll
+  routes without edits. Restoring a usable viewport reopens native keyboard
+  adjustment; resize preserves read-only flags, and an unchanged entry retains
+  slider adjustment mode through reflow. The native slider fixture demonstrates
+  why hiding a widget alone does not fence keyboard edits. These are headless
+  native-list input and retained-editor-state cases with injected text
+  measurements, not rendered font fitting, text-entry dispatch, footer traversal,
+  permission transitions, networking or persistence;
+- `SettingsEnumOptionTest` constructs native `CycleButton` controls from the
+  screen's actual Player Info, Team Color and Entity Block Geometry option
+  factories. It checks exactly one setting caption in the initial and updated
+  name/value label and native narration, with mode-specific tooltip components
+  following programmatic displayed-value changes while configuration values
+  remain unchanged. The Player Info cases cover Disabled, Always and Compact;
+  the Team Color and geometry cases cover every mode. This is headless
+  formatter, caption/narration and tooltip-component coverage with an injected
+  language, not click-driven config mutation, HOLD key-name help, live hover or
+  tooltip rendering;
+- `SettingsTitleWidgetTest` covers root-title identity and localized scope and
+  breadcrumb formats retaining every styled semantic component as an argument.
+  An injected language changes separators and argument order; scope-tab titles
+  retain their independent scope keys across model navigation. Headless layout
+  checks explicit widget bounds, wrapped title height and header reservation,
+  short-title header minima, word/code-point wrapping and space-less CJK without
+  losing text. Injected measurements and language fixtures are not live-font,
+  bundled-locale rendering or complete-screen title evidence;
 - `DeferredActionCoordinatorTest` covers the structural seam that runs a queued
   action after the native dispatch returns, waits for the outermost nested
   dispatch while keeping only the latest transition, and drops the transition
-  when the dispatch or a nested dispatch fails; and
+  when the dispatch or a nested dispatch fails;
 - `SettingsScreenFocusKeyTest` covers the shared focus-key lookup helper before
   an options list exists, resolution of a focused list's focused child,
   retention of a directly focused widget's key without a list-child lookup,
@@ -440,26 +570,45 @@ screen evidence:
   model. These are source-reviewed headless option and codec fixtures, not
   recorded test runs, mouse dragging or keyboard adjustment of a live slider;
 - `ClientConfigLocalizationTest` covers the eight bundled locale files and the
-  settings, category-navigation, server-status, entity-block-mode, and
-  target-gone resource keys, their required format placeholders, the category
-  entrance ellipsis, the exact local feedback prefix, the restart-required
-  external-list tooltips, the independent wheel and target opacity labels, the
-  retired wheel timeout key's removal, and the complete spatial-selector
-  preference key set with its wheel-options group heading, including the
-  precise capture period, trail controls and tooltips, the gesture-shortcut
-  toggle and minimum-wait labels and tooltips, the inventory width and height
-  cap labels and format-free tooltips, the content-intent label and tooltip,
-  and numeric/boolean placeholder rules; its exact preference key-set assertion
-  also excludes the obsolete inventory sensitivity label and tooltip. Point and
-  percent unit placeholders are also checked for every bundled locale. It checks required
-  key presence per locale rather than a
-  full-translation guarantee, and does not
-  render or assemble screen labels;
+  settings, all category entrances, server-status, entity-block-mode, and
+  target-gone resource keys, required format placeholders, category entrance
+  ellipses, and the exact local feedback prefix. It checks the active client-file
+  action's restart-required help, current transparent-selection label and
+  tooltip with retired selection resources absent, distinct localized title
+  segments, independent wheel/target opacity labels, and the complete
+  spatial-selector resource set with numeric/boolean and unit placeholder
+  contracts. Retired timeout and obsolete inventory-sensitivity resources stay
+  excluded. These are resource expectations, not a guarantee of translation
+  quality. The fixture does not assemble or render screen labels;
+- `SettingsLocalizationCoverageTest` derives the 71 value controls' required
+  nonblank labels and generic help from the production catalog/key builder. It
+  checks all category descriptions and section headings, scope/navigation/action
+  and presentation-editor help, used enum/state value labels, units, and visible
+  format resources across all eight bundled locales. Eleven dynamic enum-mode
+  tooltips have explicit signatures, including two string arguments for HOLD
+  help. Label, unit, name/value, truncation and title templates retain their
+  expected argument slots and types; argument-bearing templates are validated
+  with a formatter. Zero-argument prose accepts bare or escaped literal percent
+  signs but rejects consuming placeholders, with headless translatable-component
+  fixtures distinguishing literal text from strict argument templates. The
+  locale reader rejects duplicate JSON keys. This is resource/format coverage,
+  not semantic translation review, complete tooltip assembly, actual font fit,
+  hover/focus delivery or tooltip wrapping;
+- `ConfigEnumLocalizationTest` covers locale-independent resource-key generation
+  under ROOT, US and Turkish (`tr-TR`) JVM defaults. Every `PlayerInfoMode`,
+  `TeamColorMode` and `ChannelMode` value label, and every player/team dynamic
+  mode-tooltip key, must resolve to a nonblank string in the actual English and
+  Turkish resources; the disabled player-info tooltip also retains its canonical
+  key under every tested default. The fixture locks the shared locale resource
+  and restores the default, display and format locales in a `finally` block.
+  This is source-reviewed key/resource coverage with no passing execution
+  recorded here, not UI hover, assembled tooltip or rendering evidence;
 - `InventorySettingsLocalizationTest` covers the eight bundled locale files,
   the inventory settings label/tooltip key alignment and placeholder rules, the
   performance category entrance, the inventory group headings, the shared
   name/value label,
-  three nonblank tooltip lines with localized decrease/increase prefixes,
+  numeric tooltip lines with localized decrease/increase prefixes and separate
+  four-line boolean help for the Tracking partitions,
   distinct zero labels, removal of obsolete control resources, and the two size
   sliders' physical-KiB labels and adjustment notice; it does not render or
   assemble screen labels or establish translation semantic accuracy or live
@@ -504,11 +653,91 @@ screen evidence:
   every bundled locale; it does not render or assemble screen labels.
 
 The production screen routes native widget input through the deferred-action
-coordinator, but these tests exercise the model, catalog, geometry, and resource
-seams rather than native widget containers, mouse dispatch, or live focus lists.
+coordinator. Assembled input and resize seams are inventoried separately below;
+none establishes a live game render/input lifecycle or focus traversal.
+
+## Assembled settings-screen caption reflow
+
+`SettingsScreenInputLayoutTest` assembles the production screen's widgets and
+dispatches native mouse, keyboard, wheel and slider-drag input headlessly. Its
+seven cases use bundled Turkish captions with supplied deterministic text
+measurements, not a live font or window:
+
+- a Team Color caption crossing the half-width fit threshold stays paired during
+  its native callback and held mouse gesture, stacks in declared order after
+  release, and pairs again after cycling back, without resize. The same list and
+  widgets retain focus, viewport and exactly one setting edit/save callback per
+  activation; re-pairing may clamp scroll to the shorter list rather than reset it;
+- keyboard activation reflows only after the outermost dispatch, including a
+  nested key dispatch inside a save callback, retaining focus and scroll without
+  replaying an edit;
+- completed wheel dispatch reevaluates programmatically changed captions while
+  preserving native list scrolling, without turning the wheel or display-only
+  value changes into enum edits;
+- a caption change waits through a native slider click/drag and intervening key
+  dispatch until mouse release. Reflow retains the unchanged slider entry,
+  focus and dragged value without repeating a save callback;
+- clicking Reset, releasing on its confirmation screen and cancelling with
+  Escape returns the retained list/widgets and focus. Subsequent native Tab and
+  keyboard enum input still stack and re-pair captions, retain scroll and make
+  exactly one edit/save callback per activation;
+- the same Reset cancellation leaves keyboard size-slider edits able to refresh
+  both dependent controls, reconcile the display/frame draft and show the
+  adjustment notice. Focus and keyboard adjustment mode survive replacement
+  without an ordinary server-draft save; and
+- suspending a pending size-slider drag for a confirmation screen cancels the
+  retained screen/list/entry gesture flags without rebuilding the hidden page or
+  discarding focus. After release on the confirmation and Escape return, the next
+  dispatch completes the pending refresh without another edit; stale dragging
+  cannot resume, and both draft texts and dirty fields remain unchanged.
+
+The fixture preserves native screen removal, addition and retained-instance
+initialization while bypassing the GPU, mouse/window and title work of the game
+screen switch. Server-size cases inject accepted snapshot and permission state,
+not a connection or remote transaction.
+
+All seven cases passed the focused screen suite and subsequent full Java 21
+verification recorded in the
+[combined Java run](build-checks.md#recipientless-tracking-diagnostics-and-caption-reflow-verification),
+which also built all three loaders. Final settings review passed on the corrected
+dialog-return input. These headless assertions do not exercise native glyph
+rendering, real GLFW input, hover/focus tooltip delivery, screen-close persistence
+or live translation readability.
+
+## Assembled settings-screen resize
+
+`SettingsScreenResizeTest` assembles production screen widgets and invokes the
+native resize path headlessly. Its four cases cover:
+
+- client-overview Reset becoming hidden, inactive and unfocusable when its footer
+  cannot contain it, then recovering on the same retained page and button;
+- Reset remaining unavailable on the server overview and representative leaf
+  pages in both scopes through shrink/grow, with normal return to the client
+  overview;
+- a retained subgroup heading keeping complete-text tooltip content when it
+  starts fitting but clips after resize, without becoming interactive; and
+- the Server Presentation heading retaining its dedicated help through resize
+  rather than replacing it with generic complete-text help.
+
+An isolated Java 21 execution passed all four cases; the pre-fix bytecode control
+failed two, and a broader related headless selection passed 43 tests. These
+additions also passed the subsequent
+[combined-tree Java verification and loader builds](build-checks.md#terminal-preview-admission-and-settings-resize-run).
+Deterministic font measurements and tooltip-component assertions do not exercise a
+real window, GUI-scale event, native glyph rendering, hover/focus tooltip delivery
+or wrapping.
 
 ## Known automated gaps
 
+- native-list reflow/input, enum caption/narration/tooltip components, assembled
+  caption-change/dialog-return input and native resize have headless assertion
+  coverage above, with execution evidence scoped separately; the game render/input
+  lifecycle remains unexercised. Live GUI-scale/window resizing,
+  footer traversal, text-entry dispatch, actual font-driven pair stacking,
+  rendered heading clipping/help, hover/keyboard-focus tooltip delivery and wrapping,
+  translation accuracy, and multiplayer read-only permission transitions remain
+  pending in the
+  [manual matrix](manual-integration.md#settings-and-server-performance);
 - the server Performance factory, model, handler, codec and localization seams
   [passed the combined-tree run](#server-performance-contract-verification), but
   do not establish a complete live settings screen's mouse dispatch, resizing,
@@ -532,13 +761,14 @@ seams rather than native widget containers, mouse dispatch, or live focus lists.
   [manual matrix](manual-integration.md#pending-manual-and-integration-matrix);
 - inventory administration and spatial-selector configuration have model,
   persistence, strict wire, draft, catalog and focus-helper seams; live
-  administration, native widget input/focus, permission changes, persistence,
+  administration, screen-level input/focus, permission changes, persistence,
   scheduler consumption and selector integration remain unexercised by them;
 - live server-settings UI, permission, read-only viewing below the required
   level, request/response, update, and persistence behavior;
 - the assembled settings-screen label for the local marker display duration
-  option: `ClientConfigLocalizationTest` checks resource keys, values, and the
-  `%s` placeholder, and `SettingsScreenLayoutTest` checks layout, but neither
-  checks the complete localized `<setting name>: <value>` label for the Follow
-  server sentinel or an explicit duration; the label form is owned by
+  option: `ClientConfigLocalizationTest` and `SettingsLocalizationCoverageTest`
+  check resource keys, values and placeholder contracts, and
+  `SettingsScreenLayoutTest` checks geometry, but none assembles that control's
+  complete localized label for the Follow server sentinel or an explicit
+  duration; the label form is owned by
   [configuration UI](../../UI/settings-screen.md#marker-display-duration-option);

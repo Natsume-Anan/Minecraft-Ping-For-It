@@ -112,7 +112,7 @@ class InventoryReconfigurationTest {
 		}
 		@Override public InventoryBackend.Created create(UUID player, InventoryBackend.Opened frozen, InventoryBackend.Admission admission) {
 			var type = TargetTypeCatalog.builtIn().findById(frozen.targetType()).orElseThrow();
-			var reject = admission.prepare(frozen.target(), type.id(), List.of(A, B));
+			@org.jetbrains.annotations.Nullable var reject = admission.prepare(frozen.target(), nx.pingwheel.common.marker.TargetKey.from(frozen.target()), type.id(), List.of(A, B));
 			if (reject != null) return new InventoryBackend.Created(null, reject);
 			var marker = store.create(player, frozen.target(), type, type.defaultPingType(), new MarkerAnchor(1, 2, 3), 1, expiry, List.of(A, B)).marker();
 			return new InventoryBackend.Created(marker, null);
@@ -250,7 +250,6 @@ class InventoryReconfigurationTest {
 			f.host.failOffers = true;
 			int change = f.host.packets.size();
 			f.tick(); f.tick();
-			f.handle(A, InventoryC2SPacket.resync(f.host.epoch(A), 1).stamp(100, 1));
 			assertTrue(f.host.offerAttempts >= 2, "the new OFFER is retried while its transport handoff keeps failing");
 			assertTrue(f.host.after(A, change).stream().noneMatch(p -> p.kind() == InventoryS2CPacket.Kind.PREVIEW
 				|| p.kind() == InventoryS2CPacket.Kind.SNAPSHOT || p.kind() == InventoryS2CPacket.Kind.STREAM),

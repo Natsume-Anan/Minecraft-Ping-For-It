@@ -53,6 +53,18 @@ seams are covered separately in the
 [inventory foundation](inventory.md#inventory-preview-and-tracking-foundation),
 while no live Minecraft world, integrated server runtime or transport exercises it.
 
+The production inventory runtime's attachment floors, paid-prefix replay,
+retained successor handoff and owner/face partitioning are covered under the
+[inventory foundation](inventory.md#inventory-preview-and-tracking-foundation).
+The [composed Vault sharing cases](inventory.md#logical-container-quotas-and-scan-sharing)
+add actual segmented-provider/ordinary-wrapper/runtime evidence across different
+member hits on the exact legacy path, including late attachment and new-selection
+freshness. Inventory's separate
+[certified-pool coverage](inventory.md#certified-tracking-pool-and-publication-coverage)
+adds independently bound cross-owner/face reuse and historical publication
+authority. Generic exact read-scope semantics are unchanged; none of these
+headless cases is a live performance measurement.
+
 ## Shared source sync publication contract
 
 `SyncPublisherTest` covers the publication boundary declaration with a fake
@@ -116,6 +128,9 @@ cooldown. `BudgetDelayMonitorTest` checks just-before and exact server-tick
 notification-threshold and global delivered-notice cooldown boundaries, zero and
 nonzero streak origins, repeated same-tick ingress or accounting cycles not
 advancing the streak, and a late first flush not qualifying stale evidence.
+Boundary input times come from the corresponding implementation timing sources;
+threshold, cooldown and fresh-evidence outcomes remain independent contract
+expectations.
 They also cover disabled messages preserving diagnostics and evidence,
 failed or recipient-less notice retry, permission and authoritative-host
 eligibility, live flag reads, server-lifetime replacement/stop, recoverable
@@ -138,17 +153,40 @@ preview duplicate suppression, retained repair still observing its new work,
 revoked or expired reprojection doing no delayed work, and heartbeat progress
 not resolving independently refused completion control.
 `InventoryBudgetDelayIntegrationTest` also combines the real backend with the
-monitor: a fresh delayed server tick can qualify a notice within one accounting
-period, repeated same-tick ingress does not accelerate it or refund the logical
-period budget, and WARN waits for accounting-cycle closure. Presentation and
+monitor: fresh delayed evidence qualifies a server-tick notice across accounting
+periods independently of WARN at real accounting-cycle closure. Repeated
+same-tick ingress neither accelerates the streak nor refunds the spent physical
+allowance, and skipped periods emit no synthetic WARN. Presentation and
 property-preview producer cases are inventoried under
 [presentation snapshot negotiation, policy and adapters](presentation.md#presentation-snapshot-negotiation-policy-and-adapters)
 and [target content preview](presentation.md#target-content-preview).
-The earlier focused run passed the complete inventory monitoring integration
-suite. The [final combined-tree run](build-checks.md#vault-tracking-performance-combined-tree-run)
-records the later known notification-timing failures; coverage inventory is not
-an all-green claim. No live server, notification, heap/TPS or soak result follows
-from these seams.
+The complete Common suite passed in the recorded
+[automated verification results](build-checks.md#automated-verification-results).
+No live server, notification, heap/TPS or soak result follows from these seams.
+
+## Certified pool delay diagnostics
+
+`InventoryPooledChestRuntimeTest` adds seven source-reviewed cases across three
+methods through the production certified chest runtime and `BudgetDelayMonitor`.
+They use 27-slot chests and the legal normalized physical cap of 16, with admitted
+metadata and otherwise serviceable fixture budgets:
+
+| Refusal or control | Closed-cycle summary and progress assertions |
+| --- | --- |
+| Physical allowance exhausted before the first page or after a retained 16-slot page (two cases) | Only `PHYSICAL_SLOTS`; respectively 27 or 11 known remaining physical slots. Repeated refused steps and repeated cycle closure produce one work item and one summary, perform no content getter and keep the cursor. Fresh allowance resumes to completion. |
+| Page-memory, provider-work, item-work, or combined memory/provider-work exhaustion (four cases) | After one paid slot, exactly 26 known remaining physical slots; only `MEMORY`, `PROVIDER_WORK`, or both as applicable. Item-processing work uses the existing `PROVIDER_WORK` diagnostic category. Refusal preserves the prefix without spending physical slots or invoking a content getter, then resumes when the guard permits. |
+| Already-paid shared-journal replay (one case) | The peer replays the prefix with no remaining physical allowance and later replays the completed tail, without another content getter or duplicate same-target logical charge; cycle closure produces no budget warning. |
+
+Reason counts and quantities are checked on actual closed-cycle summaries rather
+than inferred from an empty step. The known remaining quantity comes from the
+retained certified graph and committed journal, including before any first-page
+result exists; collecting it performs no source lookup or read. Cleanup assertions
+release retained and reserved memory. These assertions passed the full Java 21
+execution recorded in the
+[combined Java run](build-checks.md#recipientless-tracking-diagnostics-and-caption-reflow-verification),
+separate from the earlier Common results. They do not capture live WARN output
+or administrator messages. The wider pool/source coverage remains owned by
+[inventory verification](inventory.md#certified-tracking-pool-and-publication-coverage).
 
 ## Known automated gaps
 

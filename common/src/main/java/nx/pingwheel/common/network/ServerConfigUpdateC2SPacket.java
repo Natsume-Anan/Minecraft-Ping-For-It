@@ -3,53 +3,54 @@ package nx.pingwheel.common.network;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import nx.pingwheel.common.config.ChannelMode;
-import nx.pingwheel.common.config.ServerConfigBounds;
+import nx.pingwheel.common.config.ConfigDefaults;
 import nx.pingwheel.common.config.ServerConfigUpdate;
 import nx.pingwheel.common.config.InventoryConfigValues;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import static nx.pingwheel.common.Global.C2S_NAMESPACE;
 
 /** Sends one dirty-field-only server settings update. */
 public record ServerConfigUpdateC2SPacket(
 	int changedFields,
-	ChannelMode defaultChannelMode,
+	@Nullable ChannelMode defaultChannelMode,
 	boolean playerTrackingEnabled,
 	int msToRegenerate,
 	int rateLimit,
 	int syncDuration,
-	InventoryConfigValues inventory,
+	@Nullable InventoryConfigValues inventory,
 	boolean budgetDelayNotificationsEnabled
 ) implements IPacket {
 	public static final ResourceLocation PACKET_ID = ResourceLocation.fromNamespaceAndPath(
 		C2S_NAMESPACE,
-		"server-config-update-v4");
+		"server-config-update-v5");
 	public static final Type<ServerConfigUpdateC2SPacket> PACKET_TYPE = new Type<>(PACKET_ID);
 
 	/** Compatibility constructor for callers that do not edit sync duration. */
 	public ServerConfigUpdateC2SPacket(
 		int changedFields,
-		ChannelMode defaultChannelMode,
+		@Nullable ChannelMode defaultChannelMode,
 		boolean playerTrackingEnabled,
 		int msToRegenerate,
 		int rateLimit) {
 		this(changedFields, defaultChannelMode, playerTrackingEnabled, msToRegenerate, rateLimit,
-			ServerConfigBounds.DEFAULT_SYNC_DURATION);
+			ConfigDefaults.Server.SYNC_DURATION);
 	}
 
-	/** Source compatibility only; v4 wire updates always contain inventory. */
+	/** Source compatibility only; v5 wire updates always contain the complete inventory block. */
 	public ServerConfigUpdateC2SPacket(int changedFields, ChannelMode defaultChannelMode,
 		boolean playerTrackingEnabled, int msToRegenerate, int rateLimit, int syncDuration) {
 		this(changedFields, defaultChannelMode, playerTrackingEnabled, msToRegenerate, rateLimit,
 			syncDuration, InventoryConfigValues.defaults());
 	}
 
-	/** Source compatibility only; the complete v4 wire shape includes the notice flag. */
-	public ServerConfigUpdateC2SPacket(int changedFields, ChannelMode defaultChannelMode,
+	/** Source compatibility only; the complete v5 wire shape includes the notice flag. */
+	public ServerConfigUpdateC2SPacket(int changedFields, @Nullable ChannelMode defaultChannelMode,
 		boolean playerTrackingEnabled, int msToRegenerate, int rateLimit, int syncDuration,
-		InventoryConfigValues inventory) {
+		@Nullable InventoryConfigValues inventory) {
 		this(changedFields, defaultChannelMode, playerTrackingEnabled, msToRegenerate, rateLimit,
-			syncDuration, inventory, true);
+			syncDuration, inventory, ConfigDefaults.Server.BUDGET_DELAY_NOTIFICATIONS_ENABLED);
 	}
 
 	public ServerConfigUpdateC2SPacket(ServerConfigUpdate update) {
