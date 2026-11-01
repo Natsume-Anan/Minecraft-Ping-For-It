@@ -2,36 +2,28 @@
 
 ## Unreleased
 
-Changes between local `1.21.1` HEAD `3abf2c5d` (`0.5.0-pfi-beta2`) and this
-branch's HEAD, compared directly. This is an unreleased branch summary, not a
-new published version.
+Changes between local `1.21.1` HEAD `3abf2c5d` (`0.5.0-pfi-beta2`) and current HEAD,
+compared directly.
 
 ### Grouped containers
 
 - Either half of a vanilla normal or trapped double chest now addresses one
-  logical target. Supported [Create item vaults on NeoForge](docs/integrations/create.md#vault-logical-target-and-presentation-topology)
-  group by their verified controller under the existing tested-version gate;
-  this does not add general multiblock support or Vault grouping on other loaders.
+  logical target. Supported [Create item vaults on NeoForge](docs/integrations/create.md#vault-logical-target-and-presentation-topology).
 - Same-target winner selection and HUD grouping use that logical container.
   Markers still keep their original physical hit, anchor, owner, cancellation
-  rights and independent expiry. Splitting or rebuilding a container does not
-  reassign existing markers; new markers use the structure verified at creation.
+  rights and independent expiry.
 - Container presentation covers both verified chest halves or each verified
   Vault cell. Missing, unloaded or inconsistent grouping metadata falls back to
-  the exact hit block rather than inventing a larger container. See the
+  the exact hit block. See the
   [logical target model](docs/architecture/identity/target_model.md#frozen-logical-block-groups).
 
 ### Inventory preview and tracking
 
 - Certified native chest and ordinary NeoForge Create Vault views can reuse
   physical inventory reads across independently authorized players and faces
-  when the provider proves their visible slots equivalent. Unsupported,
-  decorated and external sources retain exact player/face isolation.
+  when the provider proves their visible slots equivalent.
 - New Tracking consumers can join an eligible, still-active Preview or Tracking
-  scan while physical scanning demand remains. Each replays its earlier slot
-  journal from the beginning with independent totals and publication. Completed
-  results are not a cache for new consumers; shared sweeps remain mixed-time
-  observations, not atomic snapshots.
+  scan while physical scanning demand remains.
 - Eligible Previews can borrow active Tracking scans, without enabling general
   Preview-only cross-player or cross-face pooling. A completed Preview left open
   no longer blocks later Tracking sweeps and does not periodically rescan itself.
@@ -48,7 +40,7 @@ new published version.
   `inventory.tracking.distinguishPlayers`, both defaulting to `false`, with
   **Separate Tracking by Face** and **Separate Tracking by Player** toggles on
   the server Performance page. Enable either to partition certified scan sharing
-  by that context; disabling them never widens visible slots or grants access.
+  by that context
 - Changes to these switches affect subsequent scans. Running scans finish under
   their previous policy without restarting or changing marker lifetimes. See
   [server configuration](docs/config/server.md#inventory-policy-object).
@@ -57,7 +49,7 @@ new published version.
 - Optimized supported Create Vault reads by reusing fixed reflection metadata
   and removing duplicate validation work on the audited ordinary path. Current
   handlers, topology and owner authority still require checks; contents and
-  successful permission checks are not cached. No live performance gain is claimed.
+  successful permission checks are not cached.
 
 ### Settings and help
 
@@ -72,21 +64,15 @@ new published version.
   direction, scope and application timing. Action help distinguishes Server
   Policy mutations sent on activation from ordinary server drafts submitted on
   final close; typing a selector alone sends no mutation.
-- Updated labels, headings, help and assembled UI messages in all eight bundled
-  locales. See the [settings UI contract](docs/UI/settings-screen.md#contextual-help-and-localization).
+- Updated labels, headings, help and assembled UI messages in all locales.
 
 ### Network compatibility
 
 - **Update clients and servers together.** Presentation moves from
   `presentation-v1` to `presentation-v2`; server-configuration request, update
   and snapshot routes move from v4 to v5. Earlier routes have no fallback.
-  The server derives and transmits logical target keys; configuration v5 carries
-  both new Tracking switches.
+  The server derives and transmits logical target keys.
 - Removed inactive legacy ping, marker and duration-policy routes. Unavailable
-  inventory sources use `INVALID`; inventory `UNAVAILABLE` and `EXPIRED` statuses
+  inventory sources use `INVALID`. inventory `UNAVAILABLE` and `EXPIRED` statuses
   are removed, with expiry handled by marker lifecycle. Inventory `RESYNC` now
   requires a marker ID; the unused request-only form is removed.
-- The Basic adapter schema, `inventory-v1` route version, persisted configuration
-  format and mod version remain unchanged. Existing configurations need no
-  versioned migration; missing new switches default to `false`. See the
-  [network protocol](docs/architecture/network/protocol.md) for compatibility details.
