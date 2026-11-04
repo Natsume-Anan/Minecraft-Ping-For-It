@@ -69,6 +69,7 @@ public final class InventoryServer {
 	}
 
 	public static void reset() {
+		InventoryFluidRouteDiagnostics.clear();
 		if (backend != null) backend.close();
 		backend = null;
 		active = null;
@@ -98,16 +99,38 @@ public final class InventoryServer {
 	public static boolean tracksInventory(MarkerId marker) {
 		return backend != null && backend.tracksInventory(marker);
 	}
+	public static Optional<nx.pingwheel.common.presentation.inventory.InventoryResourceKind> trackedKind(MarkerId marker) {
+		return backend == null ? Optional.empty() : backend.trackedKind(marker);
+	}
+	public static Optional<nx.pingwheel.common.presentation.inventory.InventoryCreationSnapshot> creationSnapshot(MarkerId marker) {
+		return backend == null ? Optional.empty() : backend.creationSnapshot(marker);
+	}
+	public static InventoryBackend.InitialDecision creationDecision(MarkerId marker, UUID recipient, long epoch, long view) {
+		return backend == null ? InventoryBackend.InitialDecision.SUPPRESSED : backend.creationDecision(marker, recipient, epoch, view);
+	}
+	public static Optional<InventoryBackend.InitialPublication> reserveInitial(MarkerId marker, UUID recipient,
+		long epoch, long view, long wireBytes, long encodingWorkspace) {
+		return backend == null ? Optional.empty() : backend.reserveInitial(marker, recipient, epoch, view, wireBytes, encodingWorkspace);
+	}
+	public static Optional<InventoryBackend.InitialEnvelope> reserveInitialEnvelope(long wireBytes, long workspace) {
+		return backend == null ? Optional.empty() : backend.reserveInitialEnvelope(wireBytes, workspace);
+	}
+	public static boolean initialMarkerActive(MarkerId marker, UUID recipient) { return backend != null && backend.initialMarkerActive(marker, recipient); }
+	public static void suppressCreation(MarkerId marker, UUID recipient) { if (backend != null) backend.suppressCreation(marker, recipient); }
 
 	private record Host(MinecraftServer server, InventoryRuntime runtime, InventoryRuntime.DisplayReprojector reprojector) implements InventoryBackend.Host {
 		@Override public Optional<InventoryRuntime.DisplayReprojector> displayReprojector() { return Optional.of(reprojector); }
 		@Override public Optional<InventoryBackend.Policy> policy(UUID player) {
-			return PresentationServer.inventoryPolicy(player).map(p -> new InventoryBackend.Policy(p.epoch(), p.view(), p.types()));
+			return PresentationServer.inventoryPolicy(player).map(p -> new InventoryBackend.Policy(p.epoch(), p.view(), p.types(), p.fluidTypes()));
 		}
 		@Override public boolean authorized(SyncPublisher.Context context) { return policy(context.recipient()).map(p -> (p.epoch() + "/" + p.view()).equals(context.sessionView())).orElse(false); }
 		@Override public boolean knows(UUID player, MarkerId marker) { return PresentationServer.inventoryKnows(player, marker); }
 		@Override public InventoryBackend.Created create(UUID player, InventoryBackend.Opened frozen, InventoryBackend.Admission admission) {
 			return ServerCore.createInventory(server, server.getPlayerList().getPlayer(player), frozen, admission);
+		}
+		@Override public InventoryBackend.Created create(UUID player, InventoryBackend.Opened frozen,
+			nx.pingwheel.common.presentation.inventory.InventoryResourceKind kind, InventoryBackend.Admission admission) {
+			return ServerCore.createInventory(server, server.getPlayerList().getPlayer(player), frozen, kind, admission);
 		}
 		/**
 		 * Production committed publication: the backend installed the tracking
@@ -138,7 +161,7 @@ public final class InventoryServer {
 			var state = level.getBlockState(pos);
 			if (state == null || state.isAir()) return false;
 			String id = BuiltInRegistries.BLOCK.getKey(state.getBlock()).toString();
-			return id.equals(physical.blockRegistryId()) && InventoryItemPingTypes.builtIn().allows(pingType, id,
+			return id.equals(physical.blockRegistryId()) && InventoryItemPingTypes.builtIn().allows(input.resourceKind(), pingType, id,
 				BuiltInRegistries.BLOCK.wrapAsHolder(state.getBlock()).tags().map(tag -> tag.location().toString()).collect(java.util.stream.Collectors.toSet()));
 		}
 
@@ -172,8 +195,8 @@ public final class InventoryServer {
 				.resolve(validated.normalizedTarget(), validated.matchContext());
 			int level = 0;
 			for (int candidate = 1; candidate <= 4; candidate++) if (player.hasPermissions(candidate)) level = candidate;
-			if (!InventoryPresentation.allowed(config.getPresentation(), playerId, level, resolved.targetType().id())
-				.contains(InventoryPresentation.ITEMS)) return Optional.empty();
+			var allowed = InventoryPresentation.allowed(config.getPresentation(), playerId, level, resolved.targetType().id());
+			if (!allowed.contains(InventoryPresentation.ITEMS) && !allowed.contains(InventoryPresentation.FLUIDS)) return Optional.empty();
 			return Optional.of(new InventoryBackend.Opened(resolved.target(),
 				resolved.targetType().id(), resolved.targetType().defaultPingType().id()));
 		}
@@ -193,7 +216,7 @@ public final class InventoryServer {
 			if (requested == null || committed == null) return Optional.empty();
 			if (!(committed instanceof Target.ExternalBlockTarget committedExternal) || !committedExternal.isCommitted()) {
 				return previewInput.ordinaryTarget().filter(block -> block.equals(committed))
-					.map(block -> new InventorySourceInput(block, previewInput.readOwner(), previewInput.face()));
+					.map(block -> new InventorySourceInput(block, previewInput.readOwner(), previewInput.face(), previewInput.resourceKind()));
 			}
 			if (!(requested instanceof Target.ExternalBlockTarget candidate) || !candidate.isCandidate()
 				|| !candidate.dimensionId().equals(committedExternal.dimensionId())
@@ -209,7 +232,7 @@ public final class InventoryServer {
 				var previewBinding = preview.orElseThrow().descriptor();
 				var committedBinding = current.orElseThrow().descriptor();
 				if (!InventoryBackend.correspondingPhysicalBinding(previewBinding, committedBinding)) return Optional.empty();
-				return Optional.of(new InventorySourceInput(committedExternal, previewInput.readOwner(), previewInput.face()));
+				return Optional.of(new InventorySourceInput(committedExternal, previewInput.readOwner(), previewInput.face(), previewInput.resourceKind()));
 			});
 		}
 

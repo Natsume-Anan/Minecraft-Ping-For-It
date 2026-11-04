@@ -93,15 +93,15 @@
 ### Logical container targets and whole presentation
 
 - In live multiplayer, ping opposite halves of normal and trapped double chests
-  and different members of a supported NeoForge Create Vault. Check one visible
-  winner per recipient, independent ownership/cancellation/expiry and selected
-  item tracking, and recovery to a surviving loser. Include equal-arrival ties,
-  different frozen audiences, owner and recipient disconnects, and same-owner
-  repeated markers.
-- Split and rejoin chests and alter Vault topology after creation. Check frozen
-  logical identity and lifetime, new markers using current structure, and current
-  presentation following verified metadata without widening inventory authority.
-  Include locked and loot-backed chests, missing neighboring chunks and direct
+  and different members of supported NeoForge Create Vaults and fluid tanks.
+  Check one visible winner per recipient, independent ownership/cancellation/expiry
+  and selected-resource tracking, and recovery to a surviving loser. Include
+  equal-arrival ties, different frozen audiences, owner and recipient disconnects,
+  and same-owner repeated markers.
+- Split and rejoin chests and alter Vault or tank topology after creation. Check
+  frozen logical identity and lifetime, new markers using current structure, and
+  current presentation following verified metadata without widening inventory
+  authority. Include locked and loot-backed chests, missing neighboring chunks and direct
   fallback, and preserve original hit anchors and exact preview selection roots.
 - Exercise installed tested-version Create client synchronization: controller
   and member packets in differing orders, stale member dimensions, chunk
@@ -109,7 +109,10 @@
   recovery on later frames. Inspect per-cell baked-model outlines and fallback
   with GPU rendering; headless archive/metadata tests do not establish live
   packet ordering or rendered appearance. Verify ordinary chest behavior on all
-  loaders and exact/direct Vault fallback on unsupported loaders.
+  loaders and exact/direct Vault and tank fallback on unsupported loaders.
+- On an ordinary static tank, toggle boiler activity and check complete per-cell
+  presentation while its fluid read route remains independently gated. Include
+  creative tanks as a different-registry control.
 - Exercise matching presentation-v2 negotiation and incompatible v1/v2 peers
   over real loader connections. Codec rejection is not a recorded live handshake
   or mixed-version gameplay result. Grouped receipt completion and inventory
@@ -168,7 +171,7 @@
   do not establish real delayed transport or multiplayer behavior.
 
 - Exercise [native incremental sweeps](../../architecture/presentation/inventory.md#native-incremental-reads) in live 540/900-slot inventories and the user-confirmed 1,620-slot installed tested-version Create Vault: partial preview, immediate marker creation without a content getter, selected-preview updating display through the next eligible normal publication tick, a complete first tracking result including zero, ordinary within-slot updates, completion-plus-period cadence, and old completed totals during replacement. Include pre-attachment prefix values on certified active joins and fresh first rounds on unsupported routes. The [headless native coverage](inventory.md#native-incremental-sweep-coverage) is not installed-provider or game-runtime evidence; cross-slot movement remains outside the accepted accuracy guarantee.
-- Reproduce the reported Vault case with simultaneous import/export of one item, including installed Create/Refined Storage interaction and a cleared old observed slot before selection. Check the provisional-to-complete transition, incomplete grey history, invalidity without seed resurrection, exact/aggregate qualifiers, delayed Basic/parts and no provisional chat. [Bootstrap coverage](inventory.md#preview-seeded-tracking-coverage) does not establish the original incident's cause or guarantee all selection failures are resolved; no live reproduction is recorded.
+- Reproduce the reported Vault case with simultaneous import/export of one item, including installed Create/Refined Storage interaction and a cleared old observed slot before selection. Check the provisional-to-complete transition, incomplete grey history, invalidity without seed resurrection, exact/aggregate qualifiers, delayed Basic/parts, the immediate frozen creation-snapshot chat with its uncertainty notation, and its independence from later Tracking updates. [Bootstrap coverage](inventory.md#preview-seeded-tracking-coverage) does not establish the original incident's cause or guarantee all selection failures are resolved; no live reproduction is recorded.
 - Exercise live owner/lock/loot, face/membership, load and topology changes during a large sweep, plus permission revocation, recovery, delayed multipart delivery and recipient-isolated repair in multiplayer. Preserve the existing marker lifetime and admission/range rules.
 - Measure TPS, GC, heap retention and update latency under large-inventory and shared-consumer load on the supported loaders. Deterministic slot/work/memory admission and fixture tick bounds do not establish live performance.
 - Pair before/after profiling of the user's confirmed 81-member Create Vault under
@@ -179,3 +182,64 @@
   does not reproduce the reported live allocation rate or CPU percentage.
 - Exercise the [patch-only identity and display boundary](../../architecture/presentation/inventory.md#item-variants-and-component-fallback) with installed modded containers and component wrappers, including owo-backed items, through live preview, item selection and tracking on the supported loaders. This remains pending; headless fixtures are not installed-mod evidence.
 - Exercise client/server local-default differences and the terminal size-only default icon in the live inventory list and tracking HUD, including retained reprojection after a ceiling change and delivery delayed by period-byte pressure. Automated transition evidence is tracked in [inventory verification](inventory.md#patch-only-identity-and-display-verification-pending).
+
+### Fluid inventory
+
+All scenarios here are pending. The
+[fluid inventory automated coverage](inventory.md#fluid-inventory-coverage)
+records the final headless coverage separately from these unperformed live checks.
+
+- On Minecraft 1.21.1 Fabric, Forge 52.0.2 and the supported NeoForge setup,
+  open a static block that exposes both items and fluids. Check one panel's
+  resource groups, independent field authorization/status/completion, shared
+  request close, one-resource selection, replay and ordinary annotation policy.
+  Deny and restore only one field while the other remains usable; include
+  multipart repair, delayed controls and known-marker removal.
+- Keep a selected row stationary while an unrelated variant folds or either
+  lane replaces its baseline, including equal opaque keys in both groups and a
+  scrolled list. Check that a still-selectable lane-qualified key survives and
+  release submits its intended resource, with fallback only when that row is
+  actually removed or invalid.
+- Exercise Fabric component variants and sub-millibucket amounts, Forge NBT
+  variants, and NeoForge component variants through actual capabilities. Include
+  same-ID distinct variants, identity-only refusal, display-only refusal,
+  checked conversion/sum limits, true empty views and selected-resource absence
+  only after complete scanning. Confirm frozen-face and owner/member/load gates,
+  no forced load, mutation or creation-time presence getter, and no stale
+  success after revocation or topology loss.
+- Replace a Fabric public wrapper while preserving its stable native underlying
+  storage, then merge or detach that underlying storage. Check current-wrapper
+  reads, bounded validation, invalidation only where continuity is lost and
+  fresh complete recovery. On a generic opaque provider, exercise exposed
+  route/count/capacity changes and the accurate per-server/provider-class INFO
+  notice; do not treat unchanged public metadata as proof against a hidden remap.
+- In an installed tested-version NeoForge Create tank, target different members
+  and faces, including cross-chunk load changes, controller replacement, merge,
+  split, creative tanks and active boilers. Confirm controller-only quantity
+  without member duplication, fixed-face capability access, mode denial without
+  generic fallback and fresh recovery under the original marker expiry.
+- With an installed Sable provider and an otherwise supported fluid target,
+  move the same target under the same live lease to another sub-level. Check
+  `UPDATING` retains the displayed quantity without transition-only `INVALID`
+  or duplicate chat, new-scope permission/physical evidence is established and
+  only a fresh complete delivered result replaces the quantity, including zero.
+  Withhold final parts and inject real denial, unreadability, release and expiry;
+  old cuts/seeds/partial sums must not complete the new scope. Keep item and
+  ordinary multiblock invalidity as independent controls.
+- Compare list, HUD and exactly-once content chat in bundled locales for zero,
+  integer mB, positive sub-mB, exact buckets and very large quantities. Inspect
+  approximate indicators, six-significant-digit large forms, Latin billion
+  versus bucket labels, CJK units, long custom names and safe empty icons for
+  unknown/malformed display data. Exercise narrow viewports, fractional text
+  scales, native font fitting and GPU output, not only localized resource presence.
+- With installed native fluid handlers, include a non-placeable fluid such as
+  supported Create tea. Check localized base names, missing-translation fallback,
+  literal custom names, native still sprites and text-only failure. Reload client
+  resources after both a successful and a failed lookup. Launch a dedicated
+  server with the loader name service present and confirm no client render
+  initialization is required.
+- Exercise mixed inventory-v1/v2 peers on real loader connections and matching
+  v2 peers with delayed multipart delivery. Confirm the dedicated route has no
+  v1 reinterpretation, while unrelated presentation/configuration behavior stays
+  on its established version contracts. Measure combined item/fluid work under
+  low shared budgets before making throughput, TPS, allocation or GC claims.

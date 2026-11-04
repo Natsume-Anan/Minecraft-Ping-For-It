@@ -96,6 +96,17 @@ class InventoryBackendTest {
 			int reads = f.reads.get(); f.backend.tick(5, f.settings); assertTrue(f.reads.get() > reads, "CLOSE releases preview, not tracking");
 		}
 	}
+	@Test void unsupportedFluidLaneCannotResolveAnItemReferenceOrConsumeItsCommitFence() {
+		try (Fixture f = new Fixture()) {
+			f.open(); var preview = f.preview(); int reads = f.reads.get();
+			f.backend.handle(A, InventoryC2SPacket.select(InventoryResourceKind.FLUID, f.host.epoch(A), 100, 1, 1, 1,
+				preview.baselineId(), preview.statusRevision(), preview.entries().getFirst().key(), "attention"), 1, f.settings);
+			assertEquals(0, f.host.store.size()); assertEquals(reads, f.reads.get());
+			f.backend.handle(A, f.select(1), 1, f.settings);
+			assertEquals(1, f.host.store.size(), "the ITEM selection still owns its original commit fence");
+			assertEquals(reads, f.reads.get(), "neither selection performs a presence getter");
+		}
+	}
 	@Test void invalidityRecoveryAndHardExpiryDoNotChangeMarkerLifetimeOrProbeAfterDeadline() {
 		try (Fixture f = new Fixture()) {
 			f.host.expiry = 12; f.open(); f.backend.handle(A, f.select(1), 1, f.settings); f.backend.tick(2, f.settings);
@@ -120,7 +131,7 @@ class InventoryBackendTest {
 			// Revocation fences the purged view with its POLICY first and only then
 			// re-advertises the current view's negotiation OFFER; no revoked inventory
 			// data frame may follow and the frozen marker audience stays untouched.
-			assertEquals(List.of(InventoryS2CPacket.Kind.POLICY, InventoryS2CPacket.Kind.OFFER),
+			assertEquals(List.of(InventoryS2CPacket.Kind.POLICY, InventoryS2CPacket.Kind.POLICY, InventoryS2CPacket.Kind.OFFER),
 				revoked.stream().map(InventoryS2CPacket::kind).toList());
 			assertEquals(Set.of(), revoked.getFirst().allowedTypes());
 			for (var packet : revoked) {
@@ -405,6 +416,8 @@ class InventoryBackendTest {
 			assertEquals(missing ? 0 : 1, f.host.store.size());
 			if (!missing) {
 				Object lease = ((Map<?, ?>) field(f.backend, "tracking")).values().iterator().next();
+				var snapshot = f.backend.creationSnapshot(f.host.store.allMarkers().getFirst().id()).orElseThrow();
+				assertEquals(9007199254740993L, snapshot.amount()); assertFalse(snapshot.aggregate());
 				assertNull(field(lease, "completed")); assertEquals(0L, field(lease, "count")); assertEquals(0L, field(lease, "total"));
 				assertNull(field(field(lease, "consumer"), "completedRound")); assertEquals(0, field(field(lease, "consumer"), "cursor"));
 				f.backend.handle(A, InventoryC2SPacket.close(f.host.epoch(A), 1).stamp(100, 1), 1, f.settings);
@@ -439,6 +452,9 @@ class InventoryBackendTest {
 			counts.put(key, new InventoryDomainCodec.Item(key, 9007199254740993L, "stone", null, true));
 			totals.put(key.itemId(), new InventoryDomainCodec.Item(key, 99, "stone", null, true));
 			int reads = f.reads.get(); f.backend.handle(A, packet, 1, f.settings); assertEquals(1, f.host.store.size()); assertEquals(reads, f.reads.get());
+			var snapshot = f.backend.creationSnapshot(f.host.store.allMarkers().getFirst().id()).orElseThrow();
+			assertEquals(9007199254740993L, snapshot.amount()); assertTrue(snapshot.aggregate());
+			assertNotNull(snapshot.displayJson());
 			InventoryPublicationTicks.withoutScanSlots(f.backend, 1, f.settings);
 			var seed = f.host.packets.stream().filter(p -> p.markerId() != null && !p.entries().isEmpty()).findFirst().orElseThrow();
 			assertEquals(9007199254740993L, seed.entries().getFirst().count()); assertTrue(seed.entries().getFirst().fallback());
@@ -603,7 +619,7 @@ class InventoryBackendTest {
 	}
 	static Object retainedPreview(InventoryBackend backend) throws Exception {
 		Object session = ((Map<?, ?>) field(backend, "sessions")).get(A);
-		return ((Map<?, ?>) field(session, "previews")).get(1L);
+		return ((Map<?, ?>) field(session, "previews")).values().iterator().next();
 	}
 	@SuppressWarnings("unchecked")
 	@Test void metadataOldInputAdmissionDefersBeforeParserAndRetriesTheSameTokensWithoutReading() throws Exception {
@@ -797,7 +813,7 @@ class InventoryBackendTest {
 			f.open(); f.backend.handle(A, f.select(1), 1, f.settings); f.backend.tick(2, f.settings);
 			Object lease = ((Map<?, ?>) field(f.backend, "tracking")).values().iterator().next();
 			Object selection = field(lease, "selection"); long count = (long) field(lease, "completedCount");
-			var retained = new nx.pingwheel.common.presentation.inventory.minecraft.InventoryItemCodec.Display("minecraft:stone", "stone", "x".repeat(30_000), false);
+			var retained = new InventoryDomainCodec.Item(new InventoryScanner.Key("minecraft:stone", "plain"), 0, "stone", "x".repeat(30_000), false);
 			field(lease, "selectionPresentation", retained); field(lease, "presentationCeiling", 32768);
 			Object ticket = field(lease, "presentationMemory"); int reads = f.reads.get();
 			var parses = new AtomicInteger(); f.host.projector = (display, cap) -> {
@@ -812,7 +828,7 @@ class InventoryBackendTest {
 			assertEquals(count, field(lease, "completedCount")); assertEquals(0, runtime.memory().reserved());
 			runtime.advance(2L + f.settings.getTracking().getPeriodTicks(), f.settings);
 			assertEquals(true, reproject.invoke(f.backend, lease, 1024)); assertEquals(1, parses.get());
-			assertNull(((nx.pingwheel.common.presentation.inventory.minecraft.InventoryItemCodec.Display) field(lease, "selectionPresentation")).displayJson());
+			assertNull(((InventoryResourceValue) field(lease, "selectionPresentation")).displayJson());
 			assertSame(selection, field(lease, "selection")); assertEquals(count, field(lease, "completedCount")); assertEquals(reads, f.reads.get()); assertEquals(0, runtime.memory().reserved());
 		}
 	}
@@ -827,7 +843,7 @@ class InventoryBackendTest {
 			Object recipient = ((Map<?, ?>) field(lease, "recipients")).get(A);
 			Object selection = field(lease, "selection");
 			String json = "{\"id\":\"minecraft:stone\",\"components\":{\"minecraft:custom_data\":{\"text\":\"" + "x".repeat(5000) + "\"}}}";
-			field(lease, "selectionPresentation", new nx.pingwheel.common.presentation.inventory.minecraft.InventoryItemCodec.Display("minecraft:stone", "stone", json, false));
+			field(lease, "selectionPresentation", new InventoryDomainCodec.Item(new InventoryScanner.Key("minecraft:stone", "plain"), 0, "stone", json, false));
 			field(lease, "revision", (long) field(lease, "revision") + 1);
 			var publish = InventoryBackend.class.getDeclaredMethod("publishTracking", lease.getClass(), recipient.getClass()); publish.setAccessible(true);
 			var publisher = (InventorySyncPublisher) field(f.backend, "publisher");

@@ -23,7 +23,7 @@ public final class InventoryDomainCodec {
 	/** Absolute display JSON bound: the largest legal display budget. */
 	public static final int MAX_DISPLAY_BYTES = InventoryLimits.MAX_DISPLAY_BYTES;
 	@org.jetbrains.annotations.NotNullByDefault
-	public static final class Item {
+	public static final class Item implements InventoryResourceValue {
 		private final InventoryScanner.Key key;
 		private final long count;
 		private final String label;
@@ -31,6 +31,7 @@ public final class InventoryDomainCodec {
 		private final boolean stripped;
 		public Item(InventoryScanner.Key key, long count, String label, @Nullable String displayJson, boolean stripped) {
 			Objects.requireNonNull(key);
+			if (key.kind() != InventoryResourceKind.ITEM) throw new IllegalArgumentException("item codec requires ITEM identity");
 			Objects.requireNonNull(label);
 			if (count < 0 || utf8(label) > 1024 || (displayJson != null && utf8(displayJson) > MAX_DISPLAY_BYTES))
 				throw new IllegalArgumentException("inventory observation bounds");
@@ -43,8 +44,10 @@ public final class InventoryDomainCodec {
 			key = certified.key; this.count = count; label = certified.label; displayJson = certified.displayJson; stripped = certified.stripped;
 		}
 		Item withCount(long count) { return new Item(this, count); }
+		@Override public Item withAmount(long amount) { return withCount(amount); }
 		public InventoryScanner.Key key() { return key; }
 		public long count() { return count; }
+		@Override public long amount() { return count; }
 		public String label() { return label; }
 		public @Nullable String displayJson() { return displayJson; }
 		public boolean stripped() { return stripped; }
@@ -82,6 +85,7 @@ public final class InventoryDomainCodec {
 
 	public static @Nullable Item decode(CaptureResult.OpaqueValue value) {
 		Objects.requireNonNull(value, "value");
+		if (value.codec() != null && value.codec() != CODEC) throw new IllegalArgumentException("item observation codec");
 		int size = value.size();
 		if (size == 0) return null;
 		if (size > MAX_BYTES) throw new IllegalArgumentException("inventory observation size");

@@ -337,27 +337,54 @@ explicit snapshot capture, recovery, budget and
 variant semantics remain owned by
 [inventory preview and tracking](../architecture/presentation/inventory.md).
 
+## Fluid tank inventory provider
+
+The NeoForge fluid inventory route is independent of the disabled-by-default
+registry-ID `create:fluid.summary` field. It uses the ordinary NeoForge block
+fluid-handler capability only after the Create-specific tested-version and
+metadata gates, and shares the
+[inventory fluid contract](../architecture/presentation/inventory.md#fluid-variants-and-quantities).
+The existing NeoForge and tested Create version strategy remains the gate;
+this route adds no Fabric/Forge Create integration or version upgrade.
+
+Before capability or content access, verify the loaded root, controller and
+every member, their current objects and controller relationships, positive
+physical scope membership, and the supported static, nonvirtual tank state.
+The original hit must belong to the verified structure. Only the verified
+current controller's active-boiler mode selects the tank capability mode; a
+former controller's retained boiler state does not. Creative tanks and
+active-boiler input handlers are unavailable; a rejected Create route cannot
+fall through to a generic handler. Recheck current controller, member, mode,
+owner and loaded-scope authority during reads and publication. Structure
+merge, split, detachment or controller/mode changes retire old observations
+under [inventory recovery](../architecture/presentation/inventory.md#source-identity-invalidation-and-recovery).
+
+Read only the verified controller's fluid-handler quantity. Members establish
+topology and authority, not additional copies to sum. Every capability lookup
+uses the frozen real face; the summary adapter's unsided sampling semantics do
+not authorize this route. This provider supplies no fluid observation-pool
+certificate or atomic snapshot promise.
+
 ## Create block presentation resolvers
 
-### Vault logical target and presentation topology
+### Metadata-only topology access
 
-Ordinary `create:item_vault` blocks support logical grouping and whole-structure
+Supported Vaults and fluid tanks use logical grouping and whole-structure
 presentation on NeoForge under the tested Create version gate described above.
 Fabric and Forge keep the exact physical key and direct presentation until an
 explicitly supported integration exists. This metadata-only route is independent
-of the [Vault inventory provider](#vault-inventory-provider): it never resolves
-an inventory, handler, capability or item contents, and does not authorize reads.
+of the [Vault](#vault-inventory-provider) and
+[fluid tank inventory providers](#fluid-tank-inventory-provider): it never
+resolves an inventory, handler, capability or contents, and does not authorize
+reads.
 
 The root and all members must be the exact supported block and block-entity
 types and registry identities, in the current level and positions, nonremoved
-and nonvirtual, with matching horizontal axes and controller relationships.
+and nonvirtual, with the structure's required axis and controller relationships.
 Fixed metadata methods must retain their tested declaration owners and
 signatures. A non-null last-known position must equal the current position;
-an absent last-known position is allowed. Only the controller supplies extents:
-width is 1 through 3 and longitudinal length is 1 through three times width.
-The controller anchors the positive bounded prism along X or Z, with width on
-the other horizontal axis and Y. The original hit must lie inside it.
-Noncontroller members' stale local extent fields do not invalidate an otherwise
+an absent last-known position is allowed. Only the controller supplies extents;
+noncontroller members' stale local extent fields do not invalidate an otherwise
 verified structure.
 
 Reads use existing chunks only: server `getChunkNow`, client `FULL` with
@@ -376,11 +403,38 @@ with a controller-relative identity and the source Target Type. The original
 physical hit remains the source. Normal sources and late shape fallback consume
 one shared per-frame subject snapshot under
 [presentation subjects](../architecture/rendering/presentation_subjects.md).
-Every Vault baked model owns its cell; controller BER or one cell's geometry
+Every cell's baked model owns that cell; controller BER or one cell's geometry
 does not cover sibling cells. Metadata is resolved within the bounded structure
 for each frame rather than caching live block entities. Client metadata may lag
 or arrive out of order, so a later frame can recover from direct fallback without
 changing the marker's frozen group or lifetime.
+
+### Vault logical target and presentation topology
+
+Ordinary `create:item_vault` structures use the
+[metadata-only topology access](#metadata-only-topology-access) contract.
+Members have matching horizontal axes. Controller width is 1 through 3 and
+longitudinal length is 1 through three times width. The controller anchors the
+positive bounded prism along X or Z, with width on the other horizontal axis
+and Y. The original hit must lie inside it.
+
+### Fluid tank logical target and presentation topology
+
+Static ordinary `create:fluid_tank` structures use the
+[metadata-only topology access](#metadata-only-topology-access) contract. The
+controller anchors the positive vertical prism with square width across X/Z and
+height along Y. Width is 1 through 3, height is positive, and the whole prism
+must fit the current dimension's build height. Every member must have the
+vertical connection axis, point to that controller and have the correct
+controller/member role. The original hit must belong to the complete verified
+structure. `create:creative_fluid_tank` is a different registry identity and does
+not participate.
+
+Every verified tank cell presents as an `entity_block` subject. Boiler activity
+does not gate this geometry. Logical identity is owned by the
+[target model](../architecture/identity/target_model.md#frozen-logical-block-groups),
+and fluid read eligibility by the
+[fluid tank inventory provider](#fluid-tank-inventory-provider).
 
 ### EntityBlock doors
 

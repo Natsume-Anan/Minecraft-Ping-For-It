@@ -55,7 +55,7 @@ Marker-store, packet, and update tests provide recipient-scoped state and
 channel-mode transport seams, but do not establish the complete `ServerCore`
 ordering and channel/admission matrix in a live client/server path. Loader
 registration of the channel-update, rate-policy, presentation-v2,
-server-presentation-policy-v1, inventory-v1, presentation-preview-v1, and
+server-presentation-policy-v1, inventory-v2, presentation-preview-v1, and
 server-configuration-v5 routes is confirmed by source inspection for Fabric,
 Forge, and NeoForge. `ModIdentityTest` pins the fork identity and all thirteen
 registered packet IDs in the fork namespaces; focused packet tests pin the
@@ -93,6 +93,21 @@ Wire corruption and explicit-key client acceptance are inventoried under
 [presentation verification](presentation.md#logical-target-wire-coverage), and
 inventory quota/read authority under
 [grouped inventory verification](inventory.md#logical-container-quotas-and-scan-sharing).
+
+`CompositeTargetIdentityTest` covers tank controller-key equality, separation
+from physical and Vault keys, incompatible carrier rejection, once-only creation
+resolution, independent hits, anchors, owners, audiences, cancellation and
+expiry, and frozen keys/display deadlines through changed resolver results and
+client stale copies. `DoubleChestCreationTest` also covers tank source load,
+registry and dimension gates before optional platform dispatch, and the exact-key
+unsupported-platform default. NeoForge topology and creation evidence belongs under
+[tank topology verification](integrations.md#fluid-tank-topology-grouping-and-presentation).
+
+`ClientPingRuntimeContentReceiptTest` drives packet-dispatched tank winner
+delivery before `CREATED`, stale-session rejection, replay without deadline
+restart, explicit cancellation and lost-removal expiry fallback. The surviving
+record keeps its original hit and anchor; explicit removal waits for the
+separate authoritative winner update. These are headless runtime/store seams.
 
 ## Client marker runtime coverage
 

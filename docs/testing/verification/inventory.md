@@ -23,15 +23,154 @@ establish that they passed; the completed integration run and remaining live
 verification gaps are scoped
 [below](#patch-only-identity-and-display-verification-pending).
 
+## Fluid inventory coverage
+
+The confirmed [resource-lane contract](../../architecture/presentation/inventory.md#resource-lanes-and-scope),
+[fluid identity/display/quantity contract](../../architecture/presentation/inventory.md#fluid-variants-and-quantities),
+[staged operation accounting](../../architecture/presentation/shared_sources.md#cost-accounting),
+[Create tank gates](../../integrations/create.md#fluid-tank-inventory-provider)
+and [Sable fluid transition](../../integrations/sable.md#fluid-sub-level-transition)
+have passing headless coverage in code input `628c033b`, including the approved
+[weak historical evidence](../../architecture/presentation/shared_sources.md#weak-historical-identity-evidence).
+The 2026-11-02 [final combined-tree record](build-checks.md#fluid-inventory-final-combined-tree-verification)
+owns the exact input, command, fresh/reused task results, counts and expected
+Common-only skips. Pending live checks are listed in the
+[fluid inventory manual scenarios](manual-integration.md#fluid-inventory).
+
+Committed foundation assertions in `InventoryResourceFoundationTest` cover
+exact unit conversion and checked arithmetic, lane/owner/face identity
+separation, amount/display independence from exact identity, identity refusal
+and checksum domain separation including empty cuts. `InventoryFluidCodecTest`
+uses an independent binary literal above double precision, truncation and
+malformed-input cases, detached display bounds and codec isolation.
+`InventoryV2LaneTest`, `InventoryC2SPacketTest`, `InventoryS2CPacketTest` and
+`InventoryPresentationTest` exercise resource tags, strict route/grammar
+boundaries and independently authorized fields. `ClientDedicatedDeliveryTest`
+additionally covers schema-two advertisement, both accepted catalogue fields
+and old-inventory-schema exclusion while Basic creates and updates still work.
+`PlatformFluidServiceContractTest` exercises the absent-service fallback,
+indexed blank visits, bounded observer completion, pre-callback refusal and
+nonrefundable attempts; it does not execute native loader capabilities.
+
+`InventoryFluidDisplayCodecTest` has nine committed methods for the independent
+versioned literal, writer/reader agreement, expected-fluid fence, optional name,
+UTF-8/Unicode and complete-document bounds, unknown/duplicate fields, wrong
+types/versions, malformed/deep/trailing input and forbidden native/rich-text/icon
+instructions. Its identity and selection controls preserve exact long amounts
+and keys through display refusal. These are native-free grammar/codec assertions,
+not server native-name extraction, installed fluid rendering or end-to-end
+receipt evidence.
+
+The matrix records automated coverage on that final input.
+
+| Acceptance surface | Passing automated evidence and boundary |
+| --- | --- |
+| Shared request and independent lanes | `InventoryResourceLanesTest`, `InventoryResourcePublisherTest`, `InventoryV2LaneTest` and `ClientInventoryLanesTest`: shared open/close/replay, independent policy/baseline/completion/checksums, cross-lane token/control rejection, lane-local denial/recovery and sibling continuity. |
+| Runtime and quota composition | `InventoryFluidRuntimeTest` and `InventoryResourceLanesTest`: one journal/runtime/global ledger, shared physical/logical consumption, paid failed visits, bounded catalogue/retained evidence, exact owner/face isolation, cursorless incompleteness and cleanup; no fluid pool. |
+| Fluid port and shared admission | `FluidPortLifecycleTest`, `InventoryFluidAdmissionTest`, `InventoryValidationAdmissionTest` and `InventoryFluidWorldTest`: staged admission and real caller grants, source-remaining limits, no double boundary charge, normal/nested/sequential and abnormal close orders, each owner's attempted work settled once, refusal/overflow and ticket/workspace cleanup. `InventoryFluidRouteDiagnosticsTest` covers INFO deduplication. |
+| Weak cross-acquisition proof and history | `FluidAddressWitnessTest`, `InventoryFluidWorldTest` and `InventoryFluidScopeFramesTest`: hostile native equality/hash callbacks, schema/order/length differences, deterministic clearing, admitted initial capture, comparison without recapture/content reads, closed external access and original-proof ownership through retained publication. Changed/cleared evidence rejects old cuts; fresh scans recover without permanent defer, false zero or old-proof revival. |
+| Non-owning server context | All five `InventoryFluidServerContextTest` cases: a stable source-owned non-native facade, no owning graph path to server/level/member/Access/Context/closures, deterministic server-reference clearing, current-level loss, post-getter failure, fresh-source recovery and authorized scope-only recomputation. This is deterministic headless ownership evidence, not live GC measurement. |
+| Native provider safety | Each loader's `PlatformFluidServiceTest` covers current native metadata/witnesses, face/member/owner gates and provisional getter postchecks. `InventoryFluidLoaderIntegrationTest` crosses actual loader adapters/APIs with recording fixtures: equal detached layout cannot hide replacement routes or Fabric address reordering; cleared original witnesses retire and a fresh scan recovers. The same scenarios run on each loader classpath, not a loader launch. |
+| Identity, amount and selection | `InventoryResourceFoundationTest`, `InventoryFluidCodecTest`, `InventoryFluidFreezerTest` and `InventoryResourceLanesTest`: persistent variant identity, exact checked long amounts, identity/display refusal separation, overflow/getter failure without completed zero, provisional selected seed and permanent retirement on real invalidity. |
+| Publication, client and receipt | `InventoryFluidScopeFramesTest`, `ClientInventoryLanesTest`, `PendingContentChatControllerTest` and `ClientPingRuntimeContentReceiptTest`: final source checks, multipart barriers/repair, history-only quantities and property exactly-once emission. Creation-snapshot server coverage is detailed below; cross-boundary client chat is in [presentation verification](presentation.md#immediate-inventory-creation-snapshot-coverage). |
+| Fluid presentation | `ClientFluidDisplayTest`, `InventoryFluidDisplayCodecTest`, `InventoryQuantityFormatTest`, `InventoryListModelTest` and content-receipt fixtures cover literal/base-fluid projection, display refusal isolation, grouped ordering, exact quantity/approximation boundaries and composed content. GPU icons, native font fitting and narrow-window layout remain unverified. |
+| Create | `CreateFluidTankArchiveTest`, `CreateFluidTankMetadataTest` and `CreateFluidTankAccessTest`: tested-version/archive gates, controller/member/scope/mode checks, controller-only frozen-face reads, denied creative/boiler/virtual routes without fallback, shape/capacity admission, topology/handler replacement and postchecks. These are archive/headless seams, not installed Create gameplay. |
+| Sable membership and fluid-only transition | `ExternalBlockMembershipTest` and `SablePhysicalMembershipTest` cover positive/negative/unknown physical membership. `InventoryFluidWorldTest`, `InventoryFluidScopeFramesTest`, `InventoryFluidServerContextTest` and `ClientInventoryLanesTest` cover continuous scope-only `UPDATING` with retained quantity, fresh complete replacement, old-cut/seed/partial fencing, and real failure/expiry controls. Simultaneous scope/identity/layout change still invalidates. Installed Sable remains pending. |
+| Formal regression/build | Completed on the identified final input; exact execution and loader-native skip handling belong to the linked build record. |
+
+### Native fluid boundary regressions
+
+The following regressions passed on the
+[native fluid combined-tree input](build-checks.md#native-fluid-boundary-and-presentation-verification),
+extending the earlier final-input matrix.
+
+| Boundary | Passing automated evidence |
+| --- | --- |
+| Complete fluid definitions | `InventoryFluidCodecTest` counts full lane/registry/variant keys against the 256-definition guard, including equal canonical bytes across IDs and exact/aggregate definitions. Repeated keys remain usable at capacity; refusal leaves retained collision evidence untouched, while collision and canonical-payload guards remain independent. |
+| Paid-prefix capacity exhaustion | `InventoryNativeFluidBoundaryTest` covers 257 complete keys from 129 encodings, aggregate-only and extension-journal exhaustion, a refusal inside one paid page, explicit readable `INCOMPLETE`, charged attempts and unrelated item progress. `InventoryFluidWorldTest` repeats the 257-key/129-NBT case through the native source/freezer. No completed total or absence-zero replaces the selected historical seed. |
+| Pending final validation | `InventoryNativeFluidBoundaryTest` keeps the paid cursor through repeated final-check budget defers, retries metadata with both logical and physical address allowance exhausted, and publishes the accumulated total without another getter. Current revocation or an exception still invalidates; a deferred final check cannot turn capacity exhaustion into completion. Empty-source completion and ticket/retained cleanup have separate controls. |
+| Bounded native names | `FluidDescriptionsTest` covers detached translation/literal leaves, discarded styles/events, Unicode/byte bounds, complex/cyclic/opaque refusals without flattening and optional callback failures. Capture-admission and fatal failures propagate through standard native wrappers; cyclic/deep wrapper chains fail closed without opaque cause callbacks. `InventoryFluidFreezerTest` checks native translation labels versus literal registry fallback, no base-name/custom-name conflation and independent exact/aggregate identity and long amounts through name failure. Native first-initialization refusal installs no observation; an independent retry keeps the exact identity and amount. |
+| Strict client display | `ClientFluidDisplayTest` covers local native translation/literal/fallback precedence, locally verified server labels, literal registry fallback rather than invented block keys, literal custom-name composition, and optional naming failures with a validated fluid icon identity. Refused/mismatched projections and unknown local fluids never invoke native naming or restore the icon. |
+| Server/client separation | `FluidPresentationClassSafetyTest` executes absent/broken name-service discovery with client/render classes forbidden. Actual SPI constructors propagate capture-limit subclasses, sentinel `OutOfMemoryError` and `ThreadDeath` without poisoning discovery; repeated attempts and bounded reentry have controls, while ordinary/linkage failures remain optional. Its installed-payload integration requires current adapters for every loader before checking client-free naming and atlas-free render-service construction. This is classloading/compiled-boundary evidence, not a dedicated-server launch. |
+
+`InventoryFluidPreparationRetryTest` separately covers a retained unprepared
+round retrying through the shared preparation entry without resolving the source
+again, while admission, debits, authority and final validation remain unchanged.
+These are headless caller-grant cases, not part of the historical combined-tree
+pass, a full loader build or a live source run.
+
+`CreateFluidTankArchiveTest`, `CreateFluidTankMetadataTest` and
+`CreateFluidTankAccessTest` separately cover the current verified controller's
+boiler mode with stale former-controller state. That is archive/headless
+coverage, not installed Create gameplay or a combined loader run.
+
+Mixed-lane selection assertions belong to
+[interaction verification](interaction.md#inventory-list-gestures-and-navigation),
+quantity fitting and sprite dispatch to
+[rendering verification](rendering.md#base-fluid-icon-presentation), and actual
+loader APIs and the Create tea archive to
+[integration verification](integrations.md#native-fluid-presentation).
+
+### Production lane policy and native amount regressions
+
+These regressions passed in the
+[lane-policy, native-amount and icon-opacity execution](build-checks.md#lane-policy-native-amount-and-icon-opacity-verification),
+extending the earlier fluid coverage.
+
+`InventoryProductionPolicyTest` drives actual `PresentationServer.tick`
+permission derivation and backend ticks through a recording network service.
+ITEM/FLUID deop and reop keep the presentation epoch, view and SECTION mask,
+without a shared `RESET`. Assertions preserve the sibling's accepted preview,
+tracking recipient and baseline, paid cursor, publication watermarks and admitted
+queue. The revoked lane retires queued data, baselines and tokens; reallow admits a
+fresh scan and baseline under the same parent request. `InventoryResourceLanesTest`
+also checks fresh lane-local admission without rereading the sibling.
+
+`InventoryProductionPolicyTest` and `InventorySyncPublisherTest` cover retaining
+each lane's exact desired `POLICY` packet until `transport.send` returns normally
+under the current session, epoch, view and authority. Queue admission is not
+completion or a client ACK. Admission refusal, budget defer, transport failure
+and authority discard leave bounded retry work; packet-identity deduplication
+prevents duplicate queue entries. Old equal-valued completions cannot clear a newer
+desired packet, and authority changes before send returns keep it retryable.
+View/epoch changes, close, session replacement and disconnect fence retired
+callbacks. Recursive drains defer callback-added work, callback runtime/linkage
+failures remain isolated, and cancellation/cleanup release retained memory.
+Production server/client ticks check eventual authorization convergence, sibling
+continuity and no repeated policy sends after successful handoff.
+
+Controls cover the shared target quota and close boundary, exactly-once delivery
+of a pending `SELECTED`, all-lane denial retaining the Basic known marker,
+control-admission retry and fresh marker receipt authorization. SECTION permission
+and child-policy configuration changes retain shared `RESET` controls. Native
+content, world setup and transport are fixtures, not a server or multiplayer
+launch.
+
+Forge and NeoForge `NativeFluidAmountTest` use real native stacks through the
+production handler adapters; Forge requires the patched-first integration
+classpath. Retained negative constructor/setter amounts are rejected before an
+empty visitor, even when the public getter reports zero.
+Forge also tests negative native NBT; NeoForge distinguishes its native parser's
+rejection to legitimate `FluidStack.EMPTY` from adapter rejection of a retained
+negative value. Controls cover zero/empty and positive/max amounts, Forge public
+getter overrides, paid single null/throwing getter attempts, and amount-access
+failure followed by recovery.
+
+The runtime replacement assertions keep prior complete quantity evidence when a
+negative native read yields `UNAVAILABLE`, non-complete output with no slots and
+cannot be retained as completed. They do not replace it with exact zero. These
+seams use fixture identity bytes and world binding, not full native identity-codec
+integration.
+
 ## Inventory preview and tracking foundation
 
 Headless test-source assertions cover the preview route and its supporting
 models. `InventoryC2SPacketTest` and `InventoryS2CPacketTest` cover
-the version-one request and response codec round trips, bounded text and frame
+the version-two request and response codec round trips, bounded text and frame
 limits, corruption rejection, part-range and duplicate-key rejection, the
 status values, and an unsupported protocol value or a previous version-four
-frame rejected on the version-one route; the
-version-one `OPEN` grammar round-trips a native block or an
+frame rejected on the version-two route; the
+version-two `OPEN` grammar round-trips a native block or an
 uncommitted external candidate with its exact locator, classification and face,
 and rejects a committed external, entity or location target, a wrong protocol
 version, overlong or non-canonical fields, and trailing bytes. `OFFER` period
@@ -53,8 +192,8 @@ packet, and a failed write preserves the existing destination bytes and
 indices.
 
 `InventoryC2SPacketTest` decodes an independent golden literal `RESYNC` and
-compares the writer byte-for-byte with it, fixing the retained version-one
-header, request long, true presence byte and marker long. Zero request ID is
+compares the writer byte-for-byte with it, fixing the version-two
+header, explicit ITEM lane, request long, true presence byte and marker long. Zero request ID is
 accepted; a missing marker is corrupt and rejected before any write mutates the
 destination. Literal mutations reject false and noncanonical presence bytes,
 missing presence and every marker truncation, a negative request ID, and
@@ -84,7 +223,7 @@ unavailable `null`, preserving exact long counts, revisions and selection keys
 without setting the aggregate flag.
 
 `InventoryChecksumsTest` covers the entry checksum model.
-`InventoryStrictDecodeTest` covers the strict version-one `OPEN` grammar on
+`InventoryStrictDecodeTest` covers the strict version-two `OPEN` grammar on
 raw frames plus raw overflowing request/response frame
 numbers and strict helper rejection of overflowing or noncanonical varints and
 overflowing varlongs; it is codec coverage, not transport or admission evidence.
@@ -596,8 +735,8 @@ beyond the absolute bound is rejected before encoding, a wide display length is
 checked against the bound and the remaining input before allocation, the
 empty/null/trailing rules are unchanged, and inventory values stay isolated to
 the adopted version-one codec identity while a differently versioned
-descriptor is rejected. `ClientInventoryV2Test` keeps
-its historical class name and covers the version-one client preview channel:
+descriptor is rejected. `ClientInventoryV2Test` covers the version-two client
+preview channel:
 an external candidate captured with a real press-time face is sent verbatim
 with its provider locator and classification and no physical block is invented,
 a capture without a real face or a committed external, entity or location
@@ -1115,6 +1254,13 @@ remain pending.
 
 ## Logical container quotas and scan sharing
 
+`InventoryFluidRuntimeTest` covers different physical tank members spending one
+`CreateTankKey` tracking-slot allowance while each source opens with its original
+owner and frozen face, even with both separation settings disabled. Recording
+sources remain independently read; this is logical-quota evidence, not fluid-pool
+certification. Passing execution belongs to the
+[tank combined-tree run](build-checks.md#fluid-tank-grouping-and-presentation-verification).
+
 `CompositeTargetQuotaTest` exercises the production backend, runtime and
 publisher seams: active selected categories span opposite member hits while
 repeated selection of one category shares its claim; the frozen key reaches
@@ -1307,8 +1453,13 @@ includes only the unread increases, yielding `1,620,439,210` and `1,620,440,290`
 from one 1,620-visit mixed-time round. The seed is not added to either total.
 Duplicate selection, rejected store and join-budget defer cases preserve
 synchronous once-only creation and release tentative ownership without getters.
-These are native-source/encoded-client headless assertions, not live players,
-screen interaction or installed Create/Refined Storage behavior.
+The current
+`CertifiedVault1620BackendTest.metadataBudgetDeferDoesNotRejectOtherwiseValidSynchronousSelectionOrGrantOldPreviewOwnership`
+covers a join-budget defer that still commits the synchronous selection with
+independent receipt authorization and creation snapshot, followed by fresh
+1,620-slot Tracking without reusing old Preview ownership. These are native-source/encoded-client headless assertions,
+not live players, screen interaction or installed Create/Refined Storage
+behavior.
 
 ### Open Preview and recurring Tracking lifetime
 
@@ -1857,8 +2008,53 @@ has headless source-to-encoded-client and publication coverage:
   Generic partial tracking captures, preview routes and multi-key bootstraps are
   refused by the narrow publication path.
 - Tracking text projection is inventoried [above](#tracking-projection).
-  Encoded-publisher receipt gating and exactly-once chat coverage are owned by
+  Encoded-publisher seed gating and property receipt behavior are owned by
   [presentation verification](presentation.md#content-receipt-chat-and-pending-completion).
+
+### Creation snapshot server coverage
+
+`InventoryBackendTest` covers the selected retained exact or folded count rather
+than the last client frame, missing-reference rejection without a zero, aggregate
+display, and selection outcomes preserved across transport refusal.
+`InventoryCreationPublicationTest` covers the current fully handed cumulative
+Preview-cut completion proof, initial staging that shares Tracking capacity, and
+exact settlement. `InventoryInitialPayloadTest` covers pure Basic sizing against
+the real codec, oversized semantic refusal without an encoding probe, and the
+deterministic full-envelope bound without a 1 MiB reservation.
+`InventoryInitialRetryPagingTest` covers fixed retry-pass boundaries, shared
+discovery capacity, known-record skipping, lifecycle clearing, behind-cursor
+canonical refresh and retention of later failures.
+
+`InventoryProductionPolicyTest` covers selected Preview creation before the first
+Tracking tick, post-encode fresh Basic and annotation authorization, metadata
+refresh retry and coalescing, at most two post-encode narrowing attempts, memory
+admission before rebuild, native fluid source/route/layout/scope and
+exact-to-aggregate retirement, physical completion without the current Preview
+cut remaining uncertain, recipient pressure from 24 HELLOs and the 0.125
+multiplier, late first-recipient creation value 5 after Tracking 9, expired
+deferred creation, invalid creation that cannot resurrect, and callback/lane
+revocation.
+Named review-fix cases include `sourceCallbackCannotLeakRevokedBasicCustomName`,
+`deferredKnownMetadataRefreshMustReachTransportOnRetry`,
+`sourceCallbackChildDenialRebuildsAnnotationsWithoutSuppressingAllowedContent`,
+`repeatedPostencodeNarrowingStopsAfterTwoPaidAttemptsThenRetries`,
+`narrowedBasicRebuildCannotConstructBeforeANewMemoryAdmission`,
+`deferredKnownRefreshCoalescesToLatestCanonicalLocatorAndAnchor` and
+`successfulOlderHandoffCannotClearAReentrantNewerMetadataRefresh`.
+
+`InventoryAuthorityOrderTest` covers committed Preview evidence and annotation
+before storage without a content witness, receipt-binding metadata revalidation
+that pays failed metadata without reading contents, and publication failure that
+preserves the committed create. `InventoryBudgetDelayIntegrationTest` covers
+memory defer as retryable while unavailable, unsafe, empty and bounded
+continuation outcomes are not delayed, including expiry, revocation and eligible
+counterpart pressure.
+
+These are headless owner executions. The current-input combined execution and
+artifact checks are recorded in
+[build checks](build-checks.md#final-combined-tree-acceptance-and-artifact-verification).
+Cross-boundary client chat and transport coverage is in
+[presentation verification](presentation.md#immediate-inventory-creation-snapshot-coverage).
 
 Execution results are recorded in the
 [automated verification results](build-checks.md#automated-verification-results).
@@ -1982,6 +2178,10 @@ Live timing and multiplayer repair remain pending in the
 
 ## Known automated gaps
 
+- live loader/Mixin application, GPU/font/UI and narrow-window rendering,
+  multiplayer/mixed-version handshakes, installed Create/Sable/Refined Storage,
+  manual gameplay and CPU/TPS/GC/allocation measurements remain pending in the
+  [fluid inventory manual scenarios](manual-integration.md#fluid-inventory);
 - the passing certified-pool, successor and final-handoff fixtures above remain
   headless evidence. Live two-owner/chunk/lock/topology changes, installed
   tested-version Create and mixed configuration protocols still require the
@@ -2020,6 +2220,16 @@ Live timing and multiplayer repair remain pending in the
   evidence, and no manual world, GPU, transport or multiplayer validation is
   recorded by those seams. Finite UUID churn and ledger cleanup do not establish
   prolonged live connection or heap-soak behavior;
+- server-safe fluid registration lookup has headless current-registration
+  coverage in `InventoryFluidRegistryLookupTest`, `FluidRegistryClassSafetyTest`
+  and `InventoryFluidLoaderIntegrationTest`; Forge's patched-first
+  `PlatformFluidRegistryServiceTest` and `NativeFluidRegistryFreezerTest` cover
+  the actual wrapper/default-root WATER and handler/freezer cases. These are
+  patched-first or classpath adapter checks, not installed dedicated-server or
+  real-FML evidence; they neither widen the audited registration trust nor
+  supply a fallback key for an unregistered fluid. The current-input execution
+  passed the Forge source integration cases; installed-server and real-FML
+  behavior remain manual gaps;
 - inventory call-site logging coverage is limited to the
   [diagnostic seams above](#failure-diagnostic-seams). Other runtime
   probe/projection branches, capture-handle source-close and standalone

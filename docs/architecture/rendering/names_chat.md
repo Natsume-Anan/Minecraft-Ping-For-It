@@ -91,11 +91,11 @@ the [wheel contract](../picking/wheel.md), not this phrase-only text-color rule.
 ## Content message family
 
 A marker created from a wheel content selection — a property selection or an
-inventory item selection — replaces its ordinary first-receipt chat line with a
+inventory item or fluid selection — replaces its ordinary first-receipt chat line with a
 content message. The message retains the author and reports the composed target
 name and, for each selected entry, that entry's own annotation phrase (the
-property's or item's annotation Ping Type phrase) and selected content: a
-property field and value, or an inventory item and count. Each explicit
+property's or resource's annotation Ping Type phrase) and selected content: a
+property field and value, or an inventory resource and quantity. Each explicit
 property selection is annotated independently, so one message preserves every
 selected entry's own phrase and action rather than applying one phrase to the
 whole set. The whole-marker Ping Type remains marker identity, and the ordinary
@@ -103,12 +103,12 @@ whole-message formats are unchanged.
 
 Content messages come from full localized templates with their connectives and
 quoting, never from concatenated language fragments. For a single selected
-entry — a single explicit property selection or the current single-item
+entry — a single explicit property selection or a single-resource
 inventory case — the common form is
 `author: 请求 {contentType} {targetName} 的 {content}`, where `author` is the
 retained player name, the request and possessive connectives belong to the
 localized template, `{contentType}` is that entry's annotation phrase, and
-`{content}` is that entry's field/value or item/count. Untrusted plain text,
+`{content}` is that entry's field/value or resource/quantity. Untrusted plain text,
 such as a custom name, is quoted as regular text; the quoting belongs to the
 localized template. The whole-marker main Ping Type phrase is not prepended:
 each annotated entry's phrase appears exactly once for that entry, so a chest
@@ -135,6 +135,15 @@ long, an unknown count is not zero, and the component-fallback presentation
 quality owned by
 [inventory](../presentation/inventory.md#item-variants-and-component-fallback)
 is preserved.
+
+Fluid content uses the
+[base-name resolution and display-refusal rules](../presentation/inventory.md#fluid-display-projection)
+and, when present, the server-projected plain custom name in the same quoted
+custom/base composition. That custom name is literal display text, never another
+rich-text decoding entrance; coincident names do not merge variants. Fluid
+quantities and their approximate/sub-millibucket qualifiers follow the same
+[formatter contract](../presentation/inventory.md#quantity-presentation) as the
+list and HUD, independently of All variants identity quality.
 
 ## New-marker feedback and dimension behavior
 
@@ -167,33 +176,46 @@ Eligibility attempts do not guarantee an audible sound or a visible chat line.
 ## Content receipt lifecycle
 
 An ordinary newly seen marker keeps the immediate ordinary receipt line. A
-content marker instead waits for its complete content: the client derives the
-selection kind and reference hint from the accepted server-authorized atomic
-initial, never from a preview observation or a client-uploaded claim, and emits
-exactly one content message when every selected property value has arrived or
-the inventory's complete authoritative count has arrived. There is no
-ordinary-line fallback and no repeated chat as inventory updates stream in.
+content marker replaces it with the content message family and derives its
+selection kind from the accepted server-authorized atomic initial, never from a
+preview observation or a client-uploaded claim.
 
-The pending receipt is bounded client state. It exists only while its marker is
-a current live member of the local store under the current presentation
-epoch/view; it holds no world handle, starts no second capture, and creates no
-audience, lease, or other server state.
+A property content marker waits for its complete content and emits exactly one
+message when every selected property value has arrived. A single-resource
+inventory marker does not wait: its atomic initial carries one bounded creation
+snapshot, and the client emits exactly one content message from that snapshot on
+that new local membership. The sent line uses the snapshot's exact amount and
+authorized display; later inventory tracking updates, status changes and stream
+fragments never add or revise chat, and there is no ordinary-line fallback. For
+example, a creation snapshot of 5 remains the chatted value while the marker's
+live display later reaches 9.
 
-Its inputs arrive on the accepted-store routes — Basic values from the atomic
-initial, non-Basic section values, and the dedicated inventory tracking route —
-and it consumes only the current, authorized, complete, fresh view for its
-marker. A stale or superseded value, a mask-excluded field, a partial inventory
-observation, or an unknown baseline never completes it. A denied selection
-suppresses the whole message without disclosing the denied reference, and a
-denied target-name input cancels the pending receipt; neither case shows a
-partial line, and the ordinary line's unknown-name form is unchanged.
+The inventory message appends the localized uncertainty notation when the
+Preview cut was not complete or the snapshot's quantity state was independently
+uncertain. A complete Preview is not marked uncertain solely because the first
+Tracking scan has not completed.
 
-While the complete content is still missing, the pending receipt is cancelled
-by a presentation `RESET` or other authorization revocation, an authoritative
-marker removal ([marker lifecycle](../authority/marker_lifecycle.md)) including
-`EXPIRED`, local eviction, or disconnect. A same-ID refresh or replay cannot
-restart a pending receipt or repeat a resolved one; only a genuinely new local
-membership follows the original new-marker rule. A locally elapsed visual
-deadline is not server expiry and does not by itself cancel or complete the
-receipt. Coverage and pending runtime evidence for live chat delivery and
-logging are owned by [testing and verification](../../testing/verification/presentation.md#content-receipt-chat-and-pending-completion).
+A pending property receipt is bounded client state. It exists only while its
+marker is a current live member of the local store under the current
+presentation epoch/view; it holds no world handle, starts no second capture, and
+creates no audience, lease, or other server state.
+
+A pending property receipt consumes current authorized Basic and non-Basic
+section values. A stale or superseded value or a mask-excluded field never
+completes it. The inventory snapshot is already part of the accepted atomic
+initial and is not a pending input. A denied selection suppresses the whole
+message without disclosing the denied reference, and a denied target-name input
+cancels the pending receipt; neither case shows a partial line, and the ordinary
+line's unknown-name form is unchanged.
+
+A pending property receipt is cancelled while its complete content is still
+missing by a presentation `RESET` or other authorization revocation, an
+authoritative marker removal ([marker lifecycle](../authority/marker_lifecycle.md))
+including `EXPIRED`, local eviction, or disconnect. A sent inventory message is
+immutable in chat history across those events and is never revised by later
+Tracking data. A same-ID refresh or replay cannot restart a pending receipt or
+repeat a resolved one; only a genuinely new local membership follows the
+original new-marker rule. A locally elapsed visual deadline is not server
+expiry and does not by itself cancel or complete the receipt. Coverage and
+pending runtime evidence for live chat delivery and logging are owned by
+[testing and verification](../../testing/verification/presentation.md#content-receipt-chat-and-pending-completion).

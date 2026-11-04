@@ -33,6 +33,9 @@ import nx.pingwheel.common.presentation.PresentationSection;
 import nx.pingwheel.common.presentation.PresentationValue;
 import nx.pingwheel.common.presentation.client.ClientPresentation;
 import nx.pingwheel.common.presentation.inventory.client.ClientInventory;
+import nx.pingwheel.common.presentation.inventory.InventoryCreationSnapshot;
+import nx.pingwheel.common.presentation.inventory.InventoryResourceKind;
+import nx.pingwheel.common.presentation.inventory.InventoryPresentation;
 import nx.pingwheel.common.presentation.inventory.InventoryDomainCodec;
 import nx.pingwheel.common.presentation.inventory.InventoryScanner;
 import nx.pingwheel.common.presentation.inventory.InventoryStep;
@@ -61,14 +64,18 @@ class PendingContentChatAcceptedStoresTest {
 	@BeforeAll static void bootstrap() { SharedConstants.tryDetectVersion(); Bootstrap.bootStrap(); }
 
 	@Test void groupedReceiptMatchesClientCopiesButAnotherGroupAtTheSamePhysicalHitCannotInheritPending() {
-		for (String registry : List.of("minecraft:chest", "minecraft:trapped_chest", "create:item_vault")) {
+		for (String registry : List.of("minecraft:chest", "minecraft:trapped_chest", "create:item_vault", "create:fluid_tank")) {
 			var hit = new Target.BlockTarget(TARGET.dimensionId(), 1, 2, 3, registry);
-			TargetKey original = registry.equals("create:item_vault")
-				? new TargetKey.VaultKey(hit.dimensionId(), -5, 2, 3, registry)
-				: new TargetKey.DoubleChestKey(hit.dimensionId(), 1, 2, 3, 2, 2, 3, registry);
-			TargetKey changed = registry.equals("create:item_vault")
-				? new TargetKey.VaultKey(hit.dimensionId(), -4, 2, 3, registry)
-				: new TargetKey.DoubleChestKey(hit.dimensionId(), 0, 2, 3, 1, 2, 3, registry);
+			TargetKey original = switch (registry) {
+				case "create:item_vault" -> new TargetKey.VaultKey(hit.dimensionId(), -5, 2, 3, registry);
+				case "create:fluid_tank" -> new TargetKey.CreateTankKey(hit.dimensionId(), -5, 2, 3, registry);
+				default -> new TargetKey.DoubleChestKey(hit.dimensionId(), 1, 2, 3, 2, 2, 3, registry);
+			};
+			TargetKey changed = switch (registry) {
+				case "create:item_vault" -> new TargetKey.VaultKey(hit.dimensionId(), -4, 2, 3, registry);
+				case "create:fluid_tank" -> new TargetKey.CreateTankKey(hit.dimensionId(), -4, 2, 3, registry);
+				default -> new TargetKey.DoubleChestKey(hit.dimensionId(), 0, 2, 3, 1, 2, 3, registry);
+			};
 			var snapshot = new MarkerSnapshot(ID, SNAPSHOT.owner(), hit, original, "entity_block", "attention", SNAPSHOT.anchor(), 1, 100);
 			Fixture f = new Fixture();
 			var content = PresentationReceiptContent.properties(List.of(HEALTH));
@@ -147,29 +154,31 @@ class PendingContentChatAcceptedStoresTest {
 		assertEquals(1, f.sent.size());
 	}
 
-	@Test void fragmentedTrackingWaitsForCommitted96AndPreviewStatusAndLaterStreamNeverProduceAnotherLine() {
+	@Test void creationSnapshotChatsBeforeFragmentedTrackingAndLaterPreviewOrStreamsNeverRewriteIt() {
 		Fixture f = new Fixture();
-		assertTrue(f.createdReceipt(f.created(1, PresentationReceiptContent.inventory(), basic(false))));
+		assertTrue(f.createdReceipt(f.created(1, inventoryReceipt(5, false), basic(false))));
+		assertTrue(f.controller.attempt(ID));
+		assertEquals("5", countArgument(f.sent.getFirst()));
 		long preview = f.inventory.open(TARGET, BlockFace.NORTH, "entity_block");
 		assertTrue(preview > 0);
 		f.inventory.accept(InventoryS2CPacket.data(InventoryS2CPacket.Kind.PREVIEW, 7, preview, null, 2, 1, 1,
 			0, 1, true, InventoryS2CPacket.Status.READY, 0, List.of(item(123, 1))).stamp(81, 1));
 		assertEquals(123, f.inventory.preview(preview).entries().getFirst().count());
-		assertFalse(f.controller.attempt(ID), "preview completeness is not tracking authority");
+		assertFalse(f.controller.attempt(ID), "unrelated preview data cannot repeat snapshot chat");
 		f.inventory.accept(InventoryS2CPacket.status(7, 0, ID, 4, 1, 1, InventoryS2CPacket.Status.READY, 0).stamp(81, 1));
 		assertFalse(f.inventory.tracking(ID).complete());
 		assertFalse(f.controller.attempt(ID), "status-only readiness does not commit a baseline");
 		f.inventory.accept(data(InventoryS2CPacket.Kind.SNAPSHOT, 4, 1, 1, 0, 2,
 			InventoryS2CPacket.Status.UPDATING, List.of(item(96, 1))));
 		assertFalse(f.inventory.tracking(ID).complete());
-		assertTrue(f.inventory.tracking(ID).entries().isEmpty(), "partial assembly stays invisible");
+		assertEquals(5, f.inventory.tracking(ID).entries().getFirst().count(), "partial assembly cannot replace the seed");
 		assertFalse(f.controller.attempt(ID));
 		f.inventory.accept(data(InventoryS2CPacket.Kind.SNAPSHOT, 4, 1, 1, 1, 2,
 			InventoryS2CPacket.Status.READY, List.of()));
 		assertTrue(f.inventory.tracking(ID).complete());
 		assertEquals(96, f.inventory.tracking(ID).entries().getFirst().count());
-		assertTrue(f.controller.attempt(ID));
-		assertEquals("96", countArgument(f.sent.getFirst()));
+		assertFalse(f.controller.attempt(ID));
+		assertEquals("5", countArgument(f.sent.getFirst()));
 		f.inventory.accept(data(InventoryS2CPacket.Kind.STREAM, 4, 1, 2, 0, 1,
 			InventoryS2CPacket.Status.READY, List.of(item(97, 2))));
 		assertEquals(97, f.inventory.tracking(ID).entries().getFirst().count());
@@ -179,7 +188,8 @@ class PendingContentChatAcceptedStoresTest {
 
 	@Test void invalidatedCountIsGreyAndNewStatusCannotResurrectItButCompleteZeroIsAuthoritative() {
 		Fixture f = new Fixture();
-		assertTrue(f.createdReceipt(f.created(1, PresentationReceiptContent.inventory(), basic(false))));
+		assertTrue(f.createdReceipt(f.created(1, inventoryReceipt(5, false), basic(false))));
+		assertTrue(f.controller.attempt(ID));
 		f.inventory.accept(data(InventoryS2CPacket.Kind.SNAPSHOT, 4, 1, 1, 0, 1,
 			InventoryS2CPacket.Status.READY, List.of(item(96, 1))));
 		f.inventory.accept(InventoryS2CPacket.status(7, 0, ID, 4, 2, 1, InventoryS2CPacket.Status.INVALID, 0).stamp(81, 1));
@@ -190,13 +200,15 @@ class PendingContentChatAcceptedStoresTest {
 		assertFalse(f.controller.attempt(ID));
 		f.inventory.accept(data(InventoryS2CPacket.Kind.SNAPSHOT, 5, 3, 2, 0, 1,
 			InventoryS2CPacket.Status.READY, List.of(item(0, 2))));
-		assertTrue(f.controller.attempt(ID));
-		assertEquals("0", countArgument(f.sent.getFirst()));
+		assertFalse(f.controller.attempt(ID));
+		assertEquals(0, f.inventory.tracking(ID).entries().getFirst().count());
+		assertEquals("5", countArgument(f.sent.getFirst()));
 	}
-	@Test void encodedPublisherSeedKeepsReceiptPendingUntilFreshReadyAndThenEmitsExactlyOnce() {
+	@Test void encodedPublisherBootstrapAndFreshTrackingNeverRepeatTheAtomicSnapshotChat() {
 		for (boolean aggregate : new boolean[] {false, true}) {
 			Fixture f = new Fixture();
-			assertTrue(f.createdReceipt(f.created(1, PresentationReceiptContent.inventory(), basic(false))));
+			assertTrue(f.createdReceipt(f.created(1, inventoryReceipt(9_007_199_254_740_993L, aggregate), basic(false))));
+			assertTrue(f.controller.attempt(ID));
 			var memory = new RetainedMemoryLedger(16_000_000);
 			@NotNullByDefault
 			class Transport implements InventorySyncPublisher.Transport {
@@ -219,13 +231,13 @@ class PendingContentChatAcceptedStoresTest {
 				assertInstanceOf(SyncPublisher.Outcome.Accepted.class, publisher.publishBootstrap(payload, 1, InventoryS2CPacket.Status.UPDATING,
 					projection, context, new CostLedger(Map.of(InventorySyncPublisher.PUBLICATIONS, 1L)))); publisher.drain();
 				assertFalse(f.inventory.tracking(ID).complete()); assertEquals(item.count(), f.inventory.tracking(ID).entries().getFirst().count());
-				assertFalse(f.controller.attempt(ID)); assertTrue(f.sent.isEmpty());
+				assertFalse(f.controller.attempt(ID)); assertEquals(1, f.sent.size());
 				var completed = new CaptureResult(Optional.of(payload), new CaptureResult.Coverage("inventory", 2, 1, OptionalLong.of(1)),
 					CaptureResult.Availability.READABLE, CaptureResult.Completeness.COMPLETE, CaptureResult.Consistency.EVENTUAL, Optional.empty(), Optional.empty());
 				publisher.advance(3, settings);
 				assertInstanceOf(SyncPublisher.Outcome.Accepted.class, publisher.publish(completed, InventoryStep.SweepEvidence.STABLE_SLOT_SWEEP,
 					projection, context, new CostLedger(Map.of(InventorySyncPublisher.PUBLICATIONS, 1L)))); publisher.drain();
-				assertTrue(f.inventory.tracking(ID).complete()); assertTrue(f.controller.attempt(ID));
+				assertTrue(f.inventory.tracking(ID).complete()); assertFalse(f.controller.attempt(ID));
 				assertEquals("9007199254740993", countArgument(f.sent.getFirst())); assertFalse(f.controller.attempt(ID)); assertEquals(1, f.sent.size());
 			}
 			assertEquals(0, memory.retained()); assertEquals(0, memory.reserved());
@@ -272,7 +284,9 @@ class PendingContentChatAcceptedStoresTest {
 			assertTrue(presentation.offer(PresentationS2CPacket.offer(81, Map.of(BASIC, List.of(
 				new PresentationField(PresentationBasic.NAME, PresentationField.Kind.TEXT, true, 0, "Name"),
 				new PresentationField(PresentationBasic.HEALTH, PresentationField.Kind.NUMBER, true, 0, "Health"),
-				new PresentationField(PresentationBasic.MAX_HEALTH, PresentationField.Kind.NUMBER, true, 0, "Max"))), Map.of(BASIC, 1))));
+				new PresentationField(PresentationBasic.MAX_HEALTH, PresentationField.Kind.NUMBER, true, 0, "Max")),
+				InventoryPresentation.ADAPTER_ID, InventoryPresentation.INSTANCE.fields()),
+				Map.of(BASIC, 1, InventoryPresentation.ADAPTER_ID, InventoryPresentation.SCHEMA))));
 			assertTrue(presentation.reset(PresentationS2CPacket.reset(81, 1, mask())));
 			inventory.presentationReset(81, 1);
 			inventory.accept(InventoryS2CPacket.offer(7, new InventoryS2CPacket.Offer(10, 10, 3, 0)).stamp(81, 1));
@@ -285,8 +299,10 @@ class PendingContentChatAcceptedStoresTest {
 				return new PendingContentChatController.Current(presentation.epoch(), presentation.sessionView(), presentation.ready(),
 					marker != null && marker.isSynchronized() && !markers.isAuthoritativelyRemoved(id),
 					marker == null ? null : PendingContentChatController.MarkerIdentity.of(marker), allowed,
-					inventory.ready() ? PendingContentChatController.Authorization.ALLOWED : PendingContentChatController.Authorization.UNKNOWN,
-					presentation.view(id), inventory.tracking(id));
+					inventory.receiptAuthorization(id, presentation.epoch(), presentation.sessionView(), "entity_block")
+						.map(allowedValue -> allowedValue ? PendingContentChatController.Authorization.ALLOWED : PendingContentChatController.Authorization.DENIED)
+						.orElse(PendingContentChatController.Authorization.UNKNOWN),
+					presentation.view(id), inventory.tracking(id), inventory.creationSnapshot(id));
 			}, ContentChatComposer.nameJsonDecoder(RegistryAccess.EMPTY), ContentChatComposer.itemDisplayDecoder(RegistryAccess.EMPTY),
 				ignored -> ContentChatTemplate.DEFAULT_TEMPLATE, sent::add);
 		}
@@ -298,6 +314,8 @@ class PendingContentChatAcceptedStoresTest {
 			boolean newlySeen = markers.marker(packet.markerId()).isEmpty();
 			markers.onCreated(packet.snapshot(), 1);
 			inventory.markerCreated(packet.snapshot());
+			if (newlySeen && packet.content().inventorySnapshot() != null)
+				assertTrue(inventory.creationSnapshot(packet.markerId(), packet.content().inventorySnapshot()));
 			controller.begin(packet, newlySeen);
 			return true;
 		}
@@ -318,6 +336,10 @@ class PendingContentChatAcceptedStoresTest {
 	private static InventoryS2CPacket.Entry item(long count, long revision) {
 		return new InventoryS2CPacket.Entry("selected", "minecraft:gunpowder", "item.minecraft.gunpowder", null,
 			count, revision, false, InventoryS2CPacket.Status.READY, 0, false, "take");
+	}
+	private static PresentationReceiptContent inventoryReceipt(long amount, boolean aggregate) {
+		return PresentationReceiptContent.inventory(new InventoryCreationSnapshot(InventoryResourceKind.ITEM, "selected",
+			"minecraft:gunpowder", "item.minecraft.gunpowder", null, amount, aggregate, "take", true, false));
 	}
 	private static InventoryS2CPacket data(InventoryS2CPacket.Kind kind, long baseline, long revision, long watermark,
 		int part, int total, InventoryS2CPacket.Status status, List<InventoryS2CPacket.Entry> entries) {

@@ -58,12 +58,16 @@ owns the wire grammar.
 The marker snapshot in `CREATED` carries a mandatory logical `targetKey`
 immediately after its physical `target`. `WINNER` addresses that same key shape.
 Within a BLOCK key, tag `0` is an exact ordinary key, `1` an external stable
-key, `2` a double-chest pair and `3` a Vault controller. Grouped key tags are
-distinct from BLOCK target tags: C2S targets still permit only ordinary `0`
-and external `1` and cannot claim a group. Key identity and target compatibility
-are owned by the [target model](../identity/target_model.md#frozen-logical-block-groups).
+key, `2` a double-chest pair, `3` a Vault controller and `4` a Create fluid-tank
+controller. Tags `3` and `4` each carry controller X, Y and Z as three fixed-width
+32-bit integers followed by the block registry ID; tag `4` requires exactly
+`create:fluid_tank`. Grouped key tags are distinct from BLOCK target tags: C2S
+targets still permit only ordinary `0` and external `1` and cannot claim a group.
+Key identity and target compatibility are owned by the
+[target model](../identity/target_model.md#frozen-logical-block-groups).
 Unknown tags, noncanonical encodings, malformed pairs, incompatible target/key
-carriers, missing keys, truncation and trailing bytes reject the whole frame;
+carriers (including wrong target kind, dimension or expected registry identity),
+missing keys, truncation and trailing bytes reject the whole frame;
 the decoder does not normalize a pair or derive a missing key from the target.
 Live membership is established by server creation, not rediscovered by the decoder.
 
@@ -88,22 +92,46 @@ The atomic `CREATED` frame carries, in order, the canonical marker snapshot, the
 owner name, the default property ref, the receipt content descriptor, and the
 framed Basic section; a `CREATED` frame without the descriptor is corrupt, and
 no other frame kind carries one. The descriptor is one kind tag (`WHOLE`,
-`PROPERTIES`, `INVENTORY`, or `SUPPRESSED`) followed by a ref count and that
-many property refs in the same bounded shape as a create selection.
-`PROPERTIES` requires a non-empty bounded list, every other kind requires an
-empty list, and a non-empty list with another kind is rejected. The list is
-unique and in deterministic sorted order: a duplicate or out-of-order ref, an
-over-capacity or malformed ref, a non-canonical number, an unknown kind, and
-trailing bytes are rejected rather than normalized. The descriptor never
-carries values, annotations, item counts, content types, or client-uploaded
-content; those remain in the existing authorized stores.
+`PROPERTIES`, `INVENTORY`, or `SUPPRESSED`) followed by a ref count, that many
+property refs in the same bounded shape as a create selection, and, only for
+`INVENTORY`, exactly one length-prefixed creation snapshot payload.
+`PROPERTIES` requires a non-empty bounded list and carries no snapshot;
+`WHOLE` and `SUPPRESSED` require an empty list and carry no snapshot;
+`INVENTORY` requires an empty list and exactly one snapshot. The list is unique
+and in deterministic sorted order: a duplicate or out-of-order ref, an
+over-capacity or malformed ref, a non-canonical number, an unknown kind, a
+missing or extra snapshot, and trailing bytes are rejected rather than
+normalized. Property descriptors never carry values, annotations, item counts,
+content types, or client-uploaded content; those remain in the existing
+authorized stores.
 
-## Inventory preview/tracking route (`inventory-v1`)
+The creation snapshot payload starts with one resource-lane byte (`0` for
+`ITEM`, `1` for `FLUID`), followed by the bounded UTF opaque key, resource ID
+and label, a strict display-present boolean and the optional display JSON, the
+amount as a fixed-width signed non-negative 64-bit long, a strict aggregate
+boolean, the required annotation Ping Type ID as bounded UTF, and strict
+`previewComplete` and `quantityUncertain` booleans. `ITEM` amount is a count and
+`FLUID` amount is exact `U`. An incomplete snapshot with
+`quantityUncertain=false`, an unknown lane or annotation, a negative amount, a
+non-boolean flag, a JSON/ID mismatch, a malformed, overlong or non-canonical UTF
+length, truncation, and trailing payload bytes reject the snapshot and the
+frame. The payload is limited to 133120 bytes before allocation, matching the
+inventory entry ceiling; its canonical length prefix is part of the receipt
+encoding and the unchanged 1048576-byte `CREATED` body ceiling still applies.
+The snapshot reader validates display against the closed item or fluid
+projection grammar without a native component codec, rich-text decode or
+registry lookup. Known Ping Type IDs are accepted structurally; target-specific
+annotation eligibility remains server-owned. The frame version remains presentation version two, and inventory
+version two, inventory schema two and the mod version are unchanged.
 
-The dedicated inventory route (`pingforit-c2s:inventory-v1` client-to-server
-and `pingforit-s2c:inventory-v1` server-to-client) carries preview and tracking
+## Inventory preview/tracking route (`inventory-v2`)
+
+The dedicated inventory route (`pingforit-c2s:inventory-v2` client-to-server
+and `pingforit-s2c:inventory-v2` server-to-client) carries preview and tracking
 requests and responses, parallel to the presentation snapshot and presentation
-policy routes. Every frame declares protocol version one.
+policy routes. Every frame declares protocol version two. Both endpoints require
+this version; inventory-v1 is not registered as a fallback and its bytes are
+never reinterpreted.
 The response side carries the effective size budgets.
 `HELLO` is the epoch-zero handshake; every other request runs under the
 negotiated nonzero epoch and a non-negative request id, and only while the
@@ -111,6 +139,16 @@ current presentation epoch/view fence matches. `OFFER` and `POLICY` are
 session messages; `OPEN`, `CLOSE`, `SELECT`, and the `PREVIEW` response are
 request-scoped; `RESYNC` and the `SNAPSHOT`, `STREAM`, `STATUS`, and `HEARTBEAT`
 responses are marker-scoped.
+
+The resource-lane byte is `0` for `ITEM` and `1` for `FLUID`; any other value
+rejects the whole frame. C2S `SELECT` and `RESYNC` carry it immediately after
+the common kind/version/epoch/presentation-epoch/view header and before the
+request ID. C2S `HELLO`, `OPEN` and `CLOSE` carry no lane byte. Every S2C kind
+except the session-wide `OFFER` carries one after its common
+kind/version/epoch/request-ID/presentation-epoch/view header, including empty
+data, policy, selection outcomes and status controls. A frame is homogeneous:
+its lane alone chooses the resource registry, amount unit and display decoder;
+an entry cannot override that interpretation.
 
 Client requests: `HELLO` is empty. `OPEN(epoch, presentationEpoch, view,
 requestId, target, face)` binds a preview request to one bounded
@@ -121,20 +159,25 @@ that must advance past the session's last opened preview request id; it is
 ignored otherwise, and a request id never changes its target. A committed
 external target, an entity or location target, a missing face, an overlong or
 non-canonical field, a wrong protocol version, and trailing bytes are rejected
-rather than reinterpreted. `CLOSE(epoch, requestId)` releases that request.
-`RESYNC(epoch, requestId, markerId)` schedules tracked-Ping repair only; an
+rather than reinterpreted. One `OPEN` serves both independently authorized lanes
+of that target. `CLOSE(epoch, requestId)` releases the entire request, not only
+one lane. `RESYNC(resourceKind, epoch, requestId, markerId)` schedules
+tracked-Ping repair for that marker's lane only; an
 unknown marker has no request-preview fallback. After the common kind, version,
-epoch, presentation epoch and view header, its body is the non-negative
+epoch, presentation epoch and view header and lane byte, its body is the non-negative
 `requestId` as a fixed-width long, a strict one-byte presence boolean of `1`,
 and the marker ID as a long. The decoder rejects the frame for a missing, false
 or non-boolean presence byte, a missing or truncated marker ID, a negative request
 ID, or trailing bytes.
-`SELECT(epoch, requestId, commitId, baselineId,
+`SELECT(resourceKind, epoch, requestId, commitId, baselineId,
 stateRevision, entryKey, pingType)` carries one opaque retained entry reference
 and the commit/baseline/state fences; the server derives the authoritative
 target and count from its own retained reference and answers `SELECTED` or `REJECT`
-correlated by request and commit id, so a repeated `SELECT` for a commit id
-replays the stored outcome instead of re-running the selection.
+correlated by request, commit ID and lane. Commit replay is shared across the
+request: changing the lane cannot execute a second selection under an already
+used commit ID. A repeated `SELECT` replays its stored outcome instead of
+re-running materialization, marker storage or rate charging. Cross-lane entry
+references and repair requests never fall back to the item lane.
 
 Server messages: `OFFER(epoch, previewPeriodTicks, trackingPeriodTicks,
 resyncMinPeriods, heartbeatPeriods, effectiveDisplayBytes, effectiveFrameBytes)`
@@ -146,10 +189,10 @@ tracking periods remain positive. The two budgets form an exact legal size-grid
 pair that keeps the reserved metadata relationship; their persisted form and
 relationship remain owned by
 [server configuration](../../config/server.md#inventory-policy-object) and
-[inventory](../presentation/inventory.md). `POLICY` carries the inventory
+[inventory](../presentation/inventory.md). `POLICY` carries its lane's inventory
 target-type policy view.
 `PREVIEW`, `SNAPSHOT` and `STREAM` each carry one fragment under an independent
-`(epoch, requestId, markerId, baselineId)` identity plus `statusRevision`,
+`(resourceKind, epoch, requestId, markerId, baselineId)` identity plus `statusRevision`,
 `watermark`, `partIndex`/`partCount`, `completeScan`, a status, a checksum, and
 a bounded entry list; `markerId` is required for `SNAPSHOT`/`STREAM` and absent
 for `PREVIEW`, `SNAPSHOT` is the baseline fragment, and `STREAM` continues it.
@@ -163,6 +206,12 @@ trailing bytes are rejected. Status values are `UPDATING`, `READY`,
 `UNCERTAIN`, `INCOMPLETE`, `INVALID` and `COMPONENT_TOO_LONG`. Status and optional
 entry quality use UTF names rather than ordinals; `UNAVAILABLE` and `EXPIRED`
 are rejected in data-frame status, control-frame status and entry quality alike.
+The retained item-named entry fields denote a resource ID, authoritative amount,
+resource revision and annotation in their containing lane: `count` is an item
+count in `ITEM` and exact `U` in `FLUID`. The fluid unit and closed display
+grammar are owned by
+[inventory](../presentation/inventory.md#fluid-variants-and-quantities), not an
+ItemStack decoder. Checksum domains include the lane, including an empty cut.
 
 `completeScan` describes source-scan completion, not receipt of all
 `partIndex`/`partCount` fragments. A marker-scoped selected-preview bootstrap
@@ -180,7 +229,7 @@ under its effective display and frame budgets, and the whole-frame,
 entry-payload and per-entry bounds are enforced during encoding and rejected
 during decoding before any large allocation. An entry display value has its own
 absolute decode bound, independent of the effective display budget. The
-`inventory-v1` route ID is version-bound: it does not decode another inventory
+`inventory-v2` route ID is version-bound: it does not decode another inventory
 wire version, and no fallback reinterprets one. Route
 registration and grammar remain owned here; the dedicated adapter's delivery
 boundary is owned by

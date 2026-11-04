@@ -39,6 +39,9 @@ import nx.pingwheel.common.presentation.*;
 import nx.pingwheel.common.presentation.budget.BudgetDelaySink;
 import nx.pingwheel.common.presentation.inventory.InventoryPresentation;
 import nx.pingwheel.common.presentation.inventory.minecraft.InventoryServer;
+import nx.pingwheel.common.presentation.inventory.InventoryBackend.InitialDecision;
+import nx.pingwheel.common.presentation.inventory.InventoryBackend.InitialPublication;
+import nx.pingwheel.common.presentation.inventory.InventoryBackend.InitialEnvelope;
 import nx.pingwheel.common.presentation.preview.PresentationPreviewAccess;
 import nx.pingwheel.common.presentation.preview.PresentationPreviewServer;
 
@@ -66,6 +69,7 @@ public final class PresentationServer {
 	private PresentationServer() {}
 
 	static final class Session {
+		@Nullable UUID recipient;
 		final long epoch;
 		final Map<String, Integer> schemas;
 		final Map<String, List<PresentationField>> manifest;
@@ -73,11 +77,15 @@ public final class PresentationServer {
 		Map<String, Map<String, Set<String>>> mask = Map.of();
 		Map<String, List<PresentationPropertyRef>> childBlack = Map.of();
 		Set<String> inventoryTypes = Set.of();
+		Set<String> fluidTypes = Set.of();
 		long view;
 		long revision;
 		long authorizationCut = -1;
 		long baselineAfter = -1, baselineHighWater = -1;
 		boolean baselinePending;
+		long blockedInitial = -1;
+		/** Deferred arrivals or updates behind the frozen current pass, coalesced to one next range. */
+		long nextInitial = -1, nextInitialHighWater = -1;
 		boolean ready;
 		Session(long epoch, Map<String, Integer> schemas, Map<String, List<PresentationField>> manifest) {
 			this.epoch = epoch; this.schemas = Map.copyOf(schemas); this.manifest = Map.copyOf(manifest);
@@ -88,6 +96,8 @@ public final class PresentationServer {
 		final String ownerName;
 		final Map<String, PresentationSection> sections = new HashMap<>();
 		long deliveredView;
+		/** A successful older handoff cannot clear a newer reentrant metadata update. */
+		long metadataRevision, deliveredMetadataRevision;
 		SentMarker(String ownerName) { this.ownerName = ownerName; }
 	}
 	static final class Source {
@@ -180,6 +190,7 @@ public final class PresentationServer {
 			long epoch;
 			do { epoch = UUID.randomUUID().getMostSignificantBits(); } while (epoch == 0);
 			Session session = new Session(epoch, schemas, manifest);
+			session.recipient = player.getUUID();
 			SESSIONS.put(player.getUUID(), session);
 			send(player, PresentationS2CPacket.offer(epoch, manifest, schemas));
 			prepare(player, session, store);
@@ -191,6 +202,7 @@ public final class PresentationServer {
 		session.mask = mask(player, session);
 		session.childBlack = childBlackFor(settings());
 		session.inventoryTypes = inventoryTypes(player, session);
+		session.fluidTypes = inventoryTypes(player, session, nx.pingwheel.common.presentation.inventory.InventoryResourceKind.FLUID);
 		session.view++;
 		session.ready = true;
 		send(player, PresentationS2CPacket.reset(session.epoch, session.view, session.mask, session.childBlack));
@@ -214,10 +226,13 @@ public final class PresentationServer {
 		session.baselineAfter = -1;
 		session.baselineHighWater = store.highWaterId();
 		session.baselinePending = true;
+		session.blockedInitial = -1;
+		session.nextInitial = session.nextInitialHighWater = -1;
+		session.sent.values().forEach(sent -> sent.deliveredMetadataRevision = sent.metadataRevision);
 	}
 
 	/** One shared discovery allowance, rotating recipients after each canonical inspection. */
-	static UUID baselineTick(ServerMarkerStore store, Map<UUID, Session> sessions, UUID lastRecipient,
+	static @Nullable UUID baselineTick(ServerMarkerStore store, Map<UUID, Session> sessions, @Nullable UUID lastRecipient,
 		long tick, int allowance, Predicate<UUID> online,
 		java.util.function.BiConsumer<UUID, ServerMarker> deliver) {
 		if (allowance < 0) throw new IllegalArgumentException("baseline allowance");
@@ -230,13 +245,31 @@ public final class PresentationServer {
 			if (recipient == null) recipient = pending.firstKey();
 			Session session = pending.get(recipient);
 			var page = store.pageAfter(session.baselineAfter, session.baselineHighWater, 1);
+			if (session.blockedInitial >= 0 && session.baselineAfter < session.blockedInitial
+				&& (page.markers().isEmpty() || page.markers().get(0).id().value() > session.blockedInitial))
+				session.blockedInitial = -1; // the canonical record was removed before this retry pass reached it
 			if (!page.markers().isEmpty()) {
 				allowance--;
 				ServerMarker marker = page.markers().get(0);
-				if (marker.expiresAtTick() > tick && marker.recipients().contains(recipient)) deliver.accept(recipient, marker);
+				if (session.blockedInitial == marker.id().value()) session.blockedInitial = -1;
+				@Nullable SentMarker known = session.sent.get(marker.id().value());
+				if (marker.expiresAtTick() > tick && marker.recipients().contains(recipient)
+					&& (known == null || known.deliveredView != session.view || known.deliveredMetadataRevision != known.metadataRevision))
+					deliver.accept(recipient, marker);
+				else if (known != null && (marker.expiresAtTick() <= tick || !marker.recipients().contains(recipient)))
+					known.deliveredMetadataRevision = known.metadataRevision;
 			}
 			session.baselineAfter = page.afterId();
-			if (page.complete()) { session.baselinePending = false; pending.remove(recipient); }
+			if (page.complete()) {
+				long next = session.blockedInitial < 0 ? session.nextInitial : session.nextInitial < 0
+					? session.blockedInitial : Math.min(session.blockedInitial, session.nextInitial);
+				if (next >= 0) {
+					session.baselineAfter = next - 1;
+					session.baselineHighWater = Math.max(session.baselineHighWater, session.nextInitialHighWater);
+				} else session.baselinePending = false;
+				session.blockedInitial = session.nextInitial = session.nextInitialHighWater = -1;
+				pending.remove(recipient); // a failed pass retries on the next tick, under the same discovery allowance
+			}
 			lastRecipient = recipient;
 		}
 		return lastRecipient;
@@ -302,7 +335,7 @@ public final class PresentationServer {
 				if (sourceSeeds.isEmpty()) sendInitial(player, session, lease);
 				else sendBaseline(session, lease, registry,
 					adapter -> allowed(player, session, adapter, marker.targetType().id()),
-					packet -> send(player, packet), InventoryServer.tracksInventory(marker.id()), effectiveInventoryTypes(player, session));
+					packet -> send(player, packet), InventoryServer.tracksInventory(marker.id()), effectiveInventoryTypes(player, session, marker.id()));
 			}
 		}
 	}
@@ -324,7 +357,7 @@ public final class PresentationServer {
 			recipient -> adapter -> allowed(server.getPlayerList().getPlayer(recipient),
 				SESSIONS.get(recipient), adapter, targetType),
 			recipient -> effectiveInventoryTypes(server.getPlayerList().getPlayer(recipient),
-				SESSIONS.get(recipient)),
+				SESSIONS.get(recipient), marker.id()),
 			(recipient, packet) -> send(server.getPlayerList().getPlayer(recipient), packet));
 	}
 
@@ -393,7 +426,10 @@ public final class PresentationServer {
 			Session session = sessions.get(recipient);
 			if (session != null && session.ready && online.test(recipient)) {
 				SentMarker sent = session.sent.get(marker.id().value());
-				if (sent != null && sent.deliveredView == session.view) delivery.accept(recipient, sent);
+				if (sent != null && sent.deliveredView == session.view) {
+					sent.metadataRevision++;
+					delivery.accept(recipient, sent);
+				}
 			}
 		}
 	}
@@ -409,14 +445,19 @@ public final class PresentationServer {
 			if (!session.ready || session.view == Long.MAX_VALUE) continue;
 			ServerPlayer player = server.getPlayerList().getPlayer(entry.getKey());
 			if (player == null) continue;
-			Map<String, Map<String, Set<String>>> effective = mask(player, session);
-			Map<String, List<PresentationPropertyRef>> effectiveChildBlack = childBlackFor(settings());
-			Set<String> dedicated = inventoryTypes(player, session);
+			@org.jetbrains.annotations.Unmodifiable Map<String, Map<String, Set<String>>> effective = mask(player, session);
+			@org.jetbrains.annotations.Unmodifiable Map<String, List<PresentationPropertyRef>> effectiveChildBlack = childBlackFor(settings());
+			@org.jetbrains.annotations.Unmodifiable Set<String> dedicated = inventoryTypes(player, session);
+			@org.jetbrains.annotations.Unmodifiable Set<String> fluids = inventoryTypes(player, session, nx.pingwheel.common.presentation.inventory.InventoryResourceKind.FLUID);
+			// Dedicated delivery owns its lane policy, baselines and revocation.
+			// Updating those grants must not turn an unrelated SECTION generation
+			// (or the still-authorized inventory sibling) into a new view.
+			session.inventoryTypes = dedicated;
+			session.fluidTypes = fluids;
 			if (!policyChanged && effective.equals(session.mask)
-				&& effectiveChildBlack.equals(session.childBlack) && dedicated.equals(session.inventoryTypes)) continue;
+				&& effectiveChildBlack.equals(session.childBlack)) continue;
 			session.mask = effective;
 			session.childBlack = effectiveChildBlack;
-			session.inventoryTypes = dedicated;
 			session.view++;
 			session.authorizationCut = observationSerial;
 			pruneSession(session, store, registry::get, (marker, adapter) ->
@@ -434,7 +475,7 @@ public final class PresentationServer {
 				else lease.marker = marker;
 				sendBaseline(session, lease, registry,
 					adapter -> allowed(player, session, adapter, marker.targetType().id()),
-					packet -> send(player, packet), InventoryServer.tracksInventory(marker.id()), effectiveInventoryTypes(player, session));
+					packet -> send(player, packet), InventoryServer.tracksInventory(marker.id()), effectiveInventoryTypes(player, session, marker.id()));
 			});
 		PresentationAdapter.CaptureBudget work = new PresentationAdapter.CaptureBudget(MAX_CAPTURE_WORK_PER_TICK);
 		PresentationFairSampler.Result sampled = sampler.tick(store, LEASES, registry, settings(), tick, work,
@@ -796,7 +837,7 @@ public final class PresentationServer {
 		sendInitial(session, lease, basic,
 			allowed(player, session, basic, targetType), packet -> send(player, packet),
 			adapter -> allowed(player, session, adapter, targetType),
-			InventoryServer.tracksInventory(lease.marker.id()), effectiveInventoryTypes(player, session));
+			InventoryServer.tracksInventory(lease.marker.id()), effectiveInventoryTypes(player, session, lease.marker.id()));
 	}
 
 	/** Test seam: no fresh non-Basic policy port, so content refs project conservatively. */
@@ -885,6 +926,10 @@ public final class PresentationServer {
 		PresentationPropertyRef defaultRef = PresentationDefaults.forTargetType(marker.targetType().id())
 			.orElse(null);
 		if (defaultRef == null) return;
+		if (inventoryTracked && activeServer != null) {
+			sendInventoryInitial(session, marker, ownerName, basic, cached, allowed, freshAuthorization, freshInventoryTypes, defaultRef);
+			return;
+		}
 		// A semantically valid Basic capture may exceed the encoded field bounds;
 		// degrade to the established empty stale section instead of throwing here.
 		PresentationSection projected = PresentationCodec.bounded(cached);
@@ -902,13 +947,147 @@ public final class PresentationServer {
 				}
 			}
 		}
-		SentMarker prior = session.sent.get(marker.id().value());
+		@Nullable SentMarker prior = session.sent.get(marker.id().value());
 		String deliveredOwner = prior == null ? ownerName : prior.ownerName;
-		delivery.accept(PresentationS2CPacket.created(session.epoch, session.view,
-			++session.revision, MarkerSnapshot.from(marker), deliveredOwner, defaultRef, content, projected));
+		long metadataRevision = prior == null ? 0 : prior.metadataRevision;
+		PresentationS2CPacket packet = PresentationS2CPacket.created(session.epoch, session.view,
+			++session.revision, MarkerSnapshot.from(marker), deliveredOwner, defaultRef, content, projected);
+		delivery.accept(packet);
 		SentMarker sent = session.sent.computeIfAbsent(marker.id().value(), id -> new SentMarker(deliveredOwner));
 		sent.sections.put(PresentationBasic.ID, projected);
 		sent.deliveredView = session.view;
+		sent.deliveredMetadataRevision = metadataRevision;
+		completeInitial(session, marker, sent);
+	}
+	private static void sendInventoryInitial(Session session, ServerMarker marker, String ownerName, PresentationAdapter basic,
+		PresentationSection cached, Set<String> allowed, Function<PresentationAdapter, Set<String>> freshAuthorization,
+		Set<String> freshInventoryTypes, PresentationPropertyRef defaultRef) {
+		if (session.recipient == null) return;
+		UUID recipient = session.recipient;
+		@Nullable ServerPlayer player = activeServer.getPlayerList().getPlayer(recipient);
+		if (player == null || !initialCurrent(session, marker, player, session.view)) return;
+		if (!(IPlatformNetworkService.INSTANCE instanceof InventoryCreationReceiptTransport.EncodedTransport transport)) {
+			deferInitial(session, marker); return;
+		}
+		@Nullable SentMarker prior = session.sent.get(marker.id().value());
+		String owner = prior == null ? ownerName : prior.ownerName;
+		long metadataRevision = prior == null ? 0 : prior.metadataRevision;
+		PresentationSection projected = cached;
+		PresentationReceiptContent content = receipt(session, marker, basic, allowed, freshAuthorization, true, freshInventoryTypes);
+		if (content.kind() == PresentationReceiptContent.Kind.SUPPRESSED) InventoryServer.suppressCreation(marker.id(), recipient);
+		// Each rebuild pays a new envelope/source opportunity. At most two attempts;
+		// unrelated Basic revocation need not suppress still-authorized creation content.
+		for (int attempt = 0; attempt < 2; attempt++) {
+			int basicBytes;
+			try { basicBytes = InventoryInitialPayload.basicBytes(projected); }
+			catch (IllegalArgumentException oversized) {
+				projected = InventoryInitialPayload.EMPTY_BASIC; basicBytes = InventoryInitialPayload.basicBytes(projected);
+			}
+			int bodyUpper = InventoryInitialPayload.bodyUpper(marker, owner, defaultRef, content, basicBytes);
+			// Reentrant revocation also prunes the previously delivered Basic, never
+			// unrelated optional sections. Its existing bytes bound that paid work.
+			@Nullable PresentationSection retained = prior == null ? null : prior.sections.get(PresentationBasic.ID);
+			int retainedBytes = 0;
+			if (retained != null) {
+				try { retainedBytes = InventoryInitialPayload.basicBytes(retained); }
+				catch (IllegalArgumentException oversized) { retainedBytes = PresentationCodec.MAX_SECTION_BYTES + 5; }
+			}
+			long construction = InventoryInitialPayload.constructionWorkspace(basicBytes)
+				+ (retained == null ? 0 : InventoryInitialPayload.constructionWorkspace(retainedBytes));
+			long workspace = construction + 4096L + 8L * bodyUpper;
+			boolean inventory = content.kind() == PresentationReceiptContent.Kind.INVENTORY;
+			var source = inventory ? InventoryServer.reserveInitial(marker.id(), recipient, session.epoch, session.view, bodyUpper, workspace) : Optional.<InitialPublication>empty();
+			var envelope = inventory ? Optional.<InitialEnvelope>empty()
+				: InventoryServer.reserveInitialEnvelope(bodyUpper, workspace);
+			if (inventory ? source.isEmpty() : envelope.isEmpty()) { deferInitial(session, marker); return; }
+			@Nullable var sourceOwner = source.orElse(null);
+			@Nullable var envelopeOwner = envelope.orElse(null);
+			InitialDecision decision;
+			try (@Nullable var sourceGrant = sourceOwner; @Nullable var envelopeGrant = envelopeOwner) {
+				PresentationSection encodedBasic = projected;
+				PresentationS2CPacket packet = InventoryInitialPayload.create(session.epoch, session.view, ++session.revision,
+					marker, owner, defaultRef, content, projected, basicBytes);
+				if (sourceGrant != null) sourceGrant.settle(packet.encodedCreatedBodyBytes(), construction + packet.createdEncodingWorkspace());
+				else if (envelopeGrant != null) envelopeGrant.settle(packet.encodedCreatedBodyBytes(), construction + packet.createdEncodingWorkspace());
+				decision = InventoryCreationReceiptTransport.send(transport, packet, player, () -> {
+					if (!initialCurrent(session, marker, player, packet.view())) return InitialDecision.SUPPRESSED;
+					if (sourceGrant != null) {
+						if (!initialReceiptAuthorized(session, marker, basic, player)) return InitialDecision.SUPPRESSED;
+						var checked = sourceGrant.beforeHandoff();
+						if (checked != InitialDecision.READY) return checked;
+						if (!initialCurrent(session, marker, player, packet.view()) || !initialReceiptAuthorized(session, marker, basic, player))
+							return InitialDecision.SUPPRESSED;
+					}
+					return initialBasicAuthorized(session, marker, basic, player, encodedBasic) ? InitialDecision.READY : InitialDecision.DEFERRED;
+				});
+				if (decision == InitialDecision.DEFERRED && initialBasicAuthorized(session, marker, basic, player, encodedBasic)) {
+					deferInitial(session, marker); return;
+				}
+				if (decision == InitialDecision.READY) {
+					if (!initialCurrent(session, marker, player, packet.view())) return;
+					SentMarker sent = session.sent.computeIfAbsent(marker.id().value(), id -> new SentMarker(owner));
+					sent.sections.put(PresentationBasic.ID, projected); sent.deliveredView = session.view;
+					sent.deliveredMetadataRevision = metadataRevision;
+					completeInitial(session, marker, sent);
+					return;
+				}
+				// Pruning/rebuild planning still belongs to this admitted construction
+				// workspace; actual next encoding must acquire a separate full grant.
+				if (!initialCurrent(session, marker, player, packet.view())) return;
+				Set<String> currentAllowed = projectionAllowed(session, marker, basic, allowed(player, session, basic, marker.targetType().id()));
+				Predicate<PresentationPropertyRef> currentChild = childAllowed(session, marker.targetType().id());
+				if (prior != null && retained != null) {
+					PresentationSection pruned = pruneProjection(basic, retained, currentAllowed, currentChild);
+					if (!pruned.fields().keySet().equals(retained.fields().keySet()) || !pruned.annotations().equals(retained.annotations()))
+						session.authorizationCut = Math.max(session.authorizationCut, observationSerial);
+					prior.sections.put(PresentationBasic.ID, pruned);
+				}
+				projected = pruneProjection(basic, projected, currentAllowed, currentChild);
+			} catch (RuntimeException | LinkageError failure) { deferInitial(session, marker); return; }
+			if (!initialCurrent(session, marker, player, session.view)) return;
+			if (decision == InitialDecision.SUPPRESSED) {
+				content = PresentationReceiptContent.suppressed();
+				InventoryServer.suppressCreation(marker.id(), recipient);
+			}
+		}
+		deferInitial(session, marker);
+	}
+	/** Checks every encoded field/annotation without encoding or widening the retained projection. */
+	private static boolean initialBasicAuthorized(Session session, ServerMarker marker, PresentationAdapter basic,
+		ServerPlayer player, PresentationSection projected) {
+		Set<String> allowed = projectionAllowed(session, marker, basic, allowed(player, session, basic, marker.targetType().id()));
+		if (!allowed.containsAll(projected.fields().keySet())) return false;
+		Predicate<PresentationPropertyRef> child = childAllowed(session, marker.targetType().id());
+		return projected.annotations().keySet().stream().allMatch(ref -> allowed.contains(ref.fieldId()) && child.test(ref));
+	}
+	private static boolean initialCurrent(Session session, ServerMarker marker, ServerPlayer player, long view) {
+		return activeServer != null && SESSIONS.get(player.getUUID()) == session && session.ready && session.view == view
+			&& activeServer.getPlayerList().getPlayer(player.getUUID()) == player && marker.recipients().contains(player.getUUID())
+			&& marker.expiresAtTick() > activeServer.getTickCount() && InventoryServer.initialMarkerActive(marker.id(), player.getUUID());
+	}
+	private static boolean initialReceiptAuthorized(Session session, ServerMarker marker, PresentationAdapter basic, ServerPlayer player) {
+		return receipt(session, marker, basic, allowed(player, session, basic, marker.targetType().id()),
+			adapter -> allowed(player, session, adapter, marker.targetType().id()), true, effectiveInventoryTypes(player, session, marker.id()))
+			.kind() == PresentationReceiptContent.Kind.INVENTORY;
+	}
+	private static void completeInitial(Session session, ServerMarker marker, SentMarker sent) {
+		if (sent.deliveredMetadataRevision != sent.metadataRevision) deferInitial(session, marker);
+		// Only canonical inspection clears the earliest failed cursor: a direct
+		// success here must not forget another failure later in the running pass.
+	}
+	private static void deferInitial(Session session, ServerMarker marker) {
+		long id = marker.id().value();
+		if (!session.baselinePending) {
+			session.baselineAfter = id - 1; session.baselineHighWater = id;
+			session.blockedInitial = id; session.baselinePending = true;
+		} else if (id > session.baselineAfter && id <= session.baselineHighWater) {
+			session.blockedInitial = session.blockedInitial < 0 ? id : Math.min(session.blockedInitial, id);
+		} else {
+			// Freeze this pass's cursor and endpoint. Arrivals/behind-cursor refreshes
+			// merge into one next-pass range instead of indefinitely postponing old work.
+			session.nextInitial = session.nextInitial < 0 ? id : Math.min(session.nextInitial, id);
+			session.nextInitialHighWater = Math.max(session.nextInitialHighWater, id);
+		}
 	}
 
 	/**
@@ -929,8 +1108,14 @@ public final class PresentationServer {
 			PresentationPropertyRef.root(basic.adapterId(), PresentationBasic.NAME), basicAllowed);
 		boolean inventoryAuthorized = inventoryTracked
 			&& Objects.equals(session.schemas.get(InventoryPresentation.ADAPTER_ID), InventoryPresentation.SCHEMA)
-			&& freshInventoryTypes.contains(targetType);
-		return PresentationReceiptProjector.project(marker.properties(), inventoryTracked, inventoryAuthorized,
+			&& freshInventoryTypes.contains(targetType)
+			&& InventoryServer.trackedKind(marker.id()).map(kind -> session.manifest
+				.getOrDefault(InventoryPresentation.ADAPTER_ID, List.of()).stream().anyMatch(field -> field.id().equals(kind.fieldId())
+					&& InventoryPresentation.INSTANCE.fields().stream().anyMatch(local -> local.id().equals(field.id()) && local.kind() == field.kind()))).orElse(false)
+			&& (session.recipient == null || InventoryServer.creationDecision(marker.id(), session.recipient, session.epoch, session.view)
+				== InitialDecision.READY);
+		return PresentationReceiptProjector.project(marker.properties(), inventoryTracked,
+			InventoryServer.creationSnapshot(marker.id()).orElse(null), inventoryAuthorized,
 			nameAuthorized,
 			ref -> {
 				PresentationAdapter adapter = ref.adapterId().equals(basic.adapterId())
@@ -1060,27 +1245,37 @@ public final class PresentationServer {
 	static PresentationSettings previewSettings() { return settings(); }
 
 	/** Dedicated delivery shares the presentation fence, but never widens the SECTION mask. */
-	public record InventoryPolicy(long epoch, long view, Set<String> types) {
-		public InventoryPolicy { types = Set.copyOf(types); }
+	public record InventoryPolicy(long epoch, long view, Set<String> types, Set<String> fluidTypes) {
+		public InventoryPolicy(long epoch, long view, Set<String> types) { this(epoch, view, types, Set.of()); }
+		public InventoryPolicy { types = Set.copyOf(types); fluidTypes = Set.copyOf(fluidTypes); }
+		public Set<String> types(nx.pingwheel.common.presentation.inventory.InventoryResourceKind kind) {
+			return kind == nx.pingwheel.common.presentation.inventory.InventoryResourceKind.ITEM ? types : fluidTypes;
+		}
 	}
 	public static Optional<InventoryPolicy> inventoryPolicy(UUID playerId) {
 		Session session = SESSIONS.get(playerId);
 		ServerPlayer player = activeServer == null ? null : activeServer.getPlayerList().getPlayer(playerId);
 		if (session == null || !session.ready || player == null) return Optional.empty();
 		return Optional.of(new InventoryPolicy(session.epoch, session.view,
-			effectiveInventoryTypes(player, session)));
+			effectiveInventoryTypes(player, session), effectiveInventoryTypes(player, session, nx.pingwheel.common.presentation.inventory.InventoryResourceKind.FLUID)));
 	}
 
 	/**
 	 * The recipient's single fresh dedicated-inventory authorization: current
 	 * permission/policy intersected with the already-advertised route/session
-	 * view, so a newly allowed type is not promoted before RESET and a revoked
+	 * view, so a newly allowed type is not promoted before the policy tick and a revoked
 	 * type is denied immediately. The dedicated policy and every initial
 	 * receipt share this one gate.
 	 */
 	private static Set<String> effectiveInventoryTypes(ServerPlayer player, Session session) {
-		Set<String> fresh = new HashSet<>(inventoryTypes(player, session));
-		fresh.retainAll(session.inventoryTypes);
+		return effectiveInventoryTypes(player, session, nx.pingwheel.common.presentation.inventory.InventoryResourceKind.ITEM);
+	}
+	private static Set<String> effectiveInventoryTypes(ServerPlayer player, Session session, MarkerId marker) {
+		return InventoryServer.trackedKind(marker).map(kind -> effectiveInventoryTypes(player, session, kind)).orElse(Set.of());
+	}
+	private static Set<String> effectiveInventoryTypes(ServerPlayer player, Session session, nx.pingwheel.common.presentation.inventory.InventoryResourceKind kind) {
+		Set<String> fresh = new HashSet<>(inventoryTypes(player, session, kind));
+		fresh.retainAll(kind == nx.pingwheel.common.presentation.inventory.InventoryResourceKind.ITEM ? session.inventoryTypes : session.fluidTypes);
 		return Set.copyOf(fresh);
 	}
 	public static boolean inventoryKnows(UUID player, MarkerId marker) {
@@ -1092,10 +1287,13 @@ public final class PresentationServer {
 		return session != null && session.ready && sent != null && sent.deliveredView == session.view;
 	}
 	private static Set<String> inventoryTypes(ServerPlayer player, Session session) {
+		return inventoryTypes(player, session, nx.pingwheel.common.presentation.inventory.InventoryResourceKind.ITEM);
+	}
+	private static Set<String> inventoryTypes(ServerPlayer player, Session session, nx.pingwheel.common.presentation.inventory.InventoryResourceKind kind) {
 		if (!Objects.equals(session.schemas.get(InventoryPresentation.ADAPTER_ID), InventoryPresentation.SCHEMA)) return Set.of();
 		Set<String> result = new HashSet<>();
 		for (String type : PresentationSettings.TARGET_TYPE_IDS)
-			if (allowed(player, session, InventoryPresentation.INSTANCE, type).contains(InventoryPresentation.ITEMS)) result.add(type);
+			if (allowed(player, session, InventoryPresentation.INSTANCE, type).contains(kind.fieldId())) result.add(type);
 		return Set.copyOf(result);
 	}
 	public static void winner(ServerPlayer player, TargetKey key, Optional<MarkerId> winner) {

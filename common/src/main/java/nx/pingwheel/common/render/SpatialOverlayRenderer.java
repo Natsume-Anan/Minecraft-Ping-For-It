@@ -1529,7 +1529,7 @@ public final class SpatialOverlayRenderer {
 				? backgroundCoverage(BOX_BACKGROUND_PERCENT, selectedRowGain(view, listActive), 1.0) : 0.0;
 			add(targets, new VisualKey("row", owner, row.key()), x, rowY, 1.0, 1.0, rowCoverage, x, rowY + 6.0,
 				new RowPaint(row, layout.width(), rowHeight, selected,
-					view.status().grey() || row.quality().grey(),
+					view.rowGrey(row),
 					listActive && selected && view.selectedRowCommittable() && !view.backAffordance().focused()
 						? row.outlineColor() : null, source));
 		}
@@ -1745,7 +1745,16 @@ public final class SpatialOverlayRenderer {
 				drawInventoryText(graphics, font, Component.literal(header.position()), left, top, header.width() - 8.0,
 					style.inventoryTextScale(), TEXT_DIMMED_COLOR, alpha);
 				String key = header.status().translationKey();
-				if (key != null) {
+				if (header.geometry() != null && !header.geometry().view().resourceGroups().isEmpty()) {
+					int groupIndex = 1;
+					for (var group : header.geometry().view().resourceGroups()) {
+						Component text = Component.translatable(group.labelKey());
+						if (group.status().translationKey() != null)
+							text = text.copy().append(": ").append(Component.translatable(group.status().translationKey()));
+						drawInventoryText(graphics, font, text, left, top + groupIndex++ * font.lineHeight * style.inventoryTextScale() + 2,
+							header.width() - 8, style.inventoryTextScale(), group.status().grey() ? TEXT_DISABLED_COLOR : TEXT_DIMMED_COLOR, alpha);
+					}
+				} else if (key != null) {
 					drawInventoryText(graphics, font, Component.translatable(key), left,
 						top + font.lineHeight * style.inventoryTextScale() + 2.0, header.width() - 8.0,
 						style.inventoryTextScale(), TEXT_DIMMED_COLOR, alpha);
@@ -1778,32 +1787,72 @@ public final class SpatialOverlayRenderer {
 	private static void paintRow(GuiGraphics graphics, Font font, RowPaint paint, Style style,
 		double alpha, double backgroundAlpha) {
 		SpatialInventoryView.Row row = paint.row();
-		double textScale = style.inventoryTextScale();
 		int left = (int) Math.round(-paint.width() / 2.0);
-		int right = (int) Math.round(paint.width() / 2.0);
-		int top = (int) Math.round(-paint.height() / 2.0);
 		paintRowFills(paint, style, alpha, backgroundAlpha, graphics::fill);
 		double textLeft = left + 5.0;
-		ClientItemDisplay.Display display = rowDisplay(row);
-		ItemStack stack = display.stack();
-		if (!stack.isEmpty()) {
-			float tint = paint.grey() ? 0.65f : 1.0f;
-			SpatialItemIconRenderer.draw(graphics, stack, (int) textLeft, -ITEM_ICON_SIZE / 2, tint, (float) alpha);
-			textLeft += ITEM_ICON_SIZE + 3.0;
+		Component name;
+		if (row.resourceKind() == nx.pingwheel.common.presentation.inventory.InventoryResourceKind.FLUID) {
+			nx.pingwheel.common.presentation.inventory.client.ClientFluidDisplay.@org.jetbrains.annotations.Nullable Display display = row.display() == null
+				? nx.pingwheel.common.presentation.inventory.client.ClientFluidDisplay.resolve(row.itemId(), row.label(), row.displayJson()) : null;
+			name = display == null ? row.display().name() : display.name();
+			net.minecraft.world.level.material.@org.jetbrains.annotations.Nullable Fluid fluid = display != null ? display.fluid()
+				: row.display().fluid();
+			if (fluid != null) {
+				SpatialFluidIconRenderer.draw(graphics, fluid, (int) textLeft, -ITEM_ICON_SIZE / 2, paint.grey() ? 0.65f : 1f, (float) alpha);
+				textLeft += ITEM_ICON_SIZE + 3.0;
+			}
+		} else {
+			ClientItemDisplay.Display display = rowDisplay(row);
+			name = display.name();
+			ItemStack stack = display.stack();
+			if (!stack.isEmpty()) {
+				float tint = paint.grey() ? 0.65f : 1.0f;
+				SpatialItemIconRenderer.draw(graphics, stack, (int) textLeft, -ITEM_ICON_SIZE / 2, tint, (float) alpha);
+				textLeft += ITEM_ICON_SIZE + 3.0;
+			}
 		}
-		Component quantity = SpatialInventoryLayout.quantity(row.count());
-		double quantityWidth = Math.min(font.width(quantity) * textScale,
-			Math.max(0.0, (right - 4.0 - textLeft) / 2.0));
+		paintRowText(paint, name, textLeft, style, font.lineHeight, font::width, font.getSplitter(),
+			(text, x, y, color) -> drawInventoryText(graphics, font, text, x, y, color, alpha));
+	}
+
+	/** Production row text submission, after the unchanged native icon slot has been reserved. */
+	@org.jetbrains.annotations.NotNullByDefault
+	@FunctionalInterface
+	interface InventoryTextPainter {
+		void draw(InventoryText text, double x, double y, int color);
+	}
+
+	static void paintRowText(RowPaint paint, Component name, double textLeft, Style style, int lineHeight,
+		ToIntFunction<FormattedText> widths, StringSplitter splitter, InventoryTextPainter painter) {
+		SpatialInventoryView.Row row = paint.row();
+		double textScale = style.inventoryTextScale();
+		int right = (int) Math.round(paint.width() / 2.0);
+		int top = (int) Math.round(-paint.height() / 2.0);
+		Component quantity = SpatialInventoryLayout.quantity(row);
+		double available = Math.max(0.0, right - 4.0 - textLeft);
+		// Resource quantities retain units and approximation qualifiers before
+		// descriptive text. Items keep their established half-row allocation.
+		double quantityBudget = row.resourceKind() == nx.pingwheel.common.presentation.inventory.InventoryResourceKind.FLUID
+			? available : available / 2.0;
+		double quantityWidth = Math.min(widths.applyAsInt(quantity) * textScale,
+			quantityBudget);
 		double textTop = top + 2.0;
 		int textColor = paint.grey() ? TEXT_DISABLED_COLOR : paint.selected() ? TEXT_COLOR : TEXT_DIMMED_COLOR;
-		drawInventoryText(graphics, font, display.name(), textLeft, textTop,
-			Math.max(0.0, right - 8.0 - quantityWidth - textLeft), textScale, textColor, alpha);
-		drawInventoryText(graphics, font, quantity, right - 4.0 - quantityWidth, textTop, quantityWidth, textScale, textColor, alpha);
-		String qualityKey = row.quality().translationKey();
+		painter.draw(inventoryText(name, Math.max(0.0, right - 8.0 - quantityWidth - textLeft), textScale, widths, splitter),
+			textLeft, textTop, textColor);
+		painter.draw(inventoryText(quantity, quantityWidth, textScale, widths, splitter),
+			right - 4.0 - quantityWidth, textTop, textColor);
+		@org.jetbrains.annotations.Nullable String qualityKey = row.quality().translationKey();
+		if (paint.geometry() != null && !paint.geometry().view().resourceGroups().isEmpty()) {
+			Component group = Component.translatable("pingforit.inventory.group." + row.resourceKind().name().toLowerCase(java.util.Locale.ROOT));
+			if (qualityKey != null) group = group.copy().append(" — ").append(Component.translatable(qualityKey));
+			painter.draw(inventoryText(group, right - 4 - textLeft, textScale, widths, splitter),
+				textLeft, textTop + lineHeight * textScale + 1, TEXT_DISABLED_COLOR);
+			qualityKey = null;
+		}
 		if (qualityKey != null) {
-			drawInventoryText(graphics, font, Component.translatable(qualityKey), textLeft,
-				textTop + font.lineHeight * textScale + 1.0, right - 4.0 - textLeft,
-				textScale, TEXT_DISABLED_COLOR, alpha);
+			painter.draw(inventoryText(Component.translatable(qualityKey), right - 4.0 - textLeft, textScale, widths, splitter),
+				textLeft, textTop + lineHeight * textScale + 1.0, TEXT_DISABLED_COLOR);
 		}
 	}
 
@@ -1839,9 +1888,11 @@ public final class SpatialOverlayRenderer {
 	record InventoryText(FormattedText text, double scale, double width) {}
 	static InventoryText inventoryText(Component label, double width, double scale,
 		ToIntFunction<FormattedText> widths, StringSplitter splitter) {
-		int budget = Math.max(0, (int) Math.floor(width / scale));
 		FormattedText text = label;
-		if (widths.applyAsInt(label) > budget) {
+		// Compare in the layout's scaled units: dividing an exact-fit allocation
+		// back by its scale can round down below the original font width.
+		if (widths.applyAsInt(label) * scale > Math.max(0.0, width)) {
+			int budget = Math.max(0, (int) Math.floor(width / scale));
 			Component ellipsis = Component.literal("…");
 			int suffix = widths.applyAsInt(ellipsis);
 			text = suffix > budget ? FormattedText.EMPTY : FormattedText.composite(
@@ -1854,6 +1905,13 @@ public final class SpatialOverlayRenderer {
 		double width, double scale, int color, double alpha) {
 		if (width <= 0.0) return;
 		InventoryText text = inventoryText(label, width, scale, font::width, font.getSplitter());
+		drawInventoryText(graphics, font, text, x, y, color, alpha);
+	}
+
+	private static void drawInventoryText(GuiGraphics graphics, Font font, InventoryText text, double x, double y,
+		int color, double alpha) {
+		double width = text.width(), scale = text.scale();
+		if (width <= 0.0) return;
 		var transform = graphics.pose().last().pose();
 		var near = transform.transformPosition((float) x, (float) y, 0.0f, new org.joml.Vector3f());
 		var far = transform.transformPosition((float) (x + width), (float) (y + font.lineHeight * scale), 0.0f, new org.joml.Vector3f());
@@ -2300,11 +2358,15 @@ public final class SpatialOverlayRenderer {
 	 */
 	static ClientItemDisplay.Display rowDisplay(SpatialInventoryView.Row row) {
 		if (row.display() != null) return new ClientItemDisplay.Display(row.display().icon(), row.display().name());
+		if (row.resourceKind() == nx.pingwheel.common.presentation.inventory.InventoryResourceKind.FLUID)
+			return new ClientItemDisplay.Display(ItemStack.EMPTY,
+				nx.pingwheel.common.presentation.inventory.client.ClientFluidDisplay.resolve(row.itemId(), row.label(), row.displayJson()).name());
 		return ClientItemDisplay.resolve(row.itemId(), row.label(), row.displayJson());
 	}
 
 	/** Explicit-registry form of the row display seam, used by headless tests. */
 	static ClientItemDisplay.Display rowDisplay(SpatialInventoryView.Row row, HolderLookup.Provider registryAccess) {
+		if (row.resourceKind() == nx.pingwheel.common.presentation.inventory.InventoryResourceKind.FLUID) return rowDisplay(row);
 		return ClientItemDisplay.resolve(registryAccess, row.itemId(), row.label(), row.displayJson());
 	}
 
