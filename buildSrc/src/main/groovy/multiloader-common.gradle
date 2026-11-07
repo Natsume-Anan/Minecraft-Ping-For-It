@@ -13,6 +13,19 @@ java {
     withJavadocJar()
 }
 
+// 26.3 skeleton: the 1.21.1 sources stay on disk for the later migration, but
+// only the stub tree participates in the build until they are ported.
+// Remove this block when the migration starts.
+sourceSets {
+    main {
+        java.srcDirs = ["src/skeleton/java"]
+    }
+    test {
+        // Loom rejects an empty test source-dir list, so point it at a stub tree.
+        java.srcDirs = ["src/skeleton/test/java"]
+    }
+}
+
 // Common Mixin sources keep the @author/@reason Javadoc metadata required by
 // the Mixin overwrite checker. @author is a standard Javadoc tag, but @reason
 // is not; register it as a custom block tag so every javadoc task that includes
@@ -33,47 +46,19 @@ repositories {
         }
         filter { includeGroupAndSubgroups("org.spongepowered") }
     }
-    exclusiveContent {
-        forRepositories(
-                maven {
-                    name = "ParchmentMC"
-                    url = "https://maven.parchmentmc.org/"
-                },
-                maven {
-                    name = "NeoForge"
-                    url = "https://maven.neoforged.net/releases"
-                }
-        )
-        filter { includeGroup("org.parchmentmc.data") }
-    }
-    maven {
-        name = "BlameJared"
-        url = "https://maven.blamejared.com"
-    }
-    maven {
-        name = "Modrinth"
-        url = "https://api.modrinth.com/maven"
-    }
-    maven {
-        name = "RyanHCode Maven"
-        url = "https://maven.ryanhcode.dev/releases"
-    }
 }
 
 dependencies {
     implementation "org.jetbrains:annotations:26.0.2"
 
-    // Lombok
-    compileOnly "org.projectlombok:lombok:1.18.32"
-    annotationProcessor "org.projectlombok:lombok:1.18.32"
+    // Skeleton: Lombok is off. 1.18.32 crashes javac 25 with
+    // "java.lang.ExceptionInInitializerError" out of LombokProcessor
+    // (placePostCompileAndDontMakeForceRoundDummiesHook), and no skeleton source
+    // uses a Lombok annotation. Restore it with the port at 1.18.48 (the newest
+    // published release) or later.
 
-    // Distant Horizons
-    // https://modrinth.com/mod/distanthorizonsapi
-    compileOnly "maven.modrinth:DistantHorizonsApi:${distanthorizons_api_version}"
-
-    // Sable
-    // https://github.com/ryanhcode/sable-companion
-    compileOnly "dev.ryanhcode.sable-companion:sable-companion-common-${minecraft_version}:${sable_version}"
+    // Skeleton: Distant Horizons and Sable are 1.21.1-only artifacts today;
+    // restore both with the integration migration.
 }
 
 // Declare capabilities on the outgoing configurations.
@@ -115,7 +100,6 @@ def expandProps = [
         "java_version"           : java_version,
         "minecraft_version"      : minecraft_version,
 
-        "fabric_version"         : fabric_version,
         "fabric_loader_version"  : fabric_loader_version,
         "fabric_compatible_range": fabric_compatible_range,
 
@@ -124,7 +108,6 @@ def expandProps = [
         "forge_compatible_range" : forge_compatible_range,
 
         "neoforge_version"          : neoforge_version,
-        "neoforge_loader_version"   : neoforge_loader_version,
         "neoforge_compatible_range" : neoforge_compatible_range,
 ]
 

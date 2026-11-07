@@ -1,5 +1,6 @@
 modLoader = "javafml"
-loaderVersion = "[${neoforge_loader_version},)"
+# Skeleton: loaderVersion is optional in 26.x and FancyModLoader is 12.x, so the old
+# "[4,)" range is dropped until the loader contract is re-read for the target version.
 license = "${license}"
 issueTrackerURL = "${link_issues}"
 
@@ -8,10 +9,9 @@ modId = "${mod_id}"
 version = "${version}"
 displayName = "${mod_name}"
 displayURL = "${link_src}"
-logoFile = "icon.png"
+iconFile = "icon.png"
 authors = "${mod_author}, ${contributors}"
 description = '''${description}'''
-displayTest = "IGNORE_SERVER_VERSION"
 
 [[mixins]]
 config = "${mod_id}.mixins.json"

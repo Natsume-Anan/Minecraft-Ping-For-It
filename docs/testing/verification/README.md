@@ -9,9 +9,10 @@ For implementation changes, the tracked verification expectations are to:
 
 - run the relevant automated tests and repository lint, static-analysis, format,
   type, and compile checks;
-- build every affected Fabric, Forge, and NeoForge source set, and run
-  `verifyModIdentity` when loader packaging, artifact identity, or the complete
-  shippable artifact set is in scope; and
+- build every affected loader source set (Fabric and NeoForge; the Forge module
+  is outside the task graph until a Forge toolchain for the target version
+  exists), and run `verifyModIdentity` when loader packaging, artifact identity,
+  or the complete shippable artifact set is in scope; and
 - report every command actually run and its result, every applicable check not
   run and the exact reason, manual validation actually performed, and remaining
   manual or integration gaps.

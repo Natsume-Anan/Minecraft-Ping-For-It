@@ -6,6 +6,10 @@ The existing fork targets Minecraft **1.21.1** with the current supported loader
 structure of **Fabric, Forge and NeoForge**. The mod ID is **`pingforit`**,
 distinct from the original Minecraft-Ping-Wheel mod ID.
 
+The 26.3 build skeleton in this checkout compiles and packages the Fabric and
+NeoForge builds only; the Forge module joins the build once a Forge toolchain for
+that Minecraft version exists.
+
 There is no backward network/protocol compatibility with the original mod.
 Do not declare metadata incompatibility or perform runtime blocking against it;
 do not add an original-mod runtime conflict guard absent a future product

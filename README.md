@@ -13,6 +13,9 @@ hold the ping key when a choice is needed, and show friends what you mean.
 - Loaders: Fabric, Forge, and NeoForge
 - Mod ID: `pingforit`
 
+The current branch is a Minecraft `26.3` build skeleton (Java `25`, Fabric and
+NeoForge): it carries the loader build tooling and packaging, not the mod.
+
 ## Pinging
 
 The target and ray result are captured on the initial key press and are not

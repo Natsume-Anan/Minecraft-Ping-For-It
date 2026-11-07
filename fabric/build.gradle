@@ -1,30 +1,22 @@
 plugins {
     id "multiloader-loader"
-    id "fabric-loom" version "${loom_version}"
-}
-
-repositories {
-    maven { url "https://maven.terraformersmc.com/releases" }
+    // 26.x is unobfuscated, so this is Loom's NON-remapping plugin: no `mappings`
+    // line, plain `implementation`, plain `jar`. Only a remapped version would
+    // switch back to id "fabric-loom".
+    id "net.fabricmc.fabric-loom" version "${loom_version}"
 }
 
 dependencies {
+    // Deliberately no `mappings` line: 26.3 is already in Mojang names.
     minecraft "com.mojang:minecraft:${minecraft_version}"
 
-    mappings loom.layered {
-        officialMojangMappings()
-        parchment("org.parchmentmc.data:parchment-${parchment_minecraft}:${parchment_version}@zip")
-    }
-
-    modImplementation "net.fabricmc:fabric-loader:${fabric_loader_version}"
-    modImplementation "net.fabricmc.fabric-api:fabric-api:${fabric_version}"
-
-    // ModMenu
-    modCompileOnly("com.terraformersmc:modmenu:4.1.2") {
-        exclude(group: "net.fabricmc.fabric-api")
-    }
+    implementation "net.fabricmc:fabric-loader:${fabric_loader_version}"
+    // Skeleton: Fabric API and ModMenu return with the migration.
 
     // Headless tests exercise the native sided inventory wrappers.
     testImplementation "org.junit.jupiter:junit-jupiter:5.10.2"
+    // Gradle 9 requires the JUnit Platform launcher on the test runtime classpath.
+    testRuntimeOnly "org.junit.platform:junit-platform-launcher:1.10.2"
 }
 
 test {
@@ -32,7 +24,10 @@ test {
 }
 
 loom {
-    accessWidenerPath = file("src/main/resources/pingforit.accesswidener")
+    // Skeleton: no access widener is wired. In non-remap mode Loom's runtime namespace
+    // is OFFICIAL, while the 1.21.1 file is headed `accessWidener v2 named`, so the two
+    // would have to be reconciled first. The file stays in resources, undeclared.
+    // accessWidenerPath = file("src/main/resources/pingforit.accesswidener")
     runs {
         client {
             client()
@@ -49,6 +44,7 @@ loom {
     }
 }
 
-tasks.named("remapJar") {
+// No remapping happens in 26.x, so the shippable artifact is the plain jar.
+jar {
     archiveClassifier = "${project.name}-${minecraft_version}"
 }
