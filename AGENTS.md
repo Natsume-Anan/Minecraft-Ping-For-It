@@ -24,9 +24,13 @@ disk but are excluded from every source set.
   `multiloader-loader`.
 - `forge` is on disk but not included in `settings.gradle`. Forge itself ships
   26.3 (66.1.5 latest, 66.1.0 recommended, confirmed against Forge's promotions
-  feed and its maven), so the blocker is the build toolchain, not the loader: the
-  newest published ForgeGradle is 6.0.54, and no 26.3 Forge module has ever been
-  built here. Re-adding Forge is a toolchain experiment, not a version bump.
+  feed and its maven, and `forge-26.3-66.1.5-userdev.jar` exists). The blocker is
+  the build toolchain: `forge/build.gradle` still pins the ForgeGradle 6 line
+  (`[6.0.24,6.2)`), which belongs to 1.20-1.21; the 26.x line is ForgeGradle 7,
+  published as `net.minecraftforge:forgegradle:7.0.40` behind the same plugin id
+  `net.minecraftforge.gradle`. No official 26.3 mod template exists yet, so the
+  mappings syntax for an unobfuscated version is unverified and re-adding Forge
+  stays a toolchain experiment.
 
 ## Toolchain facts for 26.3
 
@@ -92,7 +96,7 @@ What the skeleton drops or disables, and how it comes back:
 | ModDevGradle in `common` | The `neoForge { }` block and the compiled-artifact test wiring are kept as a comment in `common/build.gradle`. |
 | Forge project | `include("forge")` in `settings.gradle`, plus a verified 26.3-capable ForgeGradle setup. `forge/build.gradle` also calls `:common`'s `createMinecraftArtifacts`, which does not exist while `common` has ModDevGradle switched off, so that wiring must change first. |
 | `loaderVersion` and `displayTest` in `neoforge.mods.toml` | Both are optional or retired in 26.x (FancyModLoader is 12.x); re-add only against the target version's own metadata contract. |
-| `META-INF/services` provider files | Ten in each loader's `src/main/resources` (ten counts the inventory port), one in each loader's `src/test/resources`, seven in `common/src/test/resources`, ten in the excluded `forge/`. All inert: they name platform implementations the skeleton does not compile, and nothing loads a platform service yet. |
+| `META-INF/services` provider files | Ten in each loader's `src/main/resources` (ten counts the inventory port), one in each loader's `src/test/resources`, seven in `common/src/test/resources`, ten in the excluded `forge/`. The main-resource files are comment-only placeholders: FancyModLoader derives a JPMS module descriptor from each mod jar and aborts startup with `InvalidModuleDescriptorException` when a named provider class is absent, so a dangling entry is a launch failure, not an unused file. |
 
 ## Where code lives
 
@@ -314,7 +318,12 @@ checks were not run and why.
    out and packaging need `LongPathsEnabled` and `git config core.longpaths true`.
 12. **The README version can drift.** Read `mod_version` from `gradle.properties`;
    do not copy a version out of prose.
-13. **Rendered behavior needs a game session.** No automated check proves
+13. **Lombok 1.18.32 cannot run on javac 25.** The skeleton compiles with a Java
+    25 toolchain, where the Lombok annotation processor aborts with
+    `java.lang.ExceptionInInitializerError` from `LombokProcessor`. The skeleton
+    therefore runs no annotation processor; restoring Lombok means restoring a
+    release that supports 25 (1.18.48 or later as of this branch).
+14. **Rendered behavior needs a game session.** No automated check proves
     on-screen rendering, input feel or live multiplayer behavior.
 
 ## Definition of done

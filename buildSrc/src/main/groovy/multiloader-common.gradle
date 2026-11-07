@@ -51,9 +51,11 @@ repositories {
 dependencies {
     implementation "org.jetbrains:annotations:26.0.2"
 
-    // Lombok
-    compileOnly "org.projectlombok:lombok:1.18.32"
-    annotationProcessor "org.projectlombok:lombok:1.18.32"
+    // Skeleton: Lombok is off. 1.18.32 crashes javac 25 with
+    // "java.lang.ExceptionInInitializerError" out of LombokProcessor
+    // (placePostCompileAndDontMakeForceRoundDummiesHook), and no skeleton source
+    // uses a Lombok annotation. Restore it with the port at 1.18.48 (the newest
+    // published release) or later.
 
     // Skeleton: Distant Horizons and Sable are 1.21.1-only artifacts today;
     // restore both with the integration migration.
