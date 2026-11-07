@@ -8,233 +8,222 @@ file and an owning document disagree, the document wins and this file is wrong.
 
 ## Repository at a glance
 
-Ping For It is a Minecraft 1.21.1 mod (Java 21) that lets a player mark a block
-or entity for other players. One shared codebase is packaged for Fabric, Forge
-and NeoForge.
+Ping For It is a Minecraft mod that lets a player mark a block or entity for other
+players. The product target of this branch is Minecraft **26.3** on Java **25**;
+`docs/` still describes the mod as it behaves on 1.21.1 and is the contract the
+migration has to satisfy.
 
-- Mod id `pingforit`; Java package root `nx.pingwheel` (shared code under
-  `nx.pingwheel.common`, loader code under `nx.pingwheel.<loader>`).
-- The package root and the mod id intentionally differ: the package tree is
-  retained from the original mod this project forks. See [Traps](#traps).
-- Four Gradle projects: `common`, `fabric`, `forge`, `neoforge`.
+**This branch is a build skeleton, not the mod.** It exists to prove that the
+26.3 toolchain compiles and packages an empty mod with the loaders the project
+keeps, before any game-facing code is ported. The 1.21.1 sources are still on
+disk but are excluded from every source set.
+
+- Mod id `pingforit`; Java package root `nx.pingwheel`.
+- Gradle projects that participate: `common`, `fabric`, `neoforge`.
   `buildSrc` holds the two shared plugins, `multiloader-common` and
   `multiloader-loader`.
+- `forge` is on disk but not included in `settings.gradle`. Forge itself ships
+  26.3 (66.1.5 latest, 66.1.0 recommended, confirmed against Forge's promotions
+  feed and its maven), so the blocker is the build toolchain, not the loader: the
+  newest published ForgeGradle is 6.0.54, and no 26.3 Forge module has ever been
+  built here. Re-adding Forge is a toolchain experiment, not a version bump.
+
+## Toolchain facts for 26.3
+
+These are the facts that make 26.x different from every earlier update. Read this
+section before touching a build script.
+
+- **Minecraft 26.3 ships unobfuscated.** Its version JSON has only `client` and
+  `server` downloads: there is no `client_mappings`, and Fabric stopped Yarn and
+  Intermediary at 1.21.11. Mojang publishes no mapping files for 26.x at all.
+- **The Fabric build therefore uses Loom's non-remapping plugin**, id
+  `net.fabricmc.fabric-loom`, not the historical `fabric-loom` id. With it:
+  no `mappings` line, plain `implementation`/`compileOnly` instead of
+  `modImplementation`/`modCompileOnly`, and the shippable artifact is the plain
+  `jar` task instead of `remapJar`.
+- Applying the remapped `fabric-loom` plugin on 26.x fails with *Failed to find
+  official mojang mappings for 26.3*, and `loom.officialMojangMappings()` fails
+  for the same reason. Do not add a mappings line back.
+- Loom is pinned to the release **1.19.4**; its plugin marker lives in the
+  `net.fabricmc.fabric-loom` group, which is why `settings.gradle` filters on
+  `includeGroupAndSubgroups("net.fabricmc")`.
+- **Parchment has no 26.3 mappings**, so every parchment block was removed. It
+  returns only if Parchment publishes for the target version.
+- **"Using mappings" no longer means renaming.** In non-remap mode Loom reports
+  its runtime namespace as `OFFICIAL`, that is, the names already inside the jar.
+  The only mapping-shaped channel Loom still keeps is `annotations`: annotations,
+  unpick metadata and javadoc in the official namespace, with no class or member
+  renames. Its own validation messages are the contract — *Annotations mappings
+  must contain only the official namespace*, *Annotations patches must use the
+  official namespace*. Parchment-style parameter names fit that channel; a rename
+  map does not.
+- **Intermediary is gone with the mappings.** `meta.fabricmc.net` reports
+  intermediary `0.0.0` for 26.3, no mixin refmap is generated, and the mixin
+  annotation processor is off unless a project asks for `useLegacyMixinAp`.
+- The Gradle wrapper is **9.9.0** and the launcher JVM must be **JDK 25**: Loom
+  1.18+ refuses to run on older JVMs, and Gradle 9 is the first Gradle line that
+  runs on Java 25. Launching Gradle from a JDK 21 install is the most common way
+  to break a build that otherwise looks correct.
+- NeoForge is built with ModDevGradle `2.0.148`; `common` is a plain Java library
+  in this branch because it has no game imports to compile against.
+- `gradle.properties` is the version source: `minecraft_version=26.3`,
+  `java_version=25`, `neo_form_version=26.3-1`, `mod_dev_gradle_version=2.0.148`,
+  `fabric_loader_version=0.20.1`, `loom_version=1.19.4`, `neoforge_version=26.3.0.101`.
+
+## Skeleton scope
+
+What the skeleton keeps:
+
+| Kept | Why |
+| --- | --- |
+| `common/src/main/resources` (assets, lang, sounds, textures, empty mixin config, access-transformer placeholder) | Packaging is what the skeleton verifies. |
+| Loader metadata (`fabric.mod.json`, `META-INF/neoforge.mods.toml`, `pack.mcmeta` — the last only in `neoforge`, and in the excluded `forge`) | Identity checks and loader acceptance. |
+| Empty loader mixin configs and the access-widener header | The files must keep parsing once mixins return. The access widener is deliberately *not* wired (`loom { accessWidenerPath }` and the `fabric.mod.json` key are both off) because its `v2 named` header has no namespace to match yet. |
+| `README.md`, `LICENSE`, `docs/`, `AGENTS.md` | Unrelated to the build. |
+
+What the skeleton drops or disables, and how it comes back:
+
+| Dropped | Restore point |
+| --- | --- |
+| Mod sources | `multiloader-common.gradle` points `main`/`test` at `src/skeleton/**`; deleting that block restores `src/main/java`. |
+| Entrypoints and `@Mod` classes | Loader metadata and `src/skeleton/java` stubs; add with the port. |
+| Mixin, access-transformer and access-widener entries | The config files exist but are empty; the bodies return with the port. |
+| Fabric API, ModMenu, Create, Flywheel, Ponder, Distant Horizons, Sable | Dependency blocks are commented in the loader scripts and `multiloader-common`. |
+| ModDevGradle in `common` | The `neoForge { }` block and the compiled-artifact test wiring are kept as a comment in `common/build.gradle`. |
+| Forge project | `include("forge")` in `settings.gradle`, plus a verified 26.3-capable ForgeGradle setup. `forge/build.gradle` also calls `:common`'s `createMinecraftArtifacts`, which does not exist while `common` has ModDevGradle switched off, so that wiring must change first. |
+| `loaderVersion` and `displayTest` in `neoforge.mods.toml` | Both are optional or retired in 26.x (FancyModLoader is 12.x); re-add only against the target version's own metadata contract. |
+| `META-INF/services` provider files | Ten in each loader's `src/main/resources` (ten counts the inventory port), one in each loader's `src/test/resources`, seven in `common/src/test/resources`, ten in the excluded `forge/`. All inert: they name platform implementations the skeleton does not compile, and nothing loads a platform service yet. |
 
 ## Where code lives
 
 | Path | Role |
 | --- | --- |
-| `common/src/main/java/nx/pingwheel/common` | All shared behavior: capture, interaction, markers, network, presentation, configuration, rendering, settings UI. |
-| `common/src/test/java` | The bulk of the test suite. |
-| `fabric/`, `forge/`, `neoforge/` | Loader entrypoints, platform implementations, loader metadata, loader-local mixin configs, optional integrations. |
-| `buildSrc/src/main/groovy` | `multiloader-common.gradle` (base project wiring) and `multiloader-loader.gradle` (loader reuse of common). |
+| `common/src/skeleton/java` | The only source tree `common` compiles today: one placeholder class. |
+| `fabric/src/skeleton/java`, `neoforge/src/skeleton/java` | Loader placeholders. |
+| `common/src/main/java/nx/pingwheel/common` | The 1.21.1 shared tree: capture, interaction, markers, network, presentation, configuration, rendering, settings UI. Not compiled in this branch; it is the migration input. |
+| `common/src/main/resources` | Shared assets, the shared mixin config, the access-transformer placeholder. |
+| `fabric/`, `neoforge/` | Loader build scripts, metadata, run configuration and the empty loader-local mixin configs. |
+| `buildSrc/src/main/groovy` | `multiloader-common.gradle` (base project wiring) and `multiloader-loader.gradle` (loader reuse of the common source tree). |
 | `docs/` | Normative behavior contracts, decision records, verification inventories. |
 | `scripts/docs` | Python tooling that checks Markdown links and duplicate link claims. |
-| `.github/` | Issue templates and images only. There is no CI workflow. |
 
 The loaders do not consume `common` as a published artifact. Each loader source
-set adds the common source directory through the `commonJava` and
-`commonResources` configurations and recompiles it, so every loader build
-compiles the common tree again. A compile error in `common` fails all three
-loaders, and `common` alone is not a runnable mod: it carries no loader
-metadata, only the shared assets, the shared mixin config and the shared
-access-transformer config.
+set adds the common source directory through the `commonJava` and `commonResources`
+configurations and recompiles it, so a compile error in `common` fails every
+loader build, and `common` alone is not a runnable mod: it carries no loader
+metadata.
 
-### Key common packages
-
-| Package | Responsibility |
-| --- | --- |
-| `client` | Client runtime, marker mirror and display state, block/entity outlines, wheel, rate courtesy, display duration. |
-| `interaction` | Press capture and its async token, interaction state machine, candidate collection, cancellation, wheel selection. |
-| `marker` | Server-authoritative creation pipeline, marker store, winner selection, target validation. |
-| `network` | Packet types and safe decoding. Decoding never throws on corrupt input. |
-| `presentation` | Snapshot negotiation, presentation policy, shared sources, inventory preview and tracking. |
-| `config` | Client and server configuration files, version markers and migrations. |
-| `render` | HUD overlay, direction indicators, spatial and inventory overlays. |
-| `screen` | Settings screen, navigation models, server-settings presentation. |
-| `mixin` | Shared mixins and inventory accessors. |
-| `platform` | The loader service interfaces. |
-| `integration` | Optional mod detection and external-block registration. |
-| `domain` | Target, target type, ping type and marker identity models plus their catalogues. |
-| `diagnostics` | Bounded diagnostic reporting. |
-| `core`, `chat`, `name`, `math`, `resolve`, `util`, `topology`, `command`, `resource`, `registry` | Server core dispatch (`ServerCore`), chat text, name resolution, raycast math, target matching, rate limiting and caching, double-chest topology, client commands, resource reload and optional registry lookups. |
-
-### Platform seam
+### Platform seam (returns with the port)
 
 `common` reaches loader code through `ServiceLoader`. Nine `IPlatform*Service`
-interfaces live in the platform package tree
-(`common/src/main/java/nx/pingwheel/common/platform`): client events, server
-events, context, inventory, network, and four fluid ports (fluid, fluid registry,
-fluid description, and fluid render, which sits in `platform/client`). Each loader
-provides a matching `Platform*ServiceImpl` class and one `META-INF/services` entry
-per interface; together with the inventory native-access port that makes ten
-entries per loader.
-
-Adding a platform capability therefore means: extend the interface, implement it
-in all three loaders, and add or update three `META-INF/services` files. A
-missing implementation fails at startup, not at compile time.
-
-Inventory reads use two further loader ports in
-`common/src/main/java/nx/pingwheel/common/presentation/inventory/minecraft`:
-`InventoryItemNativeAccess` (one implementation and one `META-INF/services` file
-per loader) and `InventoryResidentAccess` (`ServiceLoader` with a shared
-mixin-based default).
-
-## Isolation boundary
-
-The mod targets one Minecraft version per branch. Two facts keep a version update
-bounded.
-
-The game-independent core is `config`, `diagnostics`, `domain` and `registry`
-under `common/src/main/java/nx/pingwheel/common`. Those packages import neither
-`net.minecraft.*` nor `com.mojang.*`, and a version update should not have to
-touch them. Every other shared package is the game-facing surface; its current
-size is recorded in `scripts/game-isolation/game_isolation_baseline.json`. The
-three loader projects are game-facing by design and outside this check: only
-`common/src/main/java` is scanned, because the loader projects exist to touch
-loader APIs.
-
-```powershell
-python -B scripts/game-isolation/check_game_isolation.py
-python -B -m unittest discover -s scripts/game-isolation/tests
-```
-
-The second command runs the guard's own tests; run it after changing the guard.
-
-The check enforces four rules: core packages name no game API, including inside
-strings; core packages reference only the shared packages the baseline records;
-shared code names no Fabric, Forge or NeoForge API in code, and a loader class
-name reached through a lazily guarded reflective lookup is the intended fail-soft
-channel ([compatibility](docs/compatibility.md#optional-content-fails-soft)), so
-loader names inside strings are ignored and a non-reflective one is a review
-item; and no package exceeds its recorded count of game-coupled files.
-
-When it fails, decide which case you are in. Accidental coupling belongs in an
-adapter or the loader project. A real boundary move needs `--write-baseline` plus
-a reviewed diff; regenerating the baseline to silence a violation turns the guard
-into decoration.
+interfaces live in the platform package tree; with the inventory native-access
+port that makes ten `META-INF/services` entries per loader. A missing
+implementation fails at startup, not at compile time.
 
 ## Build and verify
 
 Prerequisites:
 
-- JDK 21 to run Gradle itself, not only to target 21. The toolchain pins the
-  compile target, but the launcher JVM must also stay within what the pinned
-  Groovy and plugin stack supports: a JDK 25 launcher fails during configuration
-  with `Unsupported class file major version 69`.
+- **JDK 25** to launch Gradle itself, not only to target 25.
+- **JDK 21 must also be installed and auto-detectable.** ModDevGradle's
+  `NeoFormRuntimeTask` hardcodes the NeoForm runtime launcher to Java 21, so
+  `createMinecraftArtifacts` fails with *Cannot find a Java installation ...
+  languageVersion=21* when no JDK 21 is found. The foojay resolver is disabled in
+  `settings.gradle`, so Gradle only sees JDKs it can auto-detect; point
+  `org.gradle.java.installations.paths` at both installs when detection fails.
 - Network access on a first build, for the Gradle distribution, Minecraft
-  artifacts, mappings and mod dependencies.
-- A writable `GRADLE_USER_HOME` and a writable checkout, since Gradle writes
-  `build/` and `.gradle/` inside both.
+  artifacts, NeoForge and the loader dependencies.
+- A writable `GRADLE_USER_HOME` and a writable checkout.
 - PowerShell on Windows, from the repository root.
 
-Full verification of an implementation change:
+Narrowest loop first; it isolates the Java toolchain from every game artifact:
 
 ```powershell
+$env:JAVA_HOME = 'C:\Program Files\Java\jdk-25'
 $env:GRADLE_OPTS = '-Dfile.encoding=UTF-8'
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-.\gradlew.bat --no-daemon --console=plain --continue :common:check :fabric:build :forge:build :neoforge:build verifyModIdentity
+.\gradlew.bat --no-daemon --console=plain :common:compileJava
 ```
 
-`--continue` keeps going after a module fails, so one run reports every module
-instead of stopping at the first. The encoding lines matter on a non-UTF-8
-console; `GRADLE_OPTS` duplicates `gradle.properties` and is harmless.
-
-Narrower loops:
+Then the loaders and the packaging check:
 
 ```powershell
-.\gradlew.bat --no-daemon :common:test
-.\gradlew.bat --no-daemon :common:test --tests 'nx.pingwheel.common.screen.*'
-.\gradlew.bat --no-daemon :fabric:build
-.\gradlew.bat --no-daemon verifyModIdentity
+.\gradlew.bat --no-daemon --console=plain --continue :fabric:build :neoforge:build verifyModIdentity
+```
+
+And finally the game, which is the only proof that a client mod starts:
+
+```powershell
+.\gradlew.bat --no-daemon --console=plain :fabric:runClient
+.\gradlew.bat --no-daemon --console=plain :neoforge:runClient
 ```
 
 | Task | What it establishes |
 | --- | --- |
-| `:common:check` | Compiles the common tree and runs the common JUnit Platform suites. |
-| `:<loader>:build` | Compiles that loader and the shared common sources, runs the loader test task, and produces its shippable jar. |
-| `:<loader>:test` | Loader-local headless wrapper and resolver suites only. |
-| `verifyModIdentity` | Depends on all three loader builds, then inspects the expected jars for fork identity. |
+| `:common:compileJava` | The Java 25 toolchain and the Gradle/JDK pairing. No game artifacts. |
+| `:fabric:build` | Loom's non-remapping path, the Fabric jar, the loader metadata. |
+| `:neoforge:build` | ModDevGradle against 26.3, the NeoForge jar, the loader metadata. |
+| `verifyModIdentity` | Depends on both loader builds, then inspects the jars for fork identity. |
+| `:<loader>:runClient` | The mod loads and the client starts. |
 
-A plain `build` does not run identity verification, and each loader `build`
-already includes that loader's `test` task, so do not list both.
+There is no lint, formatter or static-analysis task and no CI. If the environment
+cannot reach the network or write `GRADLE_USER_HOME`, record the build as not run
+rather than reporting a result you did not observe.
 
-`verifyModIdentity` is not a smoke test. Its authoritative check list and limits
-are owned by [build checks](docs/testing/verification/build-checks.md#build-source-set-and-artifact-verification).
-It locates the one jar named
-`Ping-For-It-<mod_version>-<loader>-1.21.1.jar` in each `<loader>/build/libs`,
-then rejects stale original-mod namespaces such as `assets/pingwheel/` or
-`pingwheel.mixins.json`, wrong refmap routing, metadata that disagrees with
-`gradle.properties`, old network-channel byte strings anywhere in the jar, and
-similar identity mismatches. Treat a failure there as a packaging bug, not a
-flaky check.
+A skeleton build proves the toolchain; it says nothing about the mod. Until the
+port starts, a green build must not be described as the mod working.
 
-There is no lint, formatter or static-analysis task. The Gradle check surface is
-the test tasks, the loader builds and `verifyModIdentity`; the Python checks
-(documentation links and game isolation) are separate, and no CI exists to fall
-back on. If the environment cannot reach the network or write
-`GRADLE_USER_HOME`, record the build as not run rather than reporting a result
-you did not observe.
+## Isolation boundary
 
-### Run the game
+The mod targets one Minecraft version per branch, and that is what keeps a
+version update bounded. The game-independent core is `config`, `diagnostics`,
+`domain` and `registry` under `common/src/main/java/nx/pingwheel/common`: those
+packages import neither `net.minecraft.*` nor `com.mojang.*`. Everything else in
+that tree is the game-facing surface, and the loader projects are game-facing by
+design.
+
+The guard lives in `scripts/game-isolation` and carries the 1.21.1 baseline
+(559 files, 248 game-coupled). **The `scripts/game-isolation` directory is absent
+from this branch's history**; restore it from the 1.21.1 baseline commit before
+relying on the check:
 
 ```powershell
-.\gradlew.bat --no-daemon :fabric:runClient
-.\gradlew.bat --no-daemon :forge:runClient
-.\gradlew.bat --no-daemon :neoforge:runClient
+git checkout 722c0a4 -- scripts/game-isolation
+python -B scripts/game-isolation/check_game_isolation.py
+python -B -m unittest discover -s scripts/game-isolation/tests
 ```
 
-The client and server runs (plus data generation on Forge and NeoForge) come
-from each loader's build script, and their working directories are git-ignored.
-A renderer, input-handling or multiplayer change still needs an in-game check:
-build and test success is not evidence that anything looked or felt right.
+When it fails, decide which case you are in. Accidental coupling belongs in an
+adapter or the loader project. A real boundary move needs `--write-baseline` plus
+a reviewed diff; regenerating the baseline to silence a violation turns the guard
+into decoration. A pure version bump should leave the baseline unchanged.
 
 ## Updating Minecraft and the toolchain
 
-`gradle.properties` is the main version source, not the only one. Besides the
-properties, expect the test-only `minecraft-dependencies` version hardcoded in
-`common/build.gradle` and `neoforge/build.gradle`, the Create and Flywheel
-artifact suffixes in
-`neoforge/build.gradle`, the ForgeGradle and MixinGradle plugin versions in
-`forge/build.gradle`, and `pack_format` plus the `forge:*` format keys in the two
-`pack.mcmeta` files. The mixin `compatibilityLevel` entries do not follow
-`java_version`; update them separately.
+`gradle.properties` is the main version source, not the only one. Expect the
+hardcoded `minecraft-dependencies` version in the loader scripts when the
+behavioral tests return, the `pack_format` and `forge:*` keys in `pack.mcmeta`,
+the mixin `compatibilityLevel` entries (they do not follow `java_version`), and the
+Loom plugin id itself, which is the one setting a future version may flip back.
 
 1. Freeze a baseline: a clean tree, a recorded verification result, and a branch
-   you can compare against. Delete the previous version's build outputs and
-   project cache first (`build/`, `*/build/`, `.gradle/`): they are git-ignored,
-   so they survive branch switches and are the easiest way for old-version
-   classes, remapped artifacts and mixin refmaps to be reused.
-2. Move the toolchain first. A wrapper or plugin bump fails during configuration,
-   which is easy to tell apart from a Minecraft API break. Verify each step with
-   `:common:compileJava` before touching the game version.
-3. Then the game version, as one atomic group: `minecraft_version`,
-   `neo_form_version`, `parchment_*`, the three loader version sets with their
-   compatibility ranges, `java_version` if it moved, and the hardcoded sites
-   above. `common` compiles against NeoForm while the loaders use their own
-   mappings; a mismatch there surfaces as `NoSuchMethod` instead of a clear error.
-4. Fix compiler errors first, then the structure. The mixin contract tests cover
+   you can compare against. Delete the previous version's outputs and project
+   cache first (`build/`, `*/build/`, `.gradle/`): they are git-ignored, so they
+   survive branch switches and are the easiest way for old-version classes and
+   remapped artifacts to be reused.
+2. Move the toolchain first: the wrapper, then Loom or ModDevGradle. A plugin bump
+   fails during configuration, which is easy to tell apart from a game API break.
+   Verify with `:common:compileJava` before touching the game version.
+3. Then the game version as one atomic group: `minecraft_version`,
+   `neo_form_version`, `java_version` if it moved, the loader version sets with
+   their compatibility ranges, and the hardcoded sites above.
+4. When the game starts or stops shipping mappings, the Loom plugin id and the
+   presence of a `mappings` line change together. Check the Fabric template for
+   the target version before assuming either.
+5. Fix compiler errors first, then the structure. The mixin contract tests cover
    what the compiler cannot: private member targets, descriptors and
    access-widener entries.
-5. Re-check behavior that only lives in comments. Some code mirrors vanilla on
-   purpose: the outline render type reproduces a vanilla pipeline order, the wheel
-   layout assumes a font line height, the inventory budget counts container
-   members, and several classes probe for methods reflectively. Those fail as a
-   wrong picture or a silent fallback, not as a build error. Search for the old
-   version string under `common/src/main/java` before calling the update done.
 6. Run the full verification, then each loader's client.
-
-Expect real work in `mixin`, `network`, `render`, the fluid ports under
-`platform` and `presentation/inventory/minecraft`; that is the hard coupling.
-`loom_version` is a SNAPSHOT, so pin it to a release when the toolchain moves.
-
-A pure version bump should leave the isolation baseline unchanged. If the counts
-move during an update, check which happened: the update added game-facing
-adapters for changed vanilla APIs (review the diff), core code gained game
-coupling (reject it), or the baseline was regenerated to make a failure go away.
-
-Version and loader scope are product boundaries owned by
-[compatibility](docs/compatibility.md); this section is procedure only.
 
 ## Documentation rules
 
@@ -254,9 +243,9 @@ agent is most likely to break:
   contains no code change; otherwise it reports proposed changes.
 
 The documentation set is large. Do not read it all: pick the owning page from the
-task table in `docs/README.md`, follow its links, and stop there. For behavior
-questions, the owning document beats both this file and a grepped guess at the
-code; where the two disagree, report the discrepancy instead of choosing one.
+task table in `docs/README.md` and stop there. While this branch is a skeleton,
+`docs/` describes 1.21.1 behavior; treat a mismatch with the code as the port's
+work item, not as a documentation bug.
 
 Documentation changes are link-checked with:
 
@@ -272,55 +261,61 @@ is correct.
 
 [D0007](docs/decisions/D0007-no-meaningless-tests.md) is the binding rule: a test
 must protect a named contract, boundary or regression, and its expected value
-must be independent of the code under test. A snapshot of tuning values, an
-oracle recomputed with the same helper, or an assertion on private structure by
-itself does not justify a test even when it passes.
+must be independent of the code under test. The skeleton ships placeholder test
+classes only, because a placeholder that asserts nothing protects nothing; real
+tests return with the port.
 
 For a behavior change, run the affected tests, build every affected loader, and
 run `verifyModIdentity` when packaging, identity or the shippable artifact set is
 in scope. Report the commands actually run and their results, and state which
-checks were not run and why. The [verification index](docs/testing/verification/README.md)
-separates recorded coverage, gaps and pending manual scenarios; listing a
-scenario there is not evidence that it was performed.
+checks were not run and why.
 
 ## Traps
 
-1. **Build tool versions are coupled.** Loom, ForgeGradle, ModDevGradle and the
-   Gradle wrapper version travel together, and a newer Gradle is not verified
-   against the pinned plugin set. Before blaming a build failure on the code,
-   check `git status` for a local wrapper or plugin-version bump that no build on
-   this machine has ever validated. Changing any of them needs a full three-loader
-   build plus `verifyModIdentity`.
-2. **The launcher JVM matters.** The toolchain pins compilation to 21, but
-   Gradle's own JVM must be supported by the plugin stack too; a JDK 25 launcher
-   dies during configuration, and the foojay resolver needs network to supply 21.
-3. **Package root and mod id differ.** `nx.pingwheel` is legitimate internal
+1. **The Loom plugin id is not cosmetic.** `fabric-loom` remaps and needs
+   mappings; `net.fabricmc.fabric-loom` does not remap and must not declare a
+   `mappings` line. Mixing the two produces *Failed to find official mojang
+   mappings* or a jar whose classes were never remapped.
+2. **The launcher JVM must be 25.** The toolchain pins compilation to 25 and Loom
+   1.18+ refuses older JVMs; unlike the 1.21.1 branch, JDK 21 as the Gradle JVM is
+   no longer the safe choice.
+3. **No mappings exist for 26.x.** `loom.officialMojangMappings()`, Parchment,
+   Yarn and `net.fabricmc:intermediary` all fail or do not exist for 26.3. A
+   tutorial that adds a `mappings` line is describing 1.21.x.
+4. **ModDevGradle run types are named, not free-form.** A run block called
+   `data` fails with *Trying to prepare unknown run: data. Available run types:
+   [client, clientData, serverData, gameTestServer, server, junit]*. The datagen
+   runs are `clientData` and `serverData`.
+5. **NeoForge still runs a real toolchain.** ModDevGradle 2.0.148 keeps the NFRT
+   pipeline (download, decompile, recompile) and has no "unobfuscated" mode, even
+   though 26.3 is unobfuscated. That is why `common` must not apply ModDevGradle
+   while it compiles only stubs: it would process all of 26.3 for nothing.
+6. **The access widener header namespace is unresolved for 26.x.** Loom's
+   non-remap runtime namespace is `OFFICIAL`, the 1.21.1 files say
+   `accessWidener v2 named`, and 26.x examples in the wild use
+   `*.classtweaker`. Decide the header and the file extension against the target
+   version's own template before wiring `accessWidenerPath` again; a mismatch is a
+   build-time failure, and an undeclared widener is silently ignored.
+7. **Package root and mod id differ.** `nx.pingwheel` is legitimate internal
    identity: Java packages, service files, mixin packages, internal comments.
    Everything a user or the loader sees must be `pingforit`: assets namespace,
-   mixin config names, network channel names, language text, metadata. Do not
-   "clean up" the package names, and do not let stale `pingwheel` text leak into
-   the second category.
-4. **Mixin configs are triplicated.** `common` owns the shared
-   `pingforit.mixins.json` with the Fabric refmap; `forge` and `neoforge` keep
-   loader-local copies without a refmap and with different contents (Forge
-   carries `InventoryFoodEffectAccessor`, NeoForge does not and adds Create
-   visualization mixins). Adding a shared mixin means editing the common config
-   and both loader copies. Existing contract tests assert today's entries across
-   all three effective configs, but they enumerate known names: a newly added
-   shared mixin that you forget to copy into the loader configs is not caught
-   automatically and fails silently in game.
-5. **Long paths.** Some loader test fixtures exceed 500 characters. Cloning,
-   checking out and packaging need `LongPathsEnabled` and
-   `git config core.longpaths true`.
-6. **The README version can drift.** Read `mod_version` from
-   `gradle.properties`; do not copy a version out of prose.
-7. **`common` cannot verify itself end to end.** It has no loader metadata, so a
-   change there is verified by `:common:check` plus at least one loader build.
-8. **Rendered behavior needs a game session.** No automated check proves
-   on-screen rendering, input feel or live multiplayer behavior; state-level
-   tests exist but do not substitute for a game session. The
-   [manual matrix](docs/testing/verification/manual-integration.md) owns what is
-   still pending, and compiling is not proof.
+   mixin config names, network channel names, language text, metadata.
+8. **Mixin configs are triplicated.** `common` owns the shared
+   `pingforit.mixins.json`; `forge` and `neoforge` keep loader-local copies with
+   different contents. Adding a shared mixin means editing the common config and
+   both loader copies. The skeleton keeps all three, empty.
+9. **The skeleton is two source trees.** `src/main/java` and `src/skeleton/java`
+   both exist and only one is compiled. Editing a 1.21.1 class has no effect on
+   the build, and a green build does not mean that tree compiles.
+10. **A stale `build/` lies.** Old-version classes, remapped jars and refmaps
+   survive branch switches. Delete the build outputs before judging a version
+   change.
+11. **Long paths.** Some loader fixtures exceed 500 characters. Cloning, checking
+   out and packaging need `LongPathsEnabled` and `git config core.longpaths true`.
+12. **The README version can drift.** Read `mod_version` from `gradle.properties`;
+   do not copy a version out of prose.
+13. **Rendered behavior needs a game session.** No automated check proves
+    on-screen rendering, input feel or live multiplayer behavior.
 
 ## Definition of done
 

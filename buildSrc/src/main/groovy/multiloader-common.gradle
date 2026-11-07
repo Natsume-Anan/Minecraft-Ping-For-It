@@ -46,31 +46,6 @@ repositories {
         }
         filter { includeGroupAndSubgroups("org.spongepowered") }
     }
-    exclusiveContent {
-        forRepositories(
-                maven {
-                    name = "ParchmentMC"
-                    url = "https://maven.parchmentmc.org/"
-                },
-                maven {
-                    name = "NeoForge"
-                    url = "https://maven.neoforged.net/releases"
-                }
-        )
-        filter { includeGroup("org.parchmentmc.data") }
-    }
-    maven {
-        name = "BlameJared"
-        url = "https://maven.blamejared.com"
-    }
-    maven {
-        name = "Modrinth"
-        url = "https://api.modrinth.com/maven"
-    }
-    maven {
-        name = "RyanHCode Maven"
-        url = "https://maven.ryanhcode.dev/releases"
-    }
 }
 
 dependencies {
@@ -123,7 +98,6 @@ def expandProps = [
         "java_version"           : java_version,
         "minecraft_version"      : minecraft_version,
 
-        "fabric_version"         : fabric_version,
         "fabric_loader_version"  : fabric_loader_version,
         "fabric_compatible_range": fabric_compatible_range,
 
@@ -132,7 +106,6 @@ def expandProps = [
         "forge_compatible_range" : forge_compatible_range,
 
         "neoforge_version"          : neoforge_version,
-        "neoforge_loader_version"   : neoforge_loader_version,
         "neoforge_compatible_range" : neoforge_compatible_range,
 ]
 

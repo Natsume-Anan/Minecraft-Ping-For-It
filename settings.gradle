@@ -10,8 +10,9 @@ pluginManagement {
                 }
             }
             filter {
-                includeGroup("net.fabricmc.unpick")
-                includeGroup("net.fabricmc")
+                // 26.x builds with Loom's non-remapping plugin, whose plugin
+                // marker lives in the net.fabricmc.fabric-loom subgroup.
+                includeGroupAndSubgroups("net.fabricmc")
                 includeGroup("fabric-loom")
             }
         }

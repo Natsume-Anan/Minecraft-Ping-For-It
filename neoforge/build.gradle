@@ -3,21 +3,11 @@ plugins {
     id "net.neoforged.moddev"
 }
 
-repositories {
-    maven {
-        name = "Create"
-        url = uri("https://maven.createmod.net")
-    }
-}
-
 neoForge {
     version = neoforge_version
-    // Automatically enable neoforge AccessTransformers if the file exists
-    def at = project(":common").file("src/main/resources/META-INF/accesstransformer.cfg")
-    if (at.exists()) {
-        accessTransformers.from(at.absolutePath)
-    }
-    // Skeleton: Parchment has no 26.3 mappings yet.
+    // Skeleton: the access transformer is comment-only, so it is not wired. Restore with
+    // the port: accessTransformers.from(project(":common").file(".../accesstransformer.cfg"))
+    // Parchment has no 26.3 mappings, so no mappings layer is configured.
     runs {
         configureEach {
             systemProperty("neoforge.enabledGameTestNamespaces", mod_id)
@@ -26,9 +16,8 @@ neoForge {
         client {
             client()
         }
-        data {
-            data()
-        }
+        // Skeleton: no datagen. MDG 2.0.148 rejects a run named "data"; the generator
+        // runs are clientData/serverData. Restore both with the port.
         server {
             server()
         }
@@ -42,39 +31,19 @@ neoForge {
 
 sourceSets.main.resources { srcDir "src/generated/resources" }
 
-def compiledMinecraft = tasks.named('createMinecraftArtifacts', net.neoforged.nfrtgradle.CreateMinecraftArtifacts).flatMap { it.compiledArtifact }
-def compiledMinecraftResources = tasks.named('createMinecraftArtifacts', net.neoforged.nfrtgradle.CreateMinecraftArtifacts).flatMap { it.resourcesArtifact }
-
 jar {
     archiveClassifier = "${project.name}-${minecraft_version}"
 }
 
-// Soft optional integration: these jars are needed only to compile the
-// reflectively-loaded adapter. They are not shipped and no loader metadata
-// dependency is declared, so a client without Create/Flywheel remains valid.
 dependencies {
-    // Skeleton: optional integration disabled.
-    // Skeleton: optional integration disabled.
-    // Required only to complete Create's SmartBlockEntity hierarchy at compile time.
-    // Skeleton: optional integration disabled.
-
-    // Keep NeoForge resolver tests on the same Minecraft/JUnit test classpath
-    // used by the common behavioral tests. Simulated itself remains absent.
+    // Skeleton: the Create/Flywheel/Ponder compile-only integration disabled with the
+    // 1.21.1 sources, and the resolver tests that needed the compiled Minecraft jar,
+    // FancyModLoader, Mergetool and Sponge Mixin return with the migration.
     testImplementation "org.junit.jupiter:junit-jupiter:5.10.2"
-    testImplementation files(compiledMinecraft)
-    testRuntimeOnly files(compiledMinecraftResources)
-    testRuntimeOnly "net.neoforged:neoforge:${neoforge_version}"
-    testRuntimeOnly "net.neoforged.fancymodloader:loader:4.0.21"
-    testImplementation "net.neoforged:mergetool:2.0.3:api"
-    testImplementation "net.neoforged:minecraft-dependencies:${minecraft_version}"
-    // Compile the mixin-plugin test seam against the Mixin/ASM versions the
-    // NeoForge compile classpath already resolves.
-    testImplementation "net.fabricmc:sponge-mixin:0.14.0+mixin.0.8.6"
-    testImplementation "org.ow2.asm:asm-tree:9.5"
+    // Gradle 9 requires the JUnit Platform launcher on the test runtime classpath.
+    testRuntimeOnly "org.junit.platform:junit-platform-launcher:1.10.2"
 }
 
-// Skeleton: Create is disabled, so the test-time artifact probe is gone.
-// Restore the compile-only jar inspection with the Create integration.
 test {
     useJUnitPlatform()
 }
