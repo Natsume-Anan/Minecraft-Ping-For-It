@@ -170,6 +170,14 @@ And finally the game, which is the only proof that a client mod starts:
 | `verifyModIdentity` | Depends on both loader builds, then inspects the jars for fork identity. |
 | `:<loader>:runClient` | The mod loads and the client starts. |
 
+Verified state of this branch (2026-11-07): `:common:compileJava`,
+`:fabric:build`, `:neoforge:build` and `verifyModIdentity` complete without
+errors and produce `Ping-For-It-0.6.0-pfi-skeleton-fabric-26.3.jar` and
+`Ping-For-It-0.6.0-pfi-skeleton-neoforge-26.3.jar` with the expanded metadata
+and the `assets/pingforit/` namespace. `:neoforge:runClient` reaches the main
+menu and lists `Ping For It 0.6.0-pfi-skeleton (pingforit)` in the FML mod list.
+`:fabric:runClient` has not been launched on this branch.
+
 There is no lint, formatter or static-analysis task and no CI. If the environment
 cannot reach the network or write `GRADLE_USER_HOME`, record the build as not run
 rather than reporting a result you did not observe.
@@ -267,7 +275,9 @@ is correct.
 must protect a named contract, boundary or regression, and its expected value
 must be independent of the code under test. The skeleton ships placeholder test
 classes only, because a placeholder that asserts nothing protects nothing; real
-tests return with the port.
+tests return with the port. Gradle 9 fails a test task that compiles test classes
+but discovers no tests, so the shared build script disables
+`failOnNoDiscoveredTests`; restore the strict default with the first real test.
 
 For a behavior change, run the affected tests, build every affected loader, and
 run `verifyModIdentity` when packaging, identity or the shippable artifact set is

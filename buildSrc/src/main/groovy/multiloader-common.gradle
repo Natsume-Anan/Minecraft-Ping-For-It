@@ -26,6 +26,13 @@ sourceSets {
     }
 }
 
+// Skeleton: the test source sets hold placeholder classes only. Gradle 9 fails a test
+// task that compiles test classes yet discovers no tests, so the strict default is
+// disabled until real tests return with the port.
+tasks.withType(org.gradle.api.tasks.testing.Test).configureEach {
+    failOnNoDiscoveredTests = false
+}
+
 // Common Mixin sources keep the @author/@reason Javadoc metadata required by
 // the Mixin overwrite checker. @author is a standard Javadoc tag, but @reason
 // is not; register it as a custom block tag so every javadoc task that includes
