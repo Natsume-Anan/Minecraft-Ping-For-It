@@ -10,18 +10,13 @@ repositories {
 dependencies {
     minecraft "com.mojang:minecraft:${minecraft_version}"
 
-    mappings loom.layered {
-        officialMojangMappings()
-        parchment("org.parchmentmc.data:parchment-${parchment_minecraft}:${parchment_version}@zip")
-    }
+    // Skeleton: Parchment has no 26.3 mappings yet; official Mojang mappings only.
+    mappings loom.officialMojangMappings()
 
     modImplementation "net.fabricmc:fabric-loader:${fabric_loader_version}"
-    modImplementation "net.fabricmc.fabric-api:fabric-api:${fabric_version}"
+    // Skeleton: Fabric API returns with the migration.
 
-    // ModMenu
-    modCompileOnly("com.terraformersmc:modmenu:4.1.2") {
-        exclude(group: "net.fabricmc.fabric-api")
-    }
+    // Skeleton: ModMenu returns with the migration.
 
     // Headless tests exercise the native sided inventory wrappers.
     testImplementation "org.junit.jupiter:junit-jupiter:5.10.2"

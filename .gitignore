@@ -120,9 +120,12 @@ runs/
 !gradle-wrapper.jar
 
 # AI related files
-/AGENTS.md
+# AGENTS.md is tracked on purpose: it is the shared agent/contributor guide.
 plan.md
 spec.md
+
+# Local agent scratch space
+.dsh-work/
 
 # Eclipse Buildship
 .project

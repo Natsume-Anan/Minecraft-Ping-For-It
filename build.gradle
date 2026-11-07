@@ -13,7 +13,8 @@ tasks.register("verifyModIdentity") {
     group = "verification"
     description = "Verifies every shippable loader jar carries the Ping For It identity and no stale original-mod references."
 
-    dependsOn(":fabric:build", ":forge:build", ":neoforge:build")
+    // Skeleton: :forge is excluded until a ForgeGradle release for 26.3 is confirmed.
+    dependsOn(":fabric:build", ":neoforge:build")
 
     doLast {
         def expectedModId = providers.gradleProperty("mod_id").get()
@@ -23,7 +24,7 @@ tasks.register("verifyModIdentity") {
         def minecraftVersion = providers.gradleProperty("minecraft_version").get()
         def failures = new ArrayList<String>()
 
-        ["fabric", "forge", "neoforge"].each { loader ->
+        ["fabric", "neoforge"].each { loader ->
             def libsDir = project(":${loader}").layout.buildDirectory.dir("libs").get().asFile
             def expectedJarName = "${expectedArchiveName}-${expectedVersion}-${loader}-${minecraftVersion}.jar"
             def shippable = libsDir.listFiles()?.findAll {
@@ -79,16 +80,10 @@ def verifyLoaderJar(String loader, File jarFile, String modId, String modName, S
         def mixinConfigEntry = zip.getEntry(mixinConfigName)
         if (mixinConfigEntry != null) {
             def mixinConfig = new groovy.json.JsonSlurper().parse(zip.getInputStream(mixinConfigEntry), "UTF-8")
+            // Skeleton: a zero-mixin config declares no refmap and Loom generates none.
+            // When the mixins return, restore the strict Fabric refmap requirement.
             def hasRefmap = mixinConfig instanceof Map && mixinConfig.containsKey("refmap")
-            if (loader == "fabric") {
-                def expectedRefmap = "Ping-For-It-refmap.json"
-                if (!hasRefmap || mixinConfig.refmap != expectedRefmap) {
-                    failures << "[fabric] ${mixinConfigName} must name refmap '${expectedRefmap}' in ${jarFile.name}"
-                }
-                if (!names.contains(expectedRefmap)) {
-                    failures << "[fabric] missing generated refmap '${expectedRefmap}' in ${jarFile.name}"
-                }
-            } else if (hasRefmap) {
+            if (hasRefmap) {
                 def namedRefmap = mixinConfig.refmap
                 if (!(namedRefmap instanceof String) || !names.contains(namedRefmap)) {
                     failures << "[${loader}] ${mixinConfigName} names missing refmap '${namedRefmap}' in ${jarFile.name}"

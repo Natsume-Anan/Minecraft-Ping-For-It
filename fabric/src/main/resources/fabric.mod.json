@@ -17,26 +17,9 @@
 	},
 	"license": "${license}",
 	"icon": "icon.png",
-	"accessWidener": "pingforit.accesswidener",
 	"environment": "*",
-	"entrypoints": {
-		"client": [
-			"nx.pingwheel.fabric.FabricClient"
-		],
-		"main": [
-			"nx.pingwheel.fabric.FabricMain"
-		],
-		"modmenu": [
-			"nx.pingwheel.fabric.integration.ModMenuIntegration"
-		]
-	},
-	"mixins": [
-		"${mod_id}.mixins.json",
-		"${mod_id}.fabric-resident-storage.mixins.json"
-	],
 	"depends": {
 		"fabricloader": ">=${fabric_loader_version}",
-		"fabric-api": "*",
 		"minecraft": "${fabric_compatible_range}"
 	}
 }

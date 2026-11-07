@@ -41,11 +41,13 @@ pluginManagement {
 }
 
 plugins {
-    id "org.gradle.toolchains.foojay-resolver-convention" version "0.8.0"
+    // Skeleton: JDK 25 is installed locally, so toolchain auto-download is not needed.
+    // id "org.gradle.toolchains.foojay-resolver-convention" version "1.0.0"
 }
 
 rootProject.name = "Ping-For-It"
 include("common")
 include("fabric")
-include("forge")
+// Skeleton: Forge needs a ForgeGradle release for 26.3; restore when verified.
+// include("forge")
 include("neoforge")

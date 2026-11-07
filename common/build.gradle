@@ -10,10 +10,7 @@ neoForge {
     if (at.exists()) {
         accessTransformers.from(at.absolutePath)
     }
-    parchment {
-        minecraftVersion = parchment_minecraft
-        mappingsVersion = parchment_version
-    }
+    // Skeleton: Parchment has no 26.3 mappings yet.
 }
 
 // The merged+compiled Minecraft jar is wired only into the main
@@ -57,14 +54,15 @@ dependencies {
     // multiloader-common). The raycaster tests exercise the real Companion
     // poses at runtime, so the same artifact is declared for the test source
     // set only; this adds no loader metadata or production runtime dependency.
-    testImplementation "dev.ryanhcode.sable-companion:sable-companion-common-${minecraft_version}:${sable_version}"
+    // Skeleton: Sable companion test dependency returns with the integration.
 
     // Minecraft's full runtime library set (netty, datafixerupper, guava,
     // ...) with versions aligned to 1.21.1. Declaring this as a test
     // implementation dependency lets Netty and the other libraries that
     // FriendlyByteBuf references follow Minecraft's own dependency metadata
     // instead of pinning a Netty version by hand.
-    testImplementation "net.neoforged:minecraft-dependencies:1.21.1"
+    // Skeleton: pin the dependency set to the target Minecraft version next.
+    testImplementation "net.neoforged:minecraft-dependencies:26.3"
 }
 
 test {

@@ -13,6 +13,19 @@ java {
     withJavadocJar()
 }
 
+// 26.3 skeleton: the 1.21.1 sources stay on disk for the later migration, but
+// only the stub tree participates in the build until they are ported.
+// Remove this block when the migration starts.
+sourceSets {
+    main {
+        java.srcDirs = ["src/skeleton/java"]
+    }
+    test {
+        // Loom rejects an empty test source-dir list, so point it at a stub tree.
+        java.srcDirs = ["src/skeleton/test/java"]
+    }
+}
+
 // Common Mixin sources keep the @author/@reason Javadoc metadata required by
 // the Mixin overwrite checker. @author is a standard Javadoc tag, but @reason
 // is not; register it as a custom block tag so every javadoc task that includes
@@ -67,13 +80,8 @@ dependencies {
     compileOnly "org.projectlombok:lombok:1.18.32"
     annotationProcessor "org.projectlombok:lombok:1.18.32"
 
-    // Distant Horizons
-    // https://modrinth.com/mod/distanthorizonsapi
-    compileOnly "maven.modrinth:DistantHorizonsApi:${distanthorizons_api_version}"
-
-    // Sable
-    // https://github.com/ryanhcode/sable-companion
-    compileOnly "dev.ryanhcode.sable-companion:sable-companion-common-${minecraft_version}:${sable_version}"
+    // Skeleton: Distant Horizons and Sable are 1.21.1-only artifacts today;
+    // restore both with the integration migration.
 }
 
 // Declare capabilities on the outgoing configurations.
