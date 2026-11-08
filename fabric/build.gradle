@@ -1,46 +1,41 @@
 plugins {
-    id "multiloader-loader"
-    id "fabric-loom" version "${loom_version}"
+    id 'net.fabricmc.fabric-loom'
+}
+
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(java_version)
 }
 
 repositories {
-    maven { url "https://maven.terraformersmc.com/releases" }
+    mavenCentral()
+    maven { url = uri('https://maven.fabricmc.net/') }
 }
 
 dependencies {
     minecraft "com.mojang:minecraft:${minecraft_version}"
-
-    mappings loom.layered {
-        officialMojangMappings()
-        parchment("org.parchmentmc.data:parchment-${parchment_minecraft}:${parchment_version}@zip")
-    }
-
-    modImplementation "net.fabricmc:fabric-loader:${fabric_loader_version}"
-    modImplementation "net.fabricmc.fabric-api:fabric-api:${fabric_version}"
-
-    // ModMenu
-    modCompileOnly("com.terraformersmc:modmenu:4.1.2") {
-        exclude(group: "net.fabricmc.fabric-api")
-    }
+    mappings loom.officialMojangMappings()
+    implementation "net.fabricmc:fabric-loader:${fabric_loader_version}"
+    implementation "net.fabricmc.fabric-api:fabric-api:${fabric_version}"
 }
 
 loom {
     runs {
         client {
             client()
-            setConfigName("Fabric Client")
+            setConfigName('Fabric Client')
             ideConfigGenerated(true)
-            runDir("runs/client")
+            runDir(rootProject.file('runs/skeleton/fabric-client').absolutePath)
         }
         server {
             server()
-            setConfigName("Fabric Server")
+            setConfigName('Fabric Server')
             ideConfigGenerated(true)
-            runDir("runs/server")
+            runDir(rootProject.file('runs/skeleton/fabric-server').absolutePath)
         }
     }
 }
 
-tasks.named("remapJar") {
-    archiveClassifier = "${project.name}-${minecraft_version}"
+// Skeleton phase: no mod sources, no mod tests.
+tasks.named('test') {
+    enabled = false
 }

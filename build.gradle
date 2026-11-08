@@ -1,10 +1,12 @@
 plugins {
     // see https://fabricmc.net/develop/ for new versions
-    id "fabric-loom" version "${loom_version}" apply false
+    id "net.fabricmc.fabric-loom" version "${loom_version}" apply false
     // see https://projects.neoforged.net/neoforged/moddevgradle for new versions
     id "net.neoforged.moddev" version "${mod_dev_gradle_version}" apply false
 }
 
+// Skeleton phase: this task is intentionally not part of the game-body run path.
+// Run it only after the mod sources are restored and the loader jars carry mod metadata.
 // Aggregated identity verification (docs/testing/verification.md#build-source-set-and-artifact-verification).
 // Adds no build dependencies and only inspects the final shippable jars, so
 // it works on any checkout that can produce the three loader jars. Loader
