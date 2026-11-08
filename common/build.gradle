@@ -16,6 +16,10 @@ repositories {
     mavenCentral()
     maven { url = uri('https://repo.spongepowered.org/repository/maven-public') }
     maven { url = uri('https://maven.neoforged.net/releases') }
+    maven { url = uri('https://api.modrinth.com/maven') }
+    maven { url = uri('https://cursemaven.com') }
+    maven { url = uri('https://maven.maxhenkel.de/repository/public') }
+    maven { url = uri('https://maven.ryanhcode.dev/releases') }
 }
 
 neoForge {
@@ -28,6 +32,14 @@ dependencies {
     compileOnly 'org.jetbrains:annotations:26.0.2'
     compileOnly 'org.projectlombok:lombok:1.18.44'
     annotationProcessor 'org.projectlombok:lombok:1.18.44'
+
+    // Temporary 1.21.1-era optional API coordinates (see task-18): these only
+    // keep the legacy integration sources compiling while 26.3 artifacts are
+    // being re-resolved. They are not a claim of 26.3 runtime compatibility.
+    compileOnly "maven.modrinth:DistantHorizonsApi:${distanthorizons_api_version}"
+    compileOnly "de.maxhenkel.voicechat:voicechat-api:${voicechat_api_version}"
+    compileOnly "curse.maven:ftbteams-404468:${ftbteams_version}"
+    compileOnly "dev.ryanhcode.sable-companion:sable-companion-common-1.21.1:${sable_version}"
 
     // P0 test wiring: keep the test task disabled until the old 188 tests are
     // triaged against the 26.3 API, but keep the target coordinates explicit.
