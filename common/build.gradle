@@ -7,8 +7,14 @@ java {
     toolchain.languageVersion = JavaLanguageVersion.of(java_version)
 }
 
+tasks.withType(JavaCompile).configureEach {
+    options.release = java_version.toInteger()
+    options.encoding = 'UTF-8'
+}
+
 repositories {
     mavenCentral()
+    maven { url = uri('https://repo.spongepowered.org/repository/maven-public') }
     maven { url = uri('https://maven.neoforged.net/releases') }
 }
 
@@ -16,7 +22,26 @@ neoForge {
     neoFormVersion = neo_form_version
 }
 
-// Skeleton phase: no mod sources, no mod tests.
+dependencies {
+    // Common/source compile dependencies (26.3).
+    compileOnly 'org.spongepowered:mixin:0.8.7'
+    compileOnly 'org.jetbrains:annotations:26.0.2'
+    compileOnly 'org.projectlombok:lombok:1.18.44'
+    annotationProcessor 'org.projectlombok:lombok:1.18.44'
+
+    // P0 test wiring: keep the test task disabled until the old 188 tests are
+    // triaged against the 26.3 API, but keep the target coordinates explicit.
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.14.4'
+    testCompileOnly 'org.ow2.asm:asm:9.10.1'
+    testImplementation 'net.neoforged:mergetool:2.0.3:api'
+    testImplementation 'net.neoforged:minecraft-dependencies:26.3'
+}
+
+test {
+    useJUnitPlatform()
+}
+
+// P0: keep tests disabled while the old suite is triaged against 26.3.
 tasks.named('test') {
     enabled = false
 }
