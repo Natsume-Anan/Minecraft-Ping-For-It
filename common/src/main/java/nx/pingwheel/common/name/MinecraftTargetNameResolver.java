@@ -115,7 +115,7 @@ public final class MinecraftTargetNameResolver implements AuthoritativeTargetNam
 			return Resolution.unavailable(FallbackReason.REQUESTER_UNAVAILABLE);
 		}
 
-		ServerLevel level = player.serverLevel();
+		ServerLevel level = player.level();
 		String dimensionId = level.dimension().identifier().toString();
 
 		if (!dimensionId.equals(normalizedTarget.dimensionId())) {
@@ -156,13 +156,13 @@ public final class MinecraftTargetNameResolver implements AuthoritativeTargetNam
 		if (entity instanceof ServerPlayer player) {
 			// Plain profile name, deliberately unstyled: a player target never
 			// inherits a ping-type or team color.
-			return Resolution.of(Component.literal(player.getGameProfile().getName()));
+			return Resolution.of(Component.literal(player.getGameProfile().name()));
 		}
 
 		if (entity instanceof ItemEntity itemEntity) {
 			ItemStack stack = itemEntity.getItem();
 			Component customName = stack.get(DataComponents.CUSTOM_NAME);
-			Component baseName = Component.translatable(stack.getDescriptionId());
+			Component baseName = Component.translatable(stack.getItem().getDescriptionId());
 
 			return Resolution.of(customName != null
 				? TargetNameComposer.compose(customName, baseName)

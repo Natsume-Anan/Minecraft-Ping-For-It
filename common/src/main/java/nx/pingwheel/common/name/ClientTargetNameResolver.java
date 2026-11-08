@@ -116,13 +116,13 @@ public final class ClientTargetNameResolver {
 			}
 
 			if (entity instanceof Player player) {
-				return Optional.of(Component.literal(player.getGameProfile().getName()));
+				return Optional.of(Component.literal(player.getGameProfile().name()));
 			}
 
 			if (entity instanceof ItemEntity itemEntity) {
 				ItemStack stack = itemEntity.getItem();
 				Component customName = stack.get(DataComponents.CUSTOM_NAME);
-				Component baseName = Component.translatable(stack.getDescriptionId());
+				Component baseName = Component.translatable(stack.getItem().getDescriptionId());
 
 				return Optional.of(customName == null
 					? baseName

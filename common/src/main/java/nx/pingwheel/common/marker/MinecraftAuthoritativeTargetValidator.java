@@ -130,7 +130,7 @@ public final class MinecraftAuthoritativeTargetValidator implements Authoritativ
 			return AuthoritativeTargetValidation.rejected(MarkerRejectReason.INVALID_REQUEST);
 		}
 
-		ServerLevel level = requesterPlayer.serverLevel();
+		ServerLevel level = requesterPlayer.level();
 		String dimensionId = level.dimension().identifier().toString();
 
 		if (!dimensionId.equals(requestedTarget.dimensionId())) {
