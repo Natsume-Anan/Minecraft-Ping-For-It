@@ -6,11 +6,12 @@
 	"client": [
 		"KeyMappingMixin",
 		"MinecraftMixin",
-		"GameRendererMixin",
-		"GuiMixin",
-		"LevelRendererMixin",
-		"DisplayBlockDisplayAccessor",
-		"ModelBlockRendererMixin"
+		"RenderTypeAccessor",
+		"RenderPipelinesAccessor",
+		"SubmitNodeCollectionMixin",
+		"BlockEntityRenderDispatcherMixin",
+		"EntityRendererMixin",
+		"LevelExtractorMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1
