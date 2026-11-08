@@ -1407,3 +1407,99 @@ public class SettingsScreen extends OptionsSubScreen {
 			final int right = this.getX() + this.width - 1;
 			final int top = this.getY() + (this.isSelected() ? 0 : 3);
 			final int bottom = this.getY() + this.getHeight();
+			// 26.3 takes (message, x1, x2, y1, y2) here; the scrolling variant pushes a
+			// scissor that is not clipped to the screen, and one throw inside renderFrame
+			// leaves the window surface acquired, freezing the game.  Degenerate boxes must
+			// never reach it, so the call is guarded.
+			if (this.width > 0 && this.getHeight() > 0 && left < right && top < bottom) {
+				graphics.textRendererForWidget(this, GuiGraphicsExtractor.HoveredTextEffects.NONE)
+					.acceptScrollingWithDefaultCenter(this.getMessage(), left, right, top, bottom);
+			} else if (!degenerateLogged) {
+				degenerateLogged = true;
+				LOGGER.warn(
+					"scope tab label box degenerated pos=({},{}) size={}x{}; skipping the label",
+					this.getX(), this.getY(), this.width, this.getHeight());
+			}
+			this.handleCursor(graphics);
+		}
+	}
+
+	private final class NavigationTabManager extends TabManager {
+		private NavigationTabManager(Consumer<AbstractWidget> addWidget, Consumer<AbstractWidget> removeWidget) {
+			super(addWidget, removeWidget);
+		}
+
+		@Override
+		public void setCurrentTab(Tab tab, boolean playClickSound) {
+			final boolean changed = tab != this.getCurrentTab();
+			super.setCurrentTab(tab, playClickSound);
+			if (changed && tab instanceof ScopeTab scopeTab) {
+				SettingsScreen.this.selectScopeFromTab(scopeTab.scope);
+			}
+		}
+	}
+
+	static final class ScopeTab implements Tab {
+		private final Scope scope;
+
+		ScopeTab(Scope scope) {
+			this.scope = scope;
+		}
+
+		@Override
+		public Component getTabTitle() {
+			return scopeTitle(this.scope);
+		}
+
+		@Override
+		public Component getTabExtraNarration() {
+			return Component.empty();
+		}
+
+		@Override
+		public void visitChildren(Consumer<AbstractWidget> consumer) {
+			// The root tabs select navigation state; their content remains in the
+			// screen's single retained OptionsList.
+		}
+
+		@Override
+		public void doLayout(ScreenRectangle area) {
+			// The shared page list is laid out by the screen, not by either tab.
+		}
+
+		@Override
+		public Layout getLayout() {
+			// No 26.3 code path reads a scope tab's layout (TabManager only calls
+			// doLayout/visitChildren), so an empty layout keeps navigation inert.
+			return new GridLayout();
+		}
+	}
+
+	private static final class SettingsOptionsList extends OptionsList {
+		private SettingsOptionsList(net.minecraft.client.Minecraft minecraft, int width, SettingsScreen screen) {
+			super(minecraft, width, screen);
+		}
+
+		private void resetEntries() {
+			this.clearEntries();
+		}
+
+		private AbstractWidget focusedWidget() {
+			final GuiEventListener focusedEntry = this.getFocused();
+			if (focusedEntry instanceof OptionsList.AbstractEntry entry && entry.getFocused() instanceof AbstractWidget widget) {
+				return widget;
+			}
+			return null;
+		}
+
+		private void focusWidget(AbstractWidget widget) {
+			for (OptionsList.AbstractEntry entry : this.children()) {
+				if (entry.children().contains(widget)) {
+					entry.setFocused(widget);
+					this.setFocused(entry);
+					return;
+				}
+			}
+		}
+	}
+}
