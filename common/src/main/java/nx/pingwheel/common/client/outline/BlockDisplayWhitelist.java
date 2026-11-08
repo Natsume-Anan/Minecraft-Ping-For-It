@@ -5,7 +5,7 @@ import java.util.List;
 import java.util.Objects;
 
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.state.BlockState;
 
@@ -180,7 +180,7 @@ public final class BlockDisplayWhitelist {
 	 * before any exact, wildcard, or tag evaluation — even when a tag lookup
 	 * would otherwise answer true.
 	 */
-	public boolean matches(ResourceLocation blockKey, boolean hasBlockEntity, RenderShape renderShape, BlockTagLookup tagLookup) {
+	public boolean matches(Identifier blockKey, boolean hasBlockEntity, RenderShape renderShape, BlockTagLookup tagLookup) {
 		Objects.requireNonNull(renderShape, "renderShape");
 		Objects.requireNonNull(tagLookup, "tagLookup");
 
@@ -191,7 +191,7 @@ public final class BlockDisplayWhitelist {
 	 * Matches a registered block key. A null key represents absent registry
 	 * content and always fails softly.
 	 */
-	public boolean matches(ResourceLocation blockKey, BlockTagLookup tagLookup) {
+	public boolean matches(Identifier blockKey, BlockTagLookup tagLookup) {
 		Objects.requireNonNull(tagLookup, "tagLookup");
 
 		if (blockKey == null) {

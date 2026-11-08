@@ -20,7 +20,7 @@ public class OverlayRenderer {
 		final var m = guiGraphics.pose();
 		final var ctx = new DrawContext(guiGraphics);
 		final var showDirectionIndicator = config.isDirectionIndicatorVisible();
-		final var currentDimension = Game.level.dimension().location().toString();
+		final var currentDimension = Game.level.dimension().identifier().toString();
 
 		if (showDirectionIndicator) {
 			DirectionIndicatorRenderer.prepareSafeZone();

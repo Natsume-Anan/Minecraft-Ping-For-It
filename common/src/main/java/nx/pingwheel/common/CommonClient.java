@@ -288,7 +288,7 @@ public class CommonClient {
 		}
 
 		EntityOutlineState.INSTANCE.prepare(
-			pingRuntime.store(), game.level.dimension().location().toString());
+			pingRuntime.store(), game.level.dimension().identifier().toString());
 	}
 
 	/**
@@ -308,7 +308,7 @@ public class CommonClient {
 		}
 
 		BlockOutlineState.INSTANCE.prepare(
-			pingRuntime.store(), game.level.dimension().location().toString());
+			pingRuntime.store(), game.level.dimension().identifier().toString());
 	}
 
 	/**

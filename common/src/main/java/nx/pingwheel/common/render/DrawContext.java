@@ -6,7 +6,7 @@ import lombok.Getter;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.util.FastColor;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec2;
@@ -81,7 +81,7 @@ public class DrawContext {
 		matrices.popPose();
 	}
 
-	public void renderTexture(ResourceLocation texture, int size, int color) {
+	public void renderTexture(Identifier texture, int size, int color) {
 		final var offset = size / -2;
 		final float a = FastColor.ARGB32.alpha(color) / 255f;
 		final float r = FastColor.ARGB32.red(color) / 255f;

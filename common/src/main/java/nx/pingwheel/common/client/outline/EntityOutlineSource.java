@@ -10,7 +10,7 @@ import net.minecraft.world.entity.Entity;
  * Internal entity-outline extension seam.
  *
  * <p>The source id must be a stable, namespaced Minecraft
- * {@code ResourceLocation} and unique within the modded entity-outline source
+ * {@code Identifier} and unique within the modded entity-outline source
  * registry. This is an internal compatibility seam for a future separately
  * loaded optional adapter package (and for the loader-neutral entity outline
  * infrastructure), not a stable public plugin API; no API stability is

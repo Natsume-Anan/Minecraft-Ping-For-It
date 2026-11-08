@@ -9,7 +9,7 @@ import com.mojang.blaze3d.vertex.VertexFormat;
 import com.mojang.blaze3d.vertex.VertexFormatElement;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 /**
  * Outline-only {@link MultiBufferSource} adapter around a caller-owned
@@ -35,7 +35,7 @@ import net.minecraft.resources.ResourceLocation;
 	 *       (exactly {@link VertexFormat.Mode#QUADS} and supplying UV0), an
 	 *       available exact texture-specific outline type is used;</li>
 	 *   <li>otherwise, when a fallback texture is configured and the input is
-	 *       textured model-compatible geometry, {@link RenderType#outline(ResourceLocation)}
+	 *       textured model-compatible geometry, {@link RenderType#outline(Identifier)}
 	 *       is used;</li>
 	 *   <li>otherwise, a no-op {@link VertexConsumer} is returned. The block-atlas
 	 *       fallback is for textured model/terrain geometry only; line, debug,
@@ -72,7 +72,7 @@ public final class OutlineOnlyBufferSource implements MultiBufferSource {
 
 	private final MultiBufferSource source;
 	private final int markerColor;
-	private final ResourceLocation fallbackTexture;
+	private final Identifier fallbackTexture;
 	private final int maxVertices;
 	private final List<VertexCountingConsumer> issuedConsumers = new ArrayList<>();
 	private int totalVertices;
@@ -106,7 +106,7 @@ public final class OutlineOnlyBufferSource implements MultiBufferSource {
 	 *                                  applied to every emitted vertex
 	 * @param fallbackTexture           when non-null, outline-less geometry
 	 *                                  resolves to
-	 *                                  {@link RenderType#outline(ResourceLocation)}
+	 *                                  {@link RenderType#outline(Identifier)}
 	 *                                  for this texture instead of being
 	 *                                  rejected with a no-op consumer, so a
 	 *                                  textured QUADS model pass without an
@@ -122,7 +122,7 @@ public final class OutlineOnlyBufferSource implements MultiBufferSource {
 	public OutlineOnlyBufferSource(
 		MultiBufferSource source,
 		int markerColor,
-		ResourceLocation fallbackTexture,
+		Identifier fallbackTexture,
 		int maxVertices
 	) {
 		this.source = Objects.requireNonNull(source, "source");
@@ -271,7 +271,7 @@ public final class OutlineOnlyBufferSource implements MultiBufferSource {
 	 * Resolves an incoming render type, optionally using a textured fallback for
 	 * textured QUADS model-compatible geometry.
 	 */
-	private static RenderType resolve(RenderType renderType, ResourceLocation fallbackTexture) {
+	private static RenderType resolve(RenderType renderType, Identifier fallbackTexture) {
 		return switch (decide(
 			renderType.isOutline(),
 			renderType.outline().isPresent(),

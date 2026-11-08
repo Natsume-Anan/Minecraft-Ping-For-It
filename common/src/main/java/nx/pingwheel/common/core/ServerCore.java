@@ -3,7 +3,7 @@ package nx.pingwheel.common.core;
 import net.minecraft.network.chat.Component;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -671,7 +671,7 @@ public class ServerCore {
 	}
 
 	private static ServerLevel levelFor(MinecraftServer server, String dimensionId) {
-		ResourceLocation location = ResourceLocation.tryParse(dimensionId);
+		Identifier location = Identifier.tryParse(dimensionId);
 		if (location == null) {
 			return null;
 		}

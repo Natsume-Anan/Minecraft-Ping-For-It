@@ -12,7 +12,7 @@ import java.util.function.Function;
  * indexed triangle to the vanilla outline post-chain's quad input as
  * {@code (v0,v1,v2,v2)}. The generic texture type keeps this class free of
  * optional Flywheel classes while the production caller uses
- * {@code ResourceLocation}.</p>
+ * {@code Identifier}.</p>
  */
 public final class FlywheelSilhouetteMask {
 	private static final double TRIANGLE_CROSS_SQUARED_EPSILON = 1.0E-12D;

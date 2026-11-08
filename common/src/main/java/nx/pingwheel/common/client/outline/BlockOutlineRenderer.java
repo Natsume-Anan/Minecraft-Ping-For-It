@@ -81,7 +81,7 @@ public final class BlockOutlineRenderer {
 		Objects.requireNonNull(modelOutlineKeys, "modelOutlineKeys");
 		Objects.requireNonNull(externalModelOutlineKeys, "externalModelOutlineKeys");
 
-		String dimensionId = level.dimension().location().toString();
+		String dimensionId = level.dimension().identifier().toString();
 		Entity cameraEntity = camera.getEntity();
 		CollisionContext collisionContext =
 			cameraEntity == null ? CollisionContext.empty() : CollisionContext.of(cameraEntity);

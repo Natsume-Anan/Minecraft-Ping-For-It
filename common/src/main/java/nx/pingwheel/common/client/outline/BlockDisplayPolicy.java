@@ -3,7 +3,7 @@ package nx.pingwheel.common.client.outline;
 import java.util.List;
 import java.util.Objects;
 
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.state.BlockState;
 
@@ -76,7 +76,7 @@ public final class BlockDisplayPolicy {
 	 */
 	public boolean shouldUseNativeGlow(
 		String targetTypeId,
-		ResourceLocation blockKey,
+		Identifier blockKey,
 		boolean hasBlockEntity,
 		RenderShape renderShape,
 		BlockTagLookup tagLookup) {

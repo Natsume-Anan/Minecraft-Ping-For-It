@@ -7,7 +7,7 @@ import java.util.function.Function;
  * Internal entity-block geometry extension seam.
  *
  * <p>The source id must be a stable, namespaced Minecraft
- * {@code ResourceLocation} and unique within the modded source registry. This
+ * {@code Identifier} and unique within the modded source registry. This
  * is an internal compatibility seam for a future separately-loaded optional
  * adapter package, not a stable public plugin API; no API stability is
  * guaranteed. A source must not retain the supplied context.</p>

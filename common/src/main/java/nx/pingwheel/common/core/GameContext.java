@@ -52,7 +52,7 @@ public class GameContext {
 		}
 
 		lastWorld = Game.level;
-		dimension = lastWorld.dimension().location().hashCode();
+		dimension = lastWorld.dimension().identifier().hashCode();
 	}
 
 	/**

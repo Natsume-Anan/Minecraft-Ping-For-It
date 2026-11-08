@@ -191,7 +191,7 @@ public final class VirtualBlockDisplayRenderer {
 
 		frameFailures.clear();
 
-		String dimensionId = level.dimension().location().toString();
+		String dimensionId = level.dimension().identifier().toString();
 		Vec3 cameraPosition = camera.getPosition();
 		Entity cameraEntity = camera.getEntity();
 		CollisionContext collisionContext = cameraEntity == null

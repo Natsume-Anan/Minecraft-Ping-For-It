@@ -448,7 +448,7 @@ public final class ClientPingRuntime {
 
 	private void observeWorldContinuity(Minecraft game) {
 		ClientLevel currentLevel = game.level;
-		String currentDimension = currentLevel.dimension().location().toString();
+		String currentDimension = currentLevel.dimension().identifier().toString();
 
 		if (observedLevel != null
 			&& (observedLevel != currentLevel || !Objects.equals(observedDimension, currentDimension))) {
@@ -781,7 +781,7 @@ public final class ClientPingRuntime {
 					"hit_location", hitResult.getLocation(),
 					"projected_position", projectedPos);
 				completeCapture(token, TargetSnapshotFactory.location(
-					game.level.dimension().location().toString(),
+					game.level.dimension().identifier().toString(),
 					projectedPos.x, projectedPos.y, projectedPos.z), pressRay);
 				return;
 			}
@@ -874,7 +874,7 @@ public final class ClientPingRuntime {
 		var level = game.level;
 
 		UUID ownerId = player.getUUID();
-		String dimensionId = level.dimension().location().toString();
+		String dimensionId = level.dimension().identifier().toString();
 		CapturedRay frozenRay = pendingRay;
 
 		if (frozenRay == null && machine.phase() == PingInteractionPhase.WHEEL_OPEN) {
@@ -927,7 +927,7 @@ public final class ClientPingRuntime {
 			}
 		} else if (target instanceof Target.ExternalBlockTarget external
 			&& Game != null && Game.level != null
-			&& currentDimension.equals(Game.level.dimension().location().toString())) {
+			&& currentDimension.equals(Game.level.dimension().identifier().toString())) {
 			Optional<Vec3> livePosition = SableClientProvider.resolvePosition(Game.level, external, 1.0F);
 
 			if (livePosition.isPresent()) {
@@ -1021,7 +1021,7 @@ public final class ClientPingRuntime {
 			return;
 		}
 
-		if (!snapshot.target().dimensionId().equals(game.level.dimension().location().toString())) {
+		if (!snapshot.target().dimensionId().equals(game.level.dimension().identifier().toString())) {
 			return;
 		}
 

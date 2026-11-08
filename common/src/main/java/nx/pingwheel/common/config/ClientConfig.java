@@ -73,7 +73,7 @@ public class ClientConfig implements IConfig {
 
 	public static final int TPS = 20;
 	public static final int MAX_PING_DISTANCE = 2048;
-	public static final int MAX_CHANNEL_LENGTH = 128;
+	public static final int MAX_CHANNEL_LENGTH = nx.pingwheel.common.network.ProtocolLimits.MAX_CHANNEL_LENGTH;
 
 	public String getChannel() {
 		final var ip = GameContext.getCurrentServerIp();
