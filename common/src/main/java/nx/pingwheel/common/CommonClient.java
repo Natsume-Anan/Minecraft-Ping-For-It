@@ -24,6 +24,7 @@ import nx.pingwheel.common.client.hud.MarkerHudRenderer;
 import nx.pingwheel.common.client.hud.WheelHudRenderer;
 import nx.pingwheel.common.client.rate.ClientRateLimitPolicy;
 import nx.pingwheel.common.client.marker.MarkerOverlayState;
+import nx.pingwheel.common.client.outline.BlockOutlinePass;
 import nx.pingwheel.common.config.ClientConfig;
 import nx.pingwheel.common.core.GameContext;
 import nx.pingwheel.common.domain.EntityLocator;
@@ -78,6 +79,13 @@ public class CommonClient {
 		// the HUD pass: 26.3 skips HUD elements while F1 hides the HUD. Registered
 		// exactly once here, so onRenderFrame() can never run twice per frame.
 		IPlatformClientEventService.INSTANCE.registerRenderFrameEvent(this::onRenderFrame);
+
+		// Render-pass hooks: create the outline pipeline, then let the loader map
+		// its native HUD / world-submit events onto these common callbacks.
+		BlockOutlinePass.register();
+		IPlatformClientEventService.INSTANCE.registerHudRenderEvent(this::onRenderHud);
+		IPlatformClientEventService.INSTANCE.registerHudRenderEvent((graphics, delta) -> onRenderToggleNotice(graphics));
+		IPlatformClientEventService.INSTANCE.registerWorldSubmitEvent(BlockOutlinePass::onWorldSubmit);
 
 		IClientPlatformContextService.INSTANCE.registerKeyMapping(KEY_BINDING_PING);
 		IClientPlatformContextService.INSTANCE.registerKeyMapping(InputUtils.KEY_BINDING_TOGGLE_PASS_THROUGH_TRANSPARENT_BLOCKS);
