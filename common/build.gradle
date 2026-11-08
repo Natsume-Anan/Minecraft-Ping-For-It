@@ -20,3 +20,8 @@ neoForge {
 tasks.named('test') {
     enabled = false
 }
+
+// common is a library module; do not create competing runClient/runServer tasks.
+tasks.matching { it.name == 'runClient' || it.name == 'runServer' }.configureEach {
+    enabled = false
+}
