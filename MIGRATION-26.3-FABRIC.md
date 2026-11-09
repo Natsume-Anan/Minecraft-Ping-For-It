@@ -1,8 +1,8 @@
 # Ping For It — 26.3 Fabric 迁移方案
 
-> 状态：F0–F3 已实现并提交；F4/F5 待执行
+> 状态：F0–F3 已实现并提交；F5 的 no-remap 身份校验已调整；F4 运行验证待用户环境
 > 分支：`26.3-Fabric`
-> 代码起点：`6373ee9`（2026-11-09）；方案文档提交：`f010d3d`；F0 提交 `eb8b17a`；Fabric 模块提交 `aba76a7`
+> 代码起点：`6373ee9`（2026-11-09）；方案文档提交：`f010d3d`；F0 提交 `eb8b17a`；Fabric 模块提交 `aba76a7`；身份校验提交 `ef8796c`
 > 参考工程：`C:\Users\65653\Desktop\参考文件`（同 fork 的 26.3 Fabric 单端移植，仅作 26.3 API/构建用法参考）
 >
 > 本文是**维护者迁移计划**，不是产品行为规范。按 `docs/AGENTS.md` 的目录边界，迁移步骤、类路径、构建脚本和验证命令不放进 `docs/`；产品行为仍以 `docs/` 为准。
@@ -201,7 +201,7 @@ F2/F3 已把旧入口替换为 26.3 版本；当前目标实现如下：
 
 - `fabric/src/main/templates/fabric.mod.json`：id/name/version/description/links 使用本项目身份；`depends` 写 `fabricloader >=0.20.1`、`minecraft ~26.3`、`java >=25`、`fabric-api *`；entrypoints main/client；不写 modmenu（F5 再处理）。
 - run 目录：`runs/fabric-client`、`runs/fabric-server`，不覆盖现有 `run/` 或 `runs/skeleton/`。
-- `verifyModIdentity`：Fabric 26.3 no-remap 无 refmap，需移除“Fabric 必须带 `Ping-For-It-refmap.json`”的断言；Forge/NeoForge 恢复前不跑聚合任务。
+- `verifyModIdentity`：已移除“Fabric 必须带 `Ping-For-It-refmap.json`”的断言（`ef8796c`）；若配置仍声明 refmap，则要求对应文件存在。Forge/NeoForge 恢复前不跑聚合任务。
 - 可选集成：VoiceChat entrypoint 可保留（缺失时 fail-soft）；ModMenu、DH、FTB、Sable 的 26.3 坐标在 F5 处理。
 
 ## 4. 分阶段执行
@@ -300,4 +300,5 @@ F2/F3 已把旧入口替换为 26.3 版本；当前目标实现如下：
 | 2026-11-09 | 审查 R1 | — | 2 blocker / 2 major / 2 minor；已修复 |
 | 2026-11-09 | 审查 R2 | — | 1 major（F2-01 网络 SPI）/ 3 minor；F2-01 已修复 |
 | 2026-11-09 | 审查 R3 | — | PASS；仅 1 个文档边界 minor |
+| 2026-11-09 | F5（部分） | `ef8796c` | `verifyModIdentity` 不再强制 Fabric refmap；jar 打包/可选集成/运行仍未验证 |
 | 2026-11-09 | 手工编译 | — | `javac 25.0.4.1`：common patch、Fabric main、Fabric client 均 exit 0（26.3 工件 classpath）；Gradle wrapper `--version` exit 1（`.gradle` 锁拒绝访问） |
