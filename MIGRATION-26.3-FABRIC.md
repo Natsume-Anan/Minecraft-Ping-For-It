@@ -302,3 +302,101 @@ F2/F3 已把旧入口替换为 26.3 版本；当前目标实现如下：
 | 2026-11-09 | 审查 R3 | — | PASS；仅 1 个文档边界 minor |
 | 2026-11-09 | F5（部分） | `ef8796c` | `verifyModIdentity` 不再强制 Fabric refmap；jar 打包/可选集成/运行仍未验证 |
 | 2026-11-09 | 手工编译 | — | `javac 25.0.4.1`：common patch、Fabric main、Fabric client 均 exit 0（26.3 工件 classpath）；Gradle wrapper `--version` exit 1（`.gradle` 锁拒绝访问） |
+| 2026-11-09 | 多格方块分析 | — | 根因：5fb5d76 删除 presentation 层；方案 A1（客户端 subject 展开）见 §9；待用户批准后执行 |
+
+
+## 9. 已知问题：门/床/大箱子只标记单格（待批准修复）
+
+> 状态：已完成根因分析，尚未修改源码；等待用户批准后执行。
+> 结论：这是 26.3 outline 重写时丢失 presentation subjects 层的回归，不是捕获或协议错误。
+
+### 9.1 现象
+
+- 对门、床、大箱子等跨格方块按 ping 时，HUD 的菱形/名称/距离只落在被命中的半格中心。
+- 方块 outline 只框住被命中的半格，而不是整个物体。
+- 大箱子另一半、床的另一半、门的另一半没有进入 outline/glow 工作项。
+
+### 9.2 根因分层
+
+| 层 | 现状 | 证据 |
+| --- | --- | --- |
+| Capture | `MinecraftTargetSnapshotFactory.blockSnapshot` 只取 `hitResult.getBlockPos()` + registry id；`Target.BlockTarget` 只有 dimension/pos/blockRegistryId | `MinecraftTargetSnapshotFactory.java:142-146`；`Target.java:15,58` |
+| Server anchor | `validateBlock` 固定 `pos + 0.5`；`MarkerSnapshot` 只带一个 `MarkerAnchor`；range 也测该点 | `MinecraftAuthoritativeTargetValidator.java:247-261`；`MarkerSnapshot.java:20-26` |
+| HUD | `MarkerView` 只使用 `marker.anchor()`；每个 marker 一个 view | `MarkerView.java:124,169,193,216`；`MarkerOverlayState.java:114` |
+| Outline | `BlockOutlinePass` 每个 marker 只取一个 pos/state，`BlockModelGlowPass.trySubmit` 单 state/pos，`getShape` 一次，submit 一次 | `BlockOutlinePass.java:147-219`；`BlockModelGlowPass.java:94-104,180` |
+| BER glow | `EntityBlockGlowState.entityBlockWinners` 只把 canonical pos 放进 map；BER dispatch 只按该 pos 查询 | `EntityBlockGlowState.java:288-312`；`BlockEntityRenderDispatcherMixin.java:183` |
+
+历史证据：`5fb5d76`（`refactor: port common 26.3 outline and mixin set`）删除了 `BlockPresentation*`、`BlockRenderSubject`、`BlockOutlineSpec`、`VanillaDoorBlockPresentationResolver`、`VanillaBedBlockPresentationResolver` 等；当前 outline/glow 是重写后的单 state/pos 版本。旧 presentation 层也只注册了 door/bed，**从未支持大箱子**，所以修复必须新增 chest resolver，而不是简单回滚。
+
+### 9.3 文档契约
+
+- `docs/architecture/rendering/presentation_subjects.md:46-59`：床解析为 foot+head，门解析为 lower+upper；损坏 pair 回退 direct subject。
+- `docs/decisions/D0003-multipart-presentation-types.md:9-13,21-27,45-46`：multipart 解析为 presentation subjects，不重写 marker canonical target；“只渲染命中格”被明确拒绝。
+- `docs/architecture/identity/target_model.md:33`：block identity 是 dimension + position + block type，BlockState 不属于 identity。
+- 大箱子不在现有 beds/doors 条款中；新增 chest presentation 需要 docs owner/决策授权（见 §9.6）。
+
+### 9.4 推荐方案 A1（客户端 presentation，不改协议/服务端）
+
+原则：canonical `Target.BlockTarget`、`MarkerAnchor`、packet、server range 都不变；只在客户端当前帧解析 presentation subjects。
+
+1. 恢复/新增 common 客户端 presentation 数据层：
+   - `BlockOutlineSpec`、`BlockPresentationRelation`、`BlockRenderSubject`、`BlockPresentationContext`、`BlockPresentationResolution`、`BlockPresentationResolver`、`BlockPresentationResolverRegistry`、`BlockPresentationSubjectValidation`。
+   - 恢复 `BlockPresentation`/`BlockPresentationSuccessKey` 时，若 coverage 依赖已删除的 `EntityBlockGeometry*`，只保留 A1 需要的子集；不要恢复整个旧 geometry 框架。
+2. 恢复/新增 resolver：
+   - `VanillaDoorBlockPresentationResolver`：lower/upper；校验同 block、HALF 互补、FACING/HINGE/OPEN/POWERED 一致；失败回 direct。
+   - `VanillaBedBlockPresentationResolver`：用 26.3 `AbstractBedBlock.getConnectedDirection` 定位 foot/head；顺序 foot→head；校验 PART 互补、FACING 一致；失败回 direct。
+   - **新增 `VanillaChestBlockPresentationResolver`**：`ChestBlock.TYPE`；`SINGLE` → `context.directResolution()`（单箱只产生 direct subject，不要 handled-empty）；`LEFT`/`RIGHT` 用 `ChestBlock.getConnectedBlockPos(pos, state)` 找 partner；校验 partner 同 block（含 trapped chest 子类一致）、`TYPE == type.getOpposite()`、`FACING` 相同；稳定顺序 left→right；partner 缺失/未加载/属性不符 → direct。
+3. `BlockOutlinePass`：
+   - 每个 winner 解析一次 presentation；每个 subject 做 loaded/current 校验。
+   - **A1 只做 subject 展开，不改变现有 source 顺序/短路语义**：保持当前 `BlockModelGlowPass` → `EntityBlockGlowState.isGlowing` → `getShape` 的顺序，避免把“presentation 修复”和“source outcome 重构”混在一起。当前顺序是否完全符合 `geometry_sources.md` 的“不短路”契约，是**既有问题**，A1 不宣称修复。
+   - 如果后续要修 source 顺序，单列 A1-contract：按 `geometry_sources.md:59-63` 让 BER、baked model、optional source 按序运行且不短路，记录每个 subject/source 的 `RENDERED/EMPTY/FAILED`，只有全部未 RENDERED 才走 VoxelShape fallback；重复几何用 coverage 声明处理，不能用“第一个成功就停”。
+   - 计数按 subject 而非 marker 聚合；增加 subject/source 级 DEBUG 计数，便于确认双画/漏画。
+4. `EntityBlockGlowState`：对每个 `entity_block` winner 解析 presentation，把**每个 subject pos** 映射到同一 marker（canonical pos 作为 fallback）；BER mixin 的 `get(pos)` 因此能命中另一半。
+5. HUD：新增 presentation center（subject block centers 的 AABB 中心；门 y+1、床/箱两格中点）。`MarkerView` 对 `Target.BlockTarget` 优先用该中心，解析失败/未加载回 `marker.anchor()`。
+   - A1b（默认推荐）：图标/名称用显示中心，distance/scale 仍用 server anchor；range 语义不变，但图标与数字可能略不一致。
+   - A1a：图标、名称、distance/scale 都用显示中心，视觉一致；server range 仍按命中半格，边缘可能有轻微视觉/范围差，需要产品/文档 owner 确认。
+   - A1-only：HUD 保持 anchor，只修 outline/glow；零产品行为变化，但 HUD 仍停在半格。
+6. 不改：`TargetKey`/winner、name resolver、client validation、server anchor/range、协议。名称对门/床/箱各半格相同；client validation 仍校验 captured pos；两半各 ping 仍是两个 canonical target（见 §9.6）。
+
+### 9.5 方案 B（备选，不推荐）
+
+- B1：服务端把 `MarkerAnchor` 改成 composite center，并可能改 range 语义；只解决 HUD 一半，outline 仍需客户端 presentation，且 range 行为变化。
+- B2：协议增加 subject 列表（pos + expected registry + relation），服务端解析/广播；一致性强，但需要协议版本、服务端重复 multipart 逻辑、模组方块无法通用解析，并与 D0003“presentation 客户端解析”相悖。
+- 结论：除非产品明确要求“服务端权威的整物 anchor/范围”，否则走 A1；B2 留协议演进。
+
+### 9.6 需要产品/文档 owner 确认
+
+1. **大箱子纳入 presentation**：现有 docs/D0003 只写 beds/doors；需要更新 `presentation_subjects.md`（及必要时 D0003），并按需同步 `testing/verification.md` 的覆盖/手动矩阵、`geometry_sources.md` 的 source 关系、`outline.md` 的渲染边界；均需 docs owner 授权。A1 实现前不能把“大箱子整体标记”说成已符合现有文档。
+2. **HUD distance 用显示中心还是 anchor**：A1b 默认（图标/名称中心、distance/scale 用 anchor，range 语义不变）；A1a（全部用显示中心）需产品/文档 owner 确认。
+3. **两半是否应合并为一个 marker**：按 D0003 canonical identity 不重写，门上下/床两头/箱左右的 ping 是不同 target key；如果产品要求“一个物体只保留一个 marker”，需要单独的 identity 归一化决策（B3），会改 `TargetKey`/winner/网络语义，不能混在 A1 里。
+
+### 9.7 测试与验收
+
+现有测试现状：`common/src/test/java/nx/pingwheel/common/client/outline` 共 47 个 `.java`；其中 **40 个直接引用已删除类**（A1 presentation 2 个、旧 outline/state/selection 12 个、旧 entity outline 6 个、EntityBlockGeometry/Flywheel/WorldAware/Create/Simulated/coverage 20 个），6 个不直接缺类但需 26.3 审阅，1 个 helper（`TestEntitySupport`）。A1 最小恢复集只有 `BlockPresentationResolverTest` + `BlockPresentationSubjectValidationTest`；`:common:test` 仍 disabled（`common/build.gradle:58`），恢复前必须先清理 40 个 orphan，不能直接启用整个测试套件。
+
+A1 最小测试集：
+
+- 恢复/适配 `BlockPresentationResolverTest`（door/bed 现有用例）与 `BlockPresentationSubjectValidationTest`（loaded/current + registry id 校验），并新增 chest 用例：SINGLE → direct；LEFT/RIGHT → 两 subject；TYPE 反向/FACING 一致；错误 TYPE/FACING/不同 block/未加载 → direct；顺序稳定。
+- 新增 `BlockMultipartCenterTest`：门 y+1、床/箱两格中点、损坏 pair fallback。
+- 新增 `BlockOutlineSubjectRenderTest`：composite → 2 个 subject 的 outline/geometry 工作项；direct → 1 个；subject 级计数与 loaded/current 校验；不把“至多一个 source draw”作为 A1 断言（source 顺序是既有行为，A1-contract 再测）。
+- 新增 `EntityBlockGlowSubjectMapTest`：大箱子两半都在 winner map；`isGlowing(partnerPos)` true；缓存按 frame 重建。
+- 新增 `MarkerViewBlockCenterTest`：door/bed/chest 显示中心；未加载/无 partner 回 anchor；A1a/A1b distance 行为。
+- 手动矩阵（Fabric 26.3）：门开/关、床 foot/head、大箱子左/右/单箱、两半各 ping；菱形/名称/距离居中；两半 outline；大箱子两半 BER glow；range 边缘；跨 chunk；破坏/换状态；重连/多人；无重复画。
+
+延后/删除：`EntityBlockGeometry*`、`EntityOutline*`、Create/Simulated/Flywheel contract tests 等旧框架测试不在 A1 范围；恢复前先分类，不要一次性启用。
+
+### 9.8 不改的链路（明确）
+
+- **Name resolver**：`MinecraftTargetNameResolver`/`ClientTargetNameResolver` 仍按 canonical pos 解析；门/床/箱各半格名称相同，不需要按 subject 改名。
+- **TargetKey/winner**：`TargetKey.from` 仍用 canonical block pos；两半各 ping 是不同 TargetKey/marker。若产品要求“一个物体只保留一个 marker”，属于独立 identity 归一化决策，A1 不做。
+- **Client validation**：`MinecraftClientTargetValidator` 仍校验 canonical pos 的 registry id/chunk；partner 损坏不拒绝 marker，presentation 回 direct。
+- **Server anchor/range**：`MinecraftAuthoritativeTargetValidator.validateBlock` 仍用 `pos+0.5` 和同一 range 检查；A1 不改协议、snapshot 或服务端范围。
+
+### 9.9 风险
+
+- 无运行时验证；双箱两半 BER 是否都 dispatch、门/床/箱每半模型是否独立，需要游戏内确认。
+- `BlockModelGlowPass` 逐 subject 提交可能造成某些模型整物提交时的重复 glow；A1 保留现有 source 顺序，不新增“至多一个 draw”的假设；需要 subject/source 计数与实测。若要按 `geometry_sources.md` 修不短路语义，单列 A1-contract 并加 coverage/去重。
+- HUD 显示中心与 server anchor/range 可能轻微不一致；A1a 需要产品确认。
+- A1 不恢复 coverage/Create 门；不要把它说成完整 D0003 实现。
+- 性能：每帧对 block winner 做 neighbor 读取；按 marker id/state 做帧内缓存。
+
