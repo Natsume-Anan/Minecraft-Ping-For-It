@@ -1,12 +1,13 @@
 package nx.pingwheel.common.client.outline;
 
+import java.util.Optional;
+
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
@@ -17,7 +18,6 @@ import nx.pingwheel.common.CommonClient;
 import nx.pingwheel.common.client.marker.ClientMarker;
 import nx.pingwheel.common.config.ClientConfig;
 import nx.pingwheel.common.domain.PingTypeCatalog;
-import nx.pingwheel.common.domain.Target;
 import nx.pingwheel.common.platform.IPlatformClientEventService.WorldSubmitContext;
 
 import static nx.pingwheel.common.Global.LOGGER;
@@ -53,11 +53,16 @@ import static nx.pingwheel.common.Global.LOGGER;
  *
  * <p><strong>Selection.</strong>
  * Only visible marker winners in the current dimension whose target type participates
- * in block-model rendering ({@code block}, {@code entity_block}) are outlined. A marker
- * whose block no longer matches the captured registry id, whose position is not
- * loaded, or whose shape is empty is skipped — there is no full-cube fallback.
- * {@code entity_block} markers whose block entity already drew its own model glow this
- * frame (M7c C2) are skipped as well, so one block is never outlined twice.
+ * in block-model rendering ({@code block}, {@code entity_block}) are considered. Each
+ * winner is resolved into a client presentation
+ * ({@code BlockPresentationResolverRegistry}); the pass then draws every render subject
+ * of that presentation, so a door or bed is outlined as one object instead of the
+ * captured half alone. A subject whose position is not loaded, whose live block
+ * type no longer matches the frozen registry id, or whose shape is empty is skipped — there
+ * is no full-cube fallback. {@code entity_block} subjects whose block entity already drew
+ * its own model glow this frame (M7c C2) are skipped as well, so the wireframe does not
+ * duplicate that subject. BER and baked-model overlap remains a source-order limitation
+ * outside this presentation change.
  */
 public final class BlockOutlinePass {
 
@@ -149,23 +154,21 @@ public final class BlockOutlinePass {
 					continue;
 				}
 
-				if (!(marker.target() instanceof Target.BlockTarget block) || !block.dimensionId().equals(dimension)) {
+				Optional<BlockOutlineSpec> spec = BlockPresentationLookup.specFor(marker);
+
+				if (spec.isEmpty()) {
 					continue;
 				}
 
-				BlockPos pos = new BlockPos(block.x(), block.y(), block.z());
+				BlockPresentation presentation;
 
-				if (!game.level.isLoaded(pos)) {
+				try {
+					presentation = BlockPresentationResolverRegistry.INSTANCE.resolve(game.level, spec.get());
+				} catch (RuntimeException | LinkageError | AssertionError failure) {
 					continue;
 				}
 
-				BlockState state = game.level.getBlockState(pos);
-
-				if (state.isAir()) {
-					continue;
-				}
-
-				if (!BuiltInRegistries.BLOCK.getKey(state.getBlock()).toString().equals(block.blockRegistryId())) {
+				if (presentation.isEmpty()) {
 					continue;
 				}
 
@@ -173,54 +176,72 @@ public final class BlockOutlinePass {
 					.map(pingType -> 0xFF000000 | pingType.outlineColor())
 					.orElse(FALLBACK_COLOR);
 
-				// M7c C1: ordinary blocks prefer the native model glow, and the attempt runs
-				// before the VoxelShape is computed — upstream's model pass does not depend on
-				// the shape, so a MODEL block with an empty shape still glows. Accepting the
-				// marker suppresses the wireframe for it, so a block is never drawn twice.
-				if (BlockModelGlowPass.trySubmit(
-					game.level, poseStack, collector, marker, state, pos, cameraPosition, color)) {
-					submitted++;
-					continue;
-				}
+				// A presentation resolves one captured marker into one or more render subjects
+				// (door halves, bed parts). Each subject is outlined on its own; the marker still
+				// owns the colour, and the counters below are per subject, so a composite outline
+				// can never look like a single captured half.
+				for (BlockRenderSubject subject : presentation.renderSubjects()) {
+					if (!BlockPresentationSubjectValidation.isLoadedAndCurrent(game.level, subject)) {
+						continue;
+					}
 
-				// M7c C2: entity_block glows through its real block-entity model, so the
-				// wireframe must not be drawn on top of it.  The gate is this frame's own
-				// evidence — the model submit actually consumed the colour for this position —
-				// so "wireframe suppressed" and "glow drawn" cannot drift apart: a missing
-				// renderer, a text-only block entity or an inactive submitModel hook all leave
-				// the wireframe in place (upstream fallback).  The policy call mirrors the glow
-				// side, so a policy-rejected block keeps its wireframe.  Not counted in
-				// wireframeSubmitted: that feeds diagnoseRouting and means "drew an outline".
-				// Depends on Fabric's COLLECT_SUBMITS firing at the RETURN of LevelRenderer#submitFeatures,
-				// after submitBlockEntities (verified by bytecode): the glowing set is complete by then.
-				// Were that order ever reversed, the failure direction is a double draw, not a missing marker.
-				if (TARGET_TYPE_ENTITY_BLOCK.equals(marker.targetTypeId())
-					&& EntityBlockGlowState.isGlowing(pos)
-					&& !EntityBlockGlowState.isDisabled()
-					&& ClientConfig.HANDLER.getConfig().getBlockDisplayPolicy()
-						.shouldUseNativeGlow(TARGET_TYPE_ENTITY_BLOCK, state)) {
-					submitted++;
-					continue;
-				}
+					BlockPos pos = subject.blockPos();
+					BlockState state = game.level.getBlockState(pos);
 
-				VoxelShape shape = state.getShape(game.level, pos, collisionContext);
+					if (state.isAir()) {
+						continue;
+					}
 
-				if (shape.isEmpty()) {
-					continue;
-				}
+					// M7c C1: ordinary blocks prefer the native model glow, and the attempt runs
+					// before the VoxelShape is computed — upstream's model pass does not depend on
+					// the shape, so a MODEL block with an empty shape still glows. Accepting the
+					// subject suppresses the wireframe for it, so a block is never drawn twice.
+					if (BlockModelGlowPass.trySubmit(
+						game.level, poseStack, collector, subject.renderTargetTypeId(),
+						state, pos, cameraPosition, color)) {
+						submitted++;
+						continue;
+					}
 
-				poseStack.pushPose();
+					// M7c C2: entity_block glows through its real block-entity model, so the
+					// wireframe must not be drawn on top of it.  The gate is this frame's own
+					// evidence — the model submit actually consumed the colour for this position —
+					// so "wireframe suppressed" and "glow drawn" cannot drift apart: a missing
+					// renderer, a text-only block entity or an inactive submitModel hook all leave
+					// the wireframe in place (upstream fallback).  The policy call mirrors the glow
+					// side, so a policy-rejected block keeps its wireframe.  Not counted in
+					// wireframeSubmitted: that feeds diagnoseRouting and means "drew an outline".
+					// Depends on Fabric's COLLECT_SUBMITS firing at the RETURN of LevelRenderer#submitFeatures,
+					// after submitBlockEntities (verified by bytecode): the glowing set is complete by then.
+					// Were that order ever reversed, the failure direction is a double draw, not a missing marker.
+					if (TARGET_TYPE_ENTITY_BLOCK.equals(subject.renderTargetTypeId())
+						&& EntityBlockGlowState.isGlowing(pos)
+						&& !EntityBlockGlowState.isDisabled()
+						&& ClientConfig.HANDLER.getConfig().getBlockDisplayPolicy()
+							.shouldUseNativeGlow(TARGET_TYPE_ENTITY_BLOCK, state)) {
+						submitted++;
+						continue;
+					}
 
-				try {
-					poseStack.translate(
-						pos.getX() - cameraPosition.x,
-						pos.getY() - cameraPosition.y,
-						pos.getZ() - cameraPosition.z);
-					collector.submitShapeOutline(poseStack, shape, renderType, color, LINE_WIDTH, true);
-					submitted++;
-					wireframeSubmitted++;
-				} finally {
-					poseStack.popPose();
+					VoxelShape shape = state.getShape(game.level, pos, collisionContext);
+
+					if (shape.isEmpty()) {
+						continue;
+					}
+
+					poseStack.pushPose();
+
+					try {
+						poseStack.translate(
+							pos.getX() - cameraPosition.x,
+							pos.getY() - cameraPosition.y,
+							pos.getZ() - cameraPosition.z);
+						collector.submitShapeOutline(poseStack, shape, renderType, color, LINE_WIDTH, true);
+						submitted++;
+						wireframeSubmitted++;
+					} finally {
+						poseStack.popPose();
+					}
 				}
 			}
 

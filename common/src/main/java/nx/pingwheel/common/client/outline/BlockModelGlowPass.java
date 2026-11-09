@@ -20,7 +20,6 @@ import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 
-import nx.pingwheel.common.client.marker.ClientMarker;
 import nx.pingwheel.common.config.ClientConfig;
 import nx.pingwheel.common.config.EntityBlockRenderMode;
 
@@ -35,10 +34,10 @@ import static nx.pingwheel.common.Global.LOGGER;
  *       model this frame (a furnace has no renderer in 26.3, a campfire's renderer submits
  *       only items) — the baked model is the upstream fallback there.</li>
  * </ol>
- * All permitted sources run in order without short-circuiting (geometry_sources.md): a
- * dynamic BER and a static baked model may both contribute, so one successful source does
- * not stop the other on the same subject. The combined result suppresses the VoxelShape
- * fallback only when at least one source actually reported {@code RENDERED}.
+ * This pass is one source attempt. Whether every permitted source runs without
+ * short-circuiting, and how a combined result suppresses the VoxelShape fallback, are
+ * owned by the caller and the source contract; this javadoc does not assert that the
+ * current caller already implements that order.
  *
  * <p>The first version of this pass used {@code submitMovingBlock(pose, state, color)},
  * which was wrong: that helper submits the ordinary model first (with
@@ -59,8 +58,8 @@ import static nx.pingwheel.common.Global.LOGGER;
  * </ul>
  *
  * <p><strong>Suppression is decided beforehand.</strong> {@code submitBlockModel} is
- * {@code void}, so success cannot be observed afterwards. Accepting a marker here means
- * {@link BlockOutlinePass} must skip its VoxelShape submission for that same marker.
+ * {@code void}, so success cannot be observed afterwards. Accepting a subject here means
+ * {@link BlockOutlinePass} must skip its VoxelShape submission for that same subject.
  * Anything declined (another target type, a non-{@code MODEL} render shape, the
  * {@code VOXEL_SHAPE_ONLY} entity-block mode, blacklist hit, whitelist miss, empty parts,
  * missing outline type) keeps the M7a wireframe.
@@ -86,27 +85,29 @@ public final class BlockModelGlowPass {
 	private BlockModelGlowPass() {}
 
 	/**
-	 * Attempts the model-glow route for one already-filtered winner block.
+	 * Attempts the model-glow route for one already-filtered presentation subject.
 	 *
-	 * @return {@code true} when the marker was submitted as a model glow and the caller
+	 * <p>The caller passes the subject's render target type id ({@code block} /
+	 * {@code entity_block}), so a composite presentation keeps the marker's target
+	 * type per subject.
+	 *
+	 * @return {@code true} when the subject was submitted as a model glow and the caller
 	 *         must skip its wireframe; {@code false} when the caller keeps the wireframe.
 	 */
 	public static boolean trySubmit(
 		ClientLevel level,
 		PoseStack poseStack,
 		SubmitNodeCollector collector,
-		ClientMarker marker,
+		String targetTypeId,
 		BlockState state,
 		BlockPos pos,
 		Vec3 cameraPosition,
 		int argbColor
 	) {
-		if (glowDisabled || poseStack == null || collector == null || marker == null
+		if (glowDisabled || poseStack == null || collector == null || targetTypeId == null
 			|| state == null || pos == null || cameraPosition == null) {
 			return false;
 		}
-
-		final String targetTypeId = marker.targetTypeId();
 
 		if (!TARGET_TYPE_BLOCK.equals(targetTypeId) && !TARGET_TYPE_ENTITY_BLOCK.equals(targetTypeId)) {
 			return false;

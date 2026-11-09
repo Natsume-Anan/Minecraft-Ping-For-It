@@ -9,6 +9,7 @@ import java.util.Objects;
 import java.util.Set;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.entity.BlockEntity;
 
@@ -288,6 +289,8 @@ public final class EntityBlockGlowState {
 		Map<BlockPos, ClientMarker> winners = new HashMap<>();
 
 		if (store != null && dimensionId != null) {
+			ClientLevel level = currentLevel(dimensionId);
+
 			for (ClientMarker marker : store.visibleWinnersInDimension(dimensionId).values()) {
 				if (marker == null || !TARGET_TYPE_ENTITY_BLOCK.equals(marker.targetTypeId())) {
 					continue;
@@ -301,7 +304,19 @@ public final class EntityBlockGlowState {
 					continue;
 				}
 
-				winners.put(new BlockPos(block.x(), block.y(), block.z()), marker);
+				BlockPos canonicalPos = new BlockPos(block.x(), block.y(), block.z());
+				winners.put(canonicalPos, marker);
+
+				// A composite entity_block presentation (door, bed) renders one
+				// model per subject, and each of those dispatches looks up its own position.
+				// Mapping every subject position to the same marker is what lets the partner
+				// half glow; the canonical position is always present, and the subject
+				// positions are added when the resolver can expand the pair.
+				BlockPresentationLookup.presentation(level, marker).ifPresent(presentation -> {
+					for (BlockRenderSubject subject : presentation.renderSubjects()) {
+						winners.put(subject.blockPos(), marker);
+					}
+				});
 			}
 		}
 
@@ -310,6 +325,21 @@ public final class EntityBlockGlowState {
 		cachedEntityBlockWinners = Map.copyOf(winners);
 
 		return cachedEntityBlockWinners;
+	}
+
+	/** The live client level, but only while it is still the requested dimension. */
+	private static ClientLevel currentLevel(String dimensionId) {
+		Minecraft game = Minecraft.getInstance();
+
+		if (game == null || game.level == null) {
+			return null;
+		}
+
+		if (!dimensionId.equals(game.level.dimension().identifier().toString())) {
+			return null;
+		}
+
+		return game.level;
 	}
 
 	/** Called by the dispatch hook on every successful HEAD injection. */
