@@ -1,6 +1,6 @@
 # Ping For It — 26.3 Fabric 迁移方案
 
-> 状态：F0–F3 已实现并提交；F5 的 no-remap 身份校验已调整；F4 运行验证待用户环境
+> 状态：F0–F3 已实现并提交；F5 的 no-remap 身份校验已调整；多格方块 door/bed 按 26.3 前原设计恢复；chest/HUD 中心与其他未解决问题见 [改进方案.md](改进方案.md)；F4 运行验证待用户环境
 > 分支：`26.3-Fabric`
 > 代码起点：`6373ee9`（2026-11-09）；方案文档提交：`f010d3d`；F0 提交 `eb8b17a`；Fabric 模块提交 `aba76a7`；身份校验提交 `ef8796c`
 > 参考工程：`C:\Users\65653\Desktop\参考文件`（同 fork 的 26.3 Fabric 单端移植，仅作 26.3 API/构建用法参考）
@@ -303,11 +303,12 @@ F2/F3 已把旧入口替换为 26.3 版本；当前目标实现如下：
 | 2026-11-09 | F5（部分） | `ef8796c` | `verifyModIdentity` 不再强制 Fabric refmap；jar 打包/可选集成/运行仍未验证 |
 | 2026-11-09 | 手工编译 | — | `javac 25.0.4.1`：common patch、Fabric main、Fabric client 均 exit 0（26.3 工件 classpath）；Gradle wrapper `--version` exit 1（`.gradle` 锁拒绝访问） |
 | 2026-11-09 | 多格方块分析 | — | 根因：5fb5d76 删除 presentation 层；方案 A1（客户端 subject 展开）见 §9；待用户批准后执行 |
+| 2026-11-09 | 多格方块原设计恢复 | — | 按 26.3 前原设计恢复 door/bed presentation subjects；outline/BER 整物消费；HUD anchor、chest/HUD center、双 marker 等问题移交 `改进方案.md` |
 
 
-## 9. 已知问题：门/床/大箱子只标记单格（待批准修复）
+## 9. 已知问题：门/床/大箱子只标记单格（door/bed 已按原设计恢复）
 
-> 状态：已完成根因分析，尚未修改源码；等待用户批准后执行。
+> 状态：door/bed 已按 26.3 前原设计恢复 presentation subjects；chest/HUD 中心、双 marker、source 顺序等问题不在本次范围，见 [改进方案.md](改进方案.md)。
 > 结论：这是 26.3 outline 重写时丢失 presentation subjects 层的回归，不是捕获或协议错误。
 
 ### 9.1 现象
@@ -326,7 +327,7 @@ F2/F3 已把旧入口替换为 26.3 版本；当前目标实现如下：
 | Outline | `BlockOutlinePass` 每个 marker 只取一个 pos/state，`BlockModelGlowPass.trySubmit` 单 state/pos，`getShape` 一次，submit 一次 | `BlockOutlinePass.java:147-219`；`BlockModelGlowPass.java:94-104,180` |
 | BER glow | `EntityBlockGlowState.entityBlockWinners` 只把 canonical pos 放进 map；BER dispatch 只按该 pos 查询 | `EntityBlockGlowState.java:288-312`；`BlockEntityRenderDispatcherMixin.java:183` |
 
-历史证据：`5fb5d76`（`refactor: port common 26.3 outline and mixin set`）删除了 `BlockPresentation*`、`BlockRenderSubject`、`BlockOutlineSpec`、`VanillaDoorBlockPresentationResolver`、`VanillaBedBlockPresentationResolver` 等；当前 outline/glow 是重写后的单 state/pos 版本。旧 presentation 层也只注册了 door/bed，**从未支持大箱子**，所以修复必须新增 chest resolver，而不是简单回滚。
+历史证据：`5fb5d76`（`refactor: port common 26.3 outline and mixin set`）删除了 `BlockPresentation*`、`BlockRenderSubject`、`BlockOutlineSpec`、`VanillaDoorBlockPresentationResolver`、`VanillaBedBlockPresentationResolver` 等；当前 outline/glow 是重写后的单 state/pos 版本。旧 presentation 层只注册了 door/bed，**从未支持大箱子**；本次按用户要求只恢复 door/bed 原设计，chest resolver、HUD 整物中心等扩展不在本次范围，已移交 [改进方案.md](改进方案.md)。
 
 ### 9.3 文档契约
 
@@ -336,6 +337,8 @@ F2/F3 已把旧入口替换为 26.3 版本；当前目标实现如下：
 - 大箱子不在现有 beds/doors 条款中；新增 chest presentation 需要 docs owner/决策授权（见 §9.6）。
 
 ### 9.4 推荐方案 A1（客户端 presentation，不改协议/服务端）
+
+> 执行说明：最终只落地 door/bed 的原设计恢复；chest/HUD 中心未纳入，相关问题见 [改进方案.md](改进方案.md)。
 
 原则：canonical `Target.BlockTarget`、`MarkerAnchor`、packet、server range 都不变；只在客户端当前帧解析 presentation subjects。
 
