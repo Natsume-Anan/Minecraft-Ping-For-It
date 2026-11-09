@@ -1,8 +1,8 @@
 # Ping For It — 26.3 Fabric 迁移方案
 
-> 状态：执行中
+> 状态：F0–F3 已实现并提交；F4/F5 待执行
 > 分支：`26.3-Fabric`
-> 起点：`6373ee9`（2026-11-09）
+> 代码起点：`6373ee9`（2026-11-09）；方案文档提交：`f010d3d`；F0 提交 `eb8b17a`；Fabric 模块提交 `aba76a7`
 > 参考工程：`C:\Users\65653\Desktop\参考文件`（同 fork 的 26.3 Fabric 单端移植，仅作 26.3 API/构建用法参考）
 >
 > 本文是**维护者迁移计划**，不是产品行为规范。按 `docs/AGENTS.md` 的目录边界，迁移步骤、类路径、构建脚本和验证命令不放进 `docs/`；产品行为仍以 `docs/` 为准。
@@ -24,16 +24,16 @@
 - 不把 `common` 的客户端类搬到 `fabric`；只把“注册/事件入口”通过 SPI 暴露。
 - 不宣称游戏内行为已验证；构建/静态检查与运行验证分开记录。
 
-## 1. 现状（起点）
+## 1. 现状（F0–F3 完成后）
 
 | 面 | 状态 |
 | --- | --- |
-| `common` | 源码已恢复到 `common/src`，已按 26.3 模板移植 CommonClient/client/HUD/render/outline/mixin/screen；最近一次用户侧 `:common:compileJava` 仅警告（本轮需复跑确认） |
-| `fabric` | 只有 `fabric/build.gradle` 空骨架；没有 `fabric/src`；旧 1.21.1 源码在 `mod-source-isolated/fabric/src` |
+| `common` | F0 seam 清理已落地：父接口去 `registerKeyMapping`、`clearLastWorld`、`PingTextureState` apply 写入、`IClientNetworkService` 拆分；`javac 25` 手工编译通过 |
+| `fabric` | F1–F3 已落地：main/client 源集、Loom split、26.3 入口/网络/SPI、v1 ResourceLoader、services；旧 adapter/ModMenu 留在 `mod-source-isolated/` |
 | `forge`/`neoforge` | 空骨架；源码在 `mod-source-isolated/` |
-| Fabric 构建 | Loom 1.19.3、无 mappings、无 remapJar；缺少 common 依赖、split 源集、`loom.mods`、元数据生成、资源/类合并 |
-| Fabric 源码 | 旧入口使用 `PayloadTypeRegistry.playS2C/playC2S`、`ResourceManagerHelper` v0、旧 outline adapter；不能直接编译 |
-| SPI | `IPlatformClientEventService` 已有 render frame/HUD/world submit 三个新回调；`IPlatformContextService` 仍残留客户端 `registerKeyMapping`，与 `IClientPlatformContextService` 重复 |
+| Fabric 构建 | Loom 1.19.3、无 mappings、无 remapJar；已有 common 依赖、split 源集、`loom.mods`、元数据生成、资源/类合并 |
+| Fabric 源码 | `FabricMain`/`FabricClient`/platform SPI 已按 26.3 替换；active `fabric/src` 无 `playS2C/playC2S`、v0 `ResourceManagerHelper`、旧 adapter |
+| SPI | `IPlatformContextService`/`IClientPlatformContextService`、`IPlatformNetworkService`/`IClientNetworkService` 已拆分；client event 三回调已实现 |
 | 构建验证 | `verifyModIdentity` 仍要求 Fabric refmap，与 26.3 no-remap 冲突；Forge/NeoForge 尚未恢复，暂不能跑聚合校验 |
 
 ## 2. 目标架构
@@ -63,12 +63,7 @@ fabric/   Loom 1.19.3，splitEnvironmentSourceSets
 
 ### 3.1 构建层
 
-当前：
-
-- `fabric/build.gradle` 只有 Loom、Minecraft、Loader/API；无 common 依赖、无 split、无 `loom.mods`、无元数据/资源/类合并。
-- `buildSrc/multiloader-loader.gradle` 仍把 common 源码注入 loader；Fabric 不使用这条旧路线。
-
-目标：
+F1 已落地：`fabric/build.gradle` 不再使用 `multiloader-loader` 的 common 源码注入，改为 `implementation(project(':common')) { transitive = false }` + Loom split。当前目标配置如下：
 
 ```groovy
 plugins {
@@ -123,7 +118,7 @@ jar {
 
 ### 3.2 源集层
 
-当前：`fabric/src` 不存在；旧源码在 `mod-source-isolated/fabric/src`，且没有 client 源集。
+当前：`fabric/src` 已恢复 main/client 源集；旧 1.21.1 入口已在 F2/F3 替换为 26.3 版本。
 
 目标布局：
 
@@ -147,28 +142,31 @@ jar {
 当前 common 接口：
 
 - `IPlatformClientEventService`：tick/join/leave + renderFrame + HUD + worldSubmit。
-- `IPlatformContextService`：仍含 `registerKeyMapping(KeyMapping)` 和客户端 import。
-- `IClientPlatformContextService`：重复声明 `registerKeyMapping`。
+- `IPlatformContextService`：只保留共享成员（版本、目录、`isModLoaded`）。
+- `IClientPlatformContextService`：只保留 `registerKeyMapping(KeyMapping)`。
+- `IPlatformNetworkService`：只保留服务端 `sendToClient`。
+- `IClientNetworkService`：只保留客户端 `sendToServer`，避免 Fabric main 源集引用 `ClientPlayNetworking`。
 
 F0 清理（common）：
 
 1. 从 `IPlatformContextService` 删除 `registerKeyMapping` 和 `KeyMapping` import。
 2. 只在 `IClientPlatformContextService` 保留 `registerKeyMapping`。
 3. 更新 `TestPlatformContextService`，删除对应 `@Override` 与 import。
-4. 补 `GameContext.clearLastWorld()`（Fabric disconnect 清理静态 level 引用）。
-5. 修 `ResourceReloadListener`：reload 后写 `PingTextureState.setHasCustomTexture(...)`，否则 HUD 永远读不到自定义 ping 纹理。
-6. 清理 `BlockOutlinePass.register()` 的旧日志（“loader must register”已过时）。
+4. 补 `GameContext.clearLastWorld()`，并在 common 的 `CommonClient.onLeaveServer()` 调用；三端统一清理，不依赖某个 loader 的 disconnect 事件。
+5. 修 `ResourceReloadListener`：在 apply 阶段写 `PingTextureState.setHasCustomTexture(...)`，否则 HUD 永远读不到自定义 ping 纹理。
+6. 清理 `BlockOutlinePass.register()` 的旧注释/日志（“loader must register”已过时）。
 
 Fabric 实现：
 
 - `PlatformContextServiceImpl`（main）：版本、game/config dir、`isModLoaded`；不含 key mapping。
 - `PlatformClientContextServiceImpl`（client）：委托 main + `KeyMappingHelper.registerKeyMapping`。
+- `ClientNetworkServiceImpl`（client）：`ClientPlayNetworking.canSend/send`，实现 `IClientNetworkService`。
 - `PlatformClientEventServiceImpl`（client）：
   - tick/join/leave 保持；
   - renderFrame → `LevelExtractionEvents.END_EXTRACTION`；
   - HUD → `HudElementRegistry.addLast`，每次注册生成唯一 `Identifier`；
   - worldSubmit → `LevelRenderEvents.COLLECT_SUBMITS`，构造 `WorldSubmitContext(context.poseStack(), context.submitNodeCollector(), Minecraft.getInstance().gameRenderer.mainCamera(), 0.0f)`。
-- services：main 放 context/network/server；client 放 client context/client event。
+- services：main 放 context/network/server；client 放 client context/client event/client network。
 
 验收：
 
@@ -178,12 +176,11 @@ Fabric 实现：
 
 ### 3.4 入口与网络层
 
-当前旧代码：`FabricMain` 用 `playS2C/playC2S`；`FabricClient` 用 v0 reload listener、旧 outline adapter。
-
-目标：
+F2/F3 已把旧入口替换为 26.3 版本；当前目标实现如下：
 
 - `FabricMain`：`CommonServer.INSTANCE.onInit()`；14 个 codec；`PayloadTypeRegistry.clientboundPlay/serverboundPlay`；6 个 server receiver（PingLocation、UpdateChannel、MarkerCreate、MarkerRemove、ServerConfigRequest、ServerConfigUpdate）。
-- `FabricClient`：8 个 client receiver（RateLimit、SyncDuration、PingLocation、ServerConfigSnapshot、MarkerCreated、MarkerRemoved、MarkerRejected、MarkerWinnerChanged）；`CommonClient.INSTANCE.onInit()`；sound 注册；`ResourceLoader` v1；client command；`ClientPlayConnectionEvents.DISCONNECT` 清 `GameContext.lastWorld`。
+- `FabricClient`：8 个 client receiver（RateLimit、SyncDuration、PingLocation、ServerConfigSnapshot、MarkerCreated、MarkerRemoved、MarkerRejected、MarkerWinnerChanged）；`CommonClient.INSTANCE.onInit()`；sound 注册；`ResourceLoader` v1；client command；不单独清 `GameContext.lastWorld`（common `onLeaveServer` 统一做）。
+- `ClientNetworkServiceImpl` 实现 `IClientNetworkService.sendToServer`，main 的 `PlatformNetworkServiceImpl` 只实现 `sendToClient`；Fabric main 不再 import `ClientPlayNetworking`。
 - 不在 `FabricClient` 里直接注册 HUD 或 `BlockOutlinePass`；common 的 `CommonClient.onInit()` 已通过 SPI 注册。
 
 验收：
@@ -196,7 +193,7 @@ Fabric 实现：
 
 - common 的 `CommonClient.onInit()` 顺序：tick/join/leave → renderFrame → `BlockOutlinePass.register()` → marker HUD → toggle notice HUD → world submit → key mappings。
 - Fabric 的 HUD 回调只负责把 `HudElementRegistry` 映射到 SPI；不复制 `MarkerHudRenderer`/`WheelHudRenderer`。
-- `ResourceReloadListener` 注册到 v1；reload 后更新 `PingTextureState`。
+- `ResourceReloadListener` 注册到 v1；在 apply 阶段更新 `PingTextureState`（不在 load 线程提前写）。
 - mixin 使用 common 的 `pingforit.mixins.json`（8 个 client mixin、`JAVA_25`、无 refmap）；Fabric 不再维护独立配置。
 - `fabric.mod.json` 的 `mixins` 用对象形式 + `environment: "client"`。
 
@@ -211,10 +208,10 @@ Fabric 实现：
 
 | 阶段 | 内容 | 主要文件 | 验证 | 提交 |
 | --- | --- | --- | --- | --- |
-| F0 | common SPI/客户端 seam 清理 | `IPlatformContextService`、`IClientPlatformContextService`、`TestPlatformContextService`、`GameContext`、`ResourceReloadListener`、`BlockOutlinePass` | `:common:compileJava` | `fix: clean common client SPI seam for Fabric split` |
-| F1 | Fabric 构建 + 源集骨架 | `fabric/build.gradle`、`fabric/src/main/**`、`fabric/src/client/**`、`fabric.mod.json` 模板 | `:fabric:processResources`、`:fabric:compileJava` | `feat: restore Fabric 26.3 module skeleton` |
-| F2 | Fabric 主端入口/网络/SPI | `FabricMain`、main platform impls、main services | `:fabric:compileJava` | `feat: port Fabric main entrypoints and networking to 26.3` |
-| F3 | Fabric 客户端入口/SPI/HUD/资源 | `FabricClient`、client platform impls、client services | `:fabric:compileJava` | `feat: port Fabric client SPI and HUD wiring to 26.3` |
+| F0 | common SPI/客户端 seam 清理 | `IPlatformContextService`、`IClientPlatformContextService`、`IClientNetworkService`、`TestPlatformContextService`、`GameContext`、`ResourceReloadListener`、`BlockOutlinePass` | `:common:compileJava` | `fix: split common client platform seams for Fabric`（`eb8b17a`） |
+| F1 | Fabric 构建 + 源集骨架 | `fabric/build.gradle`、`fabric/src/main/**`、`fabric/src/client/**`、`fabric.mod.json` 模板 | `:fabric:processResources`（编译留到 F2/F3） | 与 F2/F3 合并提交，避免提交不可编译源码 |
+| F2 | Fabric 主端入口/网络/SPI | `FabricMain`、main platform impls、main services | `:fabric:compileJava` | 与 F3 合并为 `feat: restore Fabric 26.3 module and client SPI`（`aba76a7`） |
+| F3 | Fabric 客户端入口/SPI/HUD/资源 | `FabricClient`、client platform impls、client services | `:fabric:compileJava`、`:fabric:compileClientJava` | 同上 |
 | F4 | 运行与修复 | 运行目录、日志 | `:fabric:runClient` | `fix: ...`（按实际） |
 | F5 | 元数据/打包/身份校验/可选集成 | `build.gradle`、`fabric.mod.json`、可选依赖 | `:fabric:build`、jar 检查 | `chore: align Fabric packaging and identity checks` |
 
@@ -226,6 +223,7 @@ Fabric 实现：
 
 - `:common:compileJava` 通过（允许警告，不允许 error）。
 - `:fabric:compileJava` 通过。
+- `:fabric:compileClientJava` 通过（split 源集下 `compileJava` 只编 main，client 错误不会被发现）。
 - `:fabric:processResources` 产物包含 `fabric.mod.json`、`assets/pingforit/`、`pingforit.mixins.json`。
 - `:fabric:build` 产出精确命名的 jar；jar 内无重复 common 类/资源。
 
@@ -233,7 +231,8 @@ Fabric 实现：
 
 - `common` 无 `net.fabricmc` import。
 - Fabric 无 `PayloadTypeRegistry.playS2C/playC2S`、`ResourceManagerHelper` v0、`IdentifiableResourceReloadListener`、旧 outline adapter 引用。
-- `IPlatformClientEventService` 的三个新方法在 Fabric client 实现；services 文件按 main/client 拆分。
+- `IPlatformClientEventService` 的三个新方法在 Fabric client 实现；`IClientNetworkService` 在 Fabric client 实现；services 文件按 main/client 拆分。
+- Fabric main 源集无 `ClientPlayNetworking`/`KeyMappingHelper`/`HudElementRegistry` 等 client-only import。
 - `fabric.mod.json` 的 mixins 为对象形式 + client environment；无 refmap 断言。
 - 资源/协议命名空间仍为 `pingforit`；Java 包仍为 `nx.pingwheel`。
 
@@ -243,19 +242,34 @@ Fabric 实现：
 - 游戏内至少验证：ping 按键、轮盘、marker HUD、方块 outline、设置界面、断开重连。
 - 未执行/未观察的项目明确写“未验证”，不得用编译通过替代。
 
+### 5.4 本轮已执行/未执行的验证
+
+已执行：
+
+- 用 `javac 25.0.4.1` + 26.3 Minecraft merged jar + Fabric Loader 0.20.1 + Fabric API 0.165.0+26.3 模块 jar，手工编译：
+  - 变更的 common 类（SPI/network/CommonClient/GameContext/ResourceReloadListener）：exit 0；
+  - `fabric/src/main/java`：exit 0；
+  - `fabric/src/client/java`（以 main 输出为 classpath）：exit 0。
+- 这只是 javac 类型检查，不是 Gradle/Loom 构建，也不是运行时验证。
+
+未执行（环境阻塞）：
+
+- `:common:compileJava`、`:fabric:compileJava`、`:fabric:compileClientJava`、`:fabric:processResources`、`:fabric:runClient`。
+- `gradlew.bat --no-daemon --version` 因 `C:\Users\65653\.gradle\wrapper\dists\...\gradle-9.8.2-bin.zip.lck` 拒绝访问而 exit 1；需要在可写/联网环境由用户执行。
+
 ## 6. 风险与未确认项
 
 1. **common 依赖泄漏**：`common` 用 ModDev/NeoForm，Fabric 用 Loom；`implementation(project(':common'))` 可能带入 NeoForm 依赖。用 `transitive = false` 规避，仍需编译验证。
 2. **split 源集与 common 客户端类**：common 的客户端类在 common main jar 中；Fabric main 源集只要不引用它们即可。若 main 端误引用 `CommonClient`，会在服务端启动时触发客户端类加载。
-3. **`PlatformNetworkServiceImpl` 在主源集引用 `ClientPlayNetworking`**：参考工程如此且可构建；若 Loom split 编译/运行报错，需把 `sendToServer` 拆到 client 侧或延迟加载。
+3. **客户端发包 SPI 已拆分**：`IClientNetworkService` 负责 `sendToServer`，Fabric main 的 `PlatformNetworkServiceImpl` 只保留 `sendToClient`；仍需 Gradle split 编译/专用服务器启动验证。
 4. **`LevelRenderEvents.COLLECT_SUBMITS` 的 camera/partialTick**：`BlockOutlinePass` 只用 pose/collector/camera；camera 从 `Minecraft.gameRenderer.mainCamera()` 取。若 26.3 方法名/生命周期不同，需按实际 API 调整。
 5. **`HudElementRegistry` 唯一 ID/顺序**：SPI 每次注册生成唯一 ID；marker 层必须先于 toggle notice。顺序错误会导致通知被 marker 覆盖。
 6. **`ResourceLoader` v1**：必须用 `net.fabricmc.fabric.api.resource.v1.ResourceLoader`；v0 会卡加载条。common 的 `ResourceReloadListener` 是 vanilla `PreparableReloadListener`，v1 可直接注册。
-7. **`PingTextureState` 断裂**：common 的 reload listener 当前只写自己的静态计数，HUD 读 `PingTextureState`；F0 必须修复，否则自定义纹理永远不生效。
-8. **`GameContext.lastWorld` 泄漏**：common 当前无 `clearLastWorld()`；F0 补上，Fabric disconnect 调用。
+7. **`PingTextureState` 已接通**：`ResourceReloadListener` 在 apply 阶段写 `PingTextureState`，HUD 读同一状态；仍需资源包重载实测。
+8. **`GameContext.lastWorld` 已清理**：`clearLastWorld()` 由 common `onLeaveServer()` 统一调用；三端不再各自注册 disconnect。
 9. **`verifyModIdentity` refmap**：26.3 no-remap 无 refmap；F5 前不要跑聚合任务，F5 调整断言。
 10. **可选集成 26.3 坐标未确认**：ModMenu/DH/VoiceChat/FTB/Sable 仍是旧坐标或缺失；F5 再处理，核心迁移不依赖它们。
-11. **Gradle 沙箱**：本机 `%USERPROFILE%\.gradle` 可能不可写；构建由用户联网执行时，本文档只记录“待用户验证”，不伪造通过。
+11. **Gradle 沙箱**：本机 `%USERPROFILE%\.gradle` 的 wrapper 锁文件拒绝访问；本轮已用 `javac 25.0.4.1` + 26.3 工件做手工编译验证，但 `:common:compileJava`、`:fabric:compileJava`、`:fabric:compileClientJava`、`:fabric:runClient` 仍需用户在可写/联网环境执行。
 
 ## 7. 参考文件映射
 
@@ -280,4 +294,10 @@ Fabric 实现：
 
 | 日期 | 阶段 | 提交 | 结果/证据 |
 | --- | --- | --- | --- |
-| 2026-11-09 | 方案建立 | （待提交） | 本文档创建；F0 未开始 |
+| 2026-11-09 | 方案建立 | `f010d3d` | 本文档创建；代码起点 `6373ee9` |
+| 2026-11-09 | F0 | `eb8b17a` | common seam 清理 + `IClientNetworkService` 拆分；R1/R3 通过 |
+| 2026-11-09 | F1/F2/F3 | `aba76a7` | Fabric 构建/源集、26.3 入口/网络、client SPI/HUD/world-submit、v1 ResourceLoader、services |
+| 2026-11-09 | 审查 R1 | — | 2 blocker / 2 major / 2 minor；已修复 |
+| 2026-11-09 | 审查 R2 | — | 1 major（F2-01 网络 SPI）/ 3 minor；F2-01 已修复 |
+| 2026-11-09 | 审查 R3 | — | PASS；仅 1 个文档边界 minor |
+| 2026-11-09 | 手工编译 | — | `javac 25.0.4.1`：common patch、Fabric main、Fabric client 均 exit 0（26.3 工件 classpath）；Gradle wrapper `--version` exit 1（`.gradle` 锁拒绝访问） |
