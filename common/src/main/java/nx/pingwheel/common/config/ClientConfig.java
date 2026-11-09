@@ -4,7 +4,7 @@ import nx.pingwheel.common.client.outline.BlockDisplayPolicy;
 import nx.pingwheel.common.client.outline.BlockDisplayWhitelist;
 import nx.pingwheel.common.core.GameContext;
 import nx.pingwheel.common.network.UpdateChannelC2SPacket;
-import nx.pingwheel.common.platform.IPlatformNetworkService;
+import nx.pingwheel.common.platform.IClientNetworkService;
 
 import java.util.HashMap;
 import java.util.List;
@@ -317,7 +317,7 @@ public class ClientConfig implements IConfig {
 					configurationNoticeSize));
 
 		if (Game != null) {
-			IPlatformNetworkService.INSTANCE.sendToServer(new UpdateChannelC2SPacket(getChannel()));
+			IClientNetworkService.INSTANCE.sendToServer(new UpdateChannelC2SPacket(getChannel()));
 		}
 	}
 

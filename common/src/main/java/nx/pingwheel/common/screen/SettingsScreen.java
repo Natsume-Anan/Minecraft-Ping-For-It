@@ -41,7 +41,7 @@ import nx.pingwheel.common.integration.TeamContext;
 import nx.pingwheel.common.client.ClientTeamContextHelper;
 import nx.pingwheel.common.network.ServerConfigRequestC2SPacket;
 import nx.pingwheel.common.network.ServerConfigUpdateC2SPacket;
-import nx.pingwheel.common.platform.IPlatformNetworkService;
+import nx.pingwheel.common.platform.IClientNetworkService;
 import nx.pingwheel.common.resource.LanguageUtils;
 import net.minecraft.resources.Identifier;
 import nx.pingwheel.common.screen.SettingsCategoryCatalog.Setting;
@@ -867,7 +867,7 @@ public class SettingsScreen extends OptionsSubScreen {
 		final long requestId = this.serverSettings.beginSessionIfNeeded();
 		if (requestId != NO_REQUEST) {
 			this.serverValidationMessage = null;
-			IPlatformNetworkService.INSTANCE.sendToServer(new ServerConfigRequestC2SPacket(requestId));
+			IClientNetworkService.INSTANCE.sendToServer(new ServerConfigRequestC2SPacket(requestId));
 		}
 	}
 
@@ -963,7 +963,7 @@ public class SettingsScreen extends OptionsSubScreen {
 
 		final var values = update.orElseThrow();
 		this.serverSettings.markClean();
-		IPlatformNetworkService.INSTANCE.sendToServer(new ServerConfigUpdateC2SPacket(
+		IClientNetworkService.INSTANCE.sendToServer(new ServerConfigUpdateC2SPacket(
 			values.changedFields(),
 			values.defaultChannelMode(),
 			values.playerTrackingEnabled(),

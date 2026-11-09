@@ -40,9 +40,9 @@ import nx.pingwheel.common.network.ServerConfigSnapshotS2CPacket;
 import nx.pingwheel.common.network.SyncDurationPolicyS2CPacket;
 import nx.pingwheel.common.network.UpdateChannelC2SPacket;
 import nx.pingwheel.common.platform.IPlatformClientEventService;
+import nx.pingwheel.common.platform.IClientNetworkService;
 import nx.pingwheel.common.platform.IClientPlatformContextService;
 import nx.pingwheel.common.platform.IPlatformContextService;
-import nx.pingwheel.common.platform.IPlatformNetworkService;
 import nx.pingwheel.common.interaction.state.InteractionTimeSource;
 import nx.pingwheel.common.interaction.state.PingInteractionPhase;
 import nx.pingwheel.common.render.SelectionToggleNoticeRenderer;
@@ -110,7 +110,7 @@ public class CommonClient {
 		WheelHudRenderer.resetFailureFlag();
 		pingRuntime = createPingRuntimeIfInWorld();
 
-		IPlatformNetworkService.INSTANCE.sendToServer(new UpdateChannelC2SPacket(ClientConfig.HANDLER.getConfig().getChannel()));
+		IClientNetworkService.INSTANCE.sendToServer(new UpdateChannelC2SPacket(ClientConfig.HANDLER.getConfig().getChannel()));
 	}
 
 	public void onLeaveServer() {
@@ -125,6 +125,7 @@ public class CommonClient {
 		WheelHudRenderer.resetFailureFlag();
 		MarkerOverlayState.INSTANCE.clear();
 		GameContext.clearRenderEntityLookupCache();
+		GameContext.clearLastWorld();
 		SelectionToggleNoticeState.INSTANCE.clear();
 
 		// A disconnect while the ping key is still held must not leak the
@@ -645,7 +646,7 @@ public class CommonClient {
 	private static ClientPingRuntime createPingRuntime() {
 		return ClientPingRuntime.create(
 			new MinecraftLocalErrorSink(),
-			IPlatformNetworkService.INSTANCE::sendToServer,
+			IClientNetworkService.INSTANCE::sendToServer,
 			storedRateLimitPolicy,
 			INTERACTION_TIME_SOURCE);
 	}

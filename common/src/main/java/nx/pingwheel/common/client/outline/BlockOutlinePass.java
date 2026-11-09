@@ -84,7 +84,7 @@ public final class BlockOutlinePass {
 
 	private BlockOutlinePass() {}
 
-	/** Creates the outline pipeline once; loader adapters register {@link #onWorldSubmit(WorldSubmitContext)}. */
+	/** Creates the outline pipeline once; the common client registers {@link #onWorldSubmit(WorldSubmitContext)} via SPI. */
 	public static void register() {
 		if (registered) {
 			return;
@@ -100,7 +100,7 @@ public final class BlockOutlinePass {
 		}
 
 		renderType = custom;
-		LOGGER.info("block outline pass pipeline ready; loader must register the world-submit callback");
+		LOGGER.info("block outline pass pipeline ready; common client registers the world-submit callback");
 	}
 
 	/** Common world-submit entry point; the loader adapter forwards its native event here. */
