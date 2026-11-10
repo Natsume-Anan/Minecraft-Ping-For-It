@@ -59,17 +59,17 @@ test {
     useJUnitPlatform()
 }
 
-// P1-1/P1-2A/P1-2B/P1-2C/P1-3A/P1-3B focused whitelist: A1 presentation tests,
-// three policy/string tests, ExternalBlockOutlineTransformTest, Create/Simulated
-// structural tests, NeoForge WorldAware structural test, and pure-JDK core tests.
+// P1-1..P1-3C focused whitelist: A1 presentation tests, policy/string tests,
+// outline structural tests, NeoForge WorldAware structural test, and pure-JDK core tests.
 // P1-2A only adds ExternalBlockOutlineTransformTest (2 tests); EntityOutlineStateTest
 // (old instance/logger/snapshot API) and EntitySelectionBlacklistTest (the
 // outline test, not EntitySelectionBlacklistDefaultRuleTest) are deferred to P2-2A.
 // P1-2B/P1-2C structural tests read mod-source-isolated/neoforge sources only;
 // they do not compile isolated sources or prove runtime behavior.
 // P1-3A adds MarkerIdTest (5), MarkerAnchorTest (4), ResolvedTargetTest (3).
-// P1-3B adds TargetKeyTest (16), TargetIdentityTest (18), WeakIdentityCacheTest (2);
-// MarkerSnapshot/Winner/SafeExceptionReport/ThrowableCauses stay P1-3C.
+// P1-3B adds TargetKeyTest (16), TargetIdentityTest (18), WeakIdentityCacheTest (2).
+// P1-3C first batch adds SafeExceptionReportTest (7), ThrowableCausesTest (5);
+// MarkerSnapshot/MarkerWinner stay P1-3D.
 // TestPlatformContextService stays as the ServiceLoader provider helper.
 sourceSets.test.java {
     include 'nx/pingwheel/common/client/outline/BlockPresentationResolverTest.java'
@@ -87,10 +87,12 @@ sourceSets.test.java {
     include 'nx/pingwheel/common/marker/TargetKeyTest.java'
     include 'nx/pingwheel/common/domain/TargetIdentityTest.java'
     include 'nx/pingwheel/common/util/WeakIdentityCacheTest.java'
+    include 'nx/pingwheel/common/util/SafeExceptionReportTest.java'
+    include 'nx/pingwheel/common/util/ThrowableCausesTest.java'
     include 'nx/pingwheel/common/config/TestPlatformContextService.java'
 }
 
-// P1-1/P1-2A/P1-2B/P1-2C/P1-3A/P1-3B focused tests are enabled; full-suite restoration is P2.
+// P1-1..P1-3C focused tests are enabled; full-suite restoration is P2.
 tasks.named('test') {
     enabled = true
 }
