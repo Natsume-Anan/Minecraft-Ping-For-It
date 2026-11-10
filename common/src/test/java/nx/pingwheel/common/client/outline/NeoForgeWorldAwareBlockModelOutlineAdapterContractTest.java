@@ -66,7 +66,9 @@ class NeoForgeWorldAwareBlockModelOutlineAdapterContractTest {
 	private static String readSource(String relativePath) throws IOException {
 		for (Path candidate : List.of(
 			Path.of(relativePath),
-			Path.of("..", relativePath))) {
+			Path.of("..", relativePath),
+			Path.of("..", "mod-source-isolated").resolve(relativePath),
+			Path.of("mod-source-isolated").resolve(relativePath))) {
 			if (Files.isRegularFile(candidate)) {
 				return Files.readString(candidate).replace("\r\n", "\n");
 			}
