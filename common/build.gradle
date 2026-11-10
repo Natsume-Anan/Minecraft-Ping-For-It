@@ -26,6 +26,11 @@ neoForge {
     neoFormVersion = neo_form_version
 }
 
+// MDG attaches the Minecraft compile/runtime classpath to main by default;
+// attach the same NeoForm 26.3 classpath to test so focused tests can compile
+// and run without hand-built Minecraft jars.
+neoForge.addModdingDependenciesTo(sourceSets.test)
+
 dependencies {
     // Common/source compile dependencies (26.3).
     compileOnly 'org.spongepowered:mixin:0.8.7'
@@ -41,9 +46,10 @@ dependencies {
     compileOnly "curse.maven:ftbteams-404468:${ftbteams_version}"
     compileOnly "dev.ryanhcode.sable-companion:sable-companion-common-1.21.1:${sable_version}"
 
-    // P0 test wiring: keep the test task disabled until the old 188 tests are
-    // triaged against the 26.3 API, but keep the target coordinates explicit.
+    // P0 test wiring: only the focused A1 presentation tests are enabled for now;
+    // the full 188-test suite is triaged in P1/P2.
     testImplementation 'org.junit.jupiter:junit-jupiter:5.14.4'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.14.4'
     testCompileOnly 'org.ow2.asm:asm:9.10.1'
     testImplementation 'net.neoforged:mergetool:2.0.3:api'
     testImplementation 'net.neoforged:minecraft-dependencies:26.3'
@@ -53,9 +59,16 @@ test {
     useJUnitPlatform()
 }
 
-// P0: keep tests disabled while the old suite is triaged against 26.3.
+// P0 focused whitelist: only the two A1 presentation tests are compiled/run.
+// The other 186 tests stay untouched; bulk isolation belongs to P1/P2, not P0.
+sourceSets.test.java {
+    include 'nx/pingwheel/common/client/outline/BlockPresentationResolverTest.java'
+    include 'nx/pingwheel/common/client/outline/BlockPresentationSubjectValidationTest.java'
+}
+
+// P0 focused tests are enabled; full-suite restoration is P1/P2.
 tasks.named('test') {
-    enabled = false
+    enabled = true
 }
 
 // common is a library module; do not create competing runClient/runServer tasks.
