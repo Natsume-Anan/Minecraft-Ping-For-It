@@ -59,14 +59,20 @@ test {
     useJUnitPlatform()
 }
 
-// P0 focused whitelist: only the two A1 presentation tests are compiled/run.
-// The other 186 tests stay untouched; bulk isolation belongs to P1/P2, not P0.
+// P1-1 narrowed whitelist: A1 presentation tests plus three policy/string
+// tests (BlockDisplayPolicy, BlockDisplayWhitelist, EntitySelectionBlacklist).
+// Math EntityLocalGeometryRegistry/RaycastCandidateFlow tests and the TestLevel fixture stay P2.
+// TestPlatformContextService stays as the ServiceLoader provider helper.
 sourceSets.test.java {
     include 'nx/pingwheel/common/client/outline/BlockPresentationResolverTest.java'
     include 'nx/pingwheel/common/client/outline/BlockPresentationSubjectValidationTest.java'
+    include 'nx/pingwheel/common/client/outline/BlockDisplayPolicyTest.java'
+    include 'nx/pingwheel/common/client/outline/BlockDisplayWhitelistTest.java'
+    include 'nx/pingwheel/common/math/EntitySelectionBlacklistDefaultRuleTest.java'
+    include 'nx/pingwheel/common/config/TestPlatformContextService.java'
 }
 
-// P0 focused tests are enabled; full-suite restoration is P1/P2.
+// P1-1 focused tests are enabled; full-suite restoration is P2.
 tasks.named('test') {
     enabled = true
 }
