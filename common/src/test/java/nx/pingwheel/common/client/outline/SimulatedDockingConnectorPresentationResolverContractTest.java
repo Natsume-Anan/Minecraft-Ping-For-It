@@ -72,7 +72,9 @@ class SimulatedDockingConnectorPresentationResolverContractTest {
 		List<Path> candidates = List.of(
 			Path.of(relativePath),
 			Path.of("neoforge").resolve(relativePath),
-			Path.of("..").resolve("neoforge").resolve(relativePath));
+			Path.of("..").resolve("neoforge").resolve(relativePath),
+			Path.of("..").resolve("mod-source-isolated").resolve("neoforge").resolve(relativePath),
+			Path.of("mod-source-isolated").resolve("neoforge").resolve(relativePath));
 		for (Path candidate : candidates) {
 			if (Files.exists(candidate)) {
 				return Files.readString(candidate);

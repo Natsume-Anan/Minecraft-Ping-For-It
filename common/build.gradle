@@ -59,11 +59,13 @@ test {
     useJUnitPlatform()
 }
 
-// P1-1/P1-2A focused whitelist: A1 presentation tests, three policy/string
-// tests, and ExternalBlockOutlineTransformTest.
+// P1-1/P1-2A/P1-2B focused whitelist: A1 presentation tests, three policy/string
+// tests, ExternalBlockOutlineTransformTest, and Create/Simulated structural tests.
 // P1-2A only adds ExternalBlockOutlineTransformTest (2 tests); EntityOutlineStateTest
 // (old instance/logger/snapshot API) and EntitySelectionBlacklistTest (the
 // outline test, not EntitySelectionBlacklistDefaultRuleTest) are deferred to P2-2A.
+// P1-2B Create/Simulated tests read mod-source-isolated/neoforge sources only;
+// they do not compile isolated sources or prove runtime behavior.
 // TestPlatformContextService stays as the ServiceLoader provider helper.
 sourceSets.test.java {
     include 'nx/pingwheel/common/client/outline/BlockPresentationResolverTest.java'
@@ -72,10 +74,12 @@ sourceSets.test.java {
     include 'nx/pingwheel/common/client/outline/BlockDisplayWhitelistTest.java'
     include 'nx/pingwheel/common/math/EntitySelectionBlacklistDefaultRuleTest.java'
     include 'nx/pingwheel/common/client/outline/ExternalBlockOutlineTransformTest.java'
+    include 'nx/pingwheel/common/client/outline/CreateLargeWaterWheelPresentationResolverContractTest.java'
+    include 'nx/pingwheel/common/client/outline/SimulatedDockingConnectorPresentationResolverContractTest.java'
     include 'nx/pingwheel/common/config/TestPlatformContextService.java'
 }
 
-// P1-1/P1-2A focused tests are enabled; full-suite restoration is P2.
+// P1-1/P1-2A/P1-2B focused tests are enabled; full-suite restoration is P2.
 tasks.named('test') {
     enabled = true
 }
