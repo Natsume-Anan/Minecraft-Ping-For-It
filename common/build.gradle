@@ -59,9 +59,11 @@ test {
     useJUnitPlatform()
 }
 
-// P1-1 narrowed whitelist: A1 presentation tests plus three policy/string
-// tests (BlockDisplayPolicy, BlockDisplayWhitelist, EntitySelectionBlacklist).
-// Math EntityLocalGeometryRegistry/RaycastCandidateFlow tests and the TestLevel fixture stay P2.
+// P1-1/P1-2A focused whitelist: A1 presentation tests, three policy/string
+// tests, and ExternalBlockOutlineTransformTest.
+// P1-2A only adds ExternalBlockOutlineTransformTest (2 tests); EntityOutlineStateTest
+// (old instance/logger/snapshot API) and EntitySelectionBlacklistTest (the
+// outline test, not EntitySelectionBlacklistDefaultRuleTest) are deferred to P2-2A.
 // TestPlatformContextService stays as the ServiceLoader provider helper.
 sourceSets.test.java {
     include 'nx/pingwheel/common/client/outline/BlockPresentationResolverTest.java'
@@ -69,10 +71,11 @@ sourceSets.test.java {
     include 'nx/pingwheel/common/client/outline/BlockDisplayPolicyTest.java'
     include 'nx/pingwheel/common/client/outline/BlockDisplayWhitelistTest.java'
     include 'nx/pingwheel/common/math/EntitySelectionBlacklistDefaultRuleTest.java'
+    include 'nx/pingwheel/common/client/outline/ExternalBlockOutlineTransformTest.java'
     include 'nx/pingwheel/common/config/TestPlatformContextService.java'
 }
 
-// P1-1 focused tests are enabled; full-suite restoration is P2.
+// P1-1/P1-2A focused tests are enabled; full-suite restoration is P2.
 tasks.named('test') {
     enabled = true
 }
