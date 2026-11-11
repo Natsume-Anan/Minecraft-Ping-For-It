@@ -72,7 +72,9 @@ test {
 // P2-2A-1 adds TestLevel + TestEntitySupport + EntityLocalGeometryRegistryTest (4)
 // and RaycastCandidateFlowTest (7).
 // P2-2A-2A adds MinecraftTargetSnapshotFactoryDetailedTest (1) and
-// EntitySelectionBlacklistTest (3); EntityOutlineStateTest remains for P2-2A-2B.
+// EntitySelectionBlacklistTest (3).
+// P2-2A-2B rewrites EntityOutlineStateTest (7) for the static outline state API;
+// P2-2A is complete at this point.
 // TestPlatformContextService stays as the ServiceLoader provider helper.
 sourceSets.test.java {
     include 'nx/pingwheel/common/client/outline/BlockPresentationResolverTest.java'
@@ -100,6 +102,7 @@ sourceSets.test.java {
     include 'nx/pingwheel/common/math/RaycastCandidateFlowTest.java'
     include 'nx/pingwheel/common/interaction/MinecraftTargetSnapshotFactoryDetailedTest.java'
     include 'nx/pingwheel/common/client/outline/EntitySelectionBlacklistTest.java'
+    include 'nx/pingwheel/common/client/outline/EntityOutlineStateTest.java'
     include 'nx/pingwheel/common/config/TestPlatformContextService.java'
 }
 
