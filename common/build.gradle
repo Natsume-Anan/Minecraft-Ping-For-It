@@ -62,14 +62,17 @@ test {
 // P1-1..P1-3D focused whitelist: A1 presentation tests, policy/string tests,
 // outline structural tests, NeoForge WorldAware structural test, and pure-JDK core tests.
 // P1-2A only adds ExternalBlockOutlineTransformTest (2 tests); EntityOutlineStateTest
-// (old instance/logger/snapshot API) and EntitySelectionBlacklistTest (the
-// outline test, not EntitySelectionBlacklistDefaultRuleTest) are deferred to P2-2A.
+// (old instance/logger/snapshot API) is deferred to P2-2A-2B.
 // P1-2B/P1-2C structural tests read mod-source-isolated/neoforge sources only;
 // they do not compile isolated sources or prove runtime behavior.
 // P1-3A adds MarkerIdTest (5), MarkerAnchorTest (4), ResolvedTargetTest (3).
 // P1-3B adds TargetKeyTest (16), TargetIdentityTest (18), WeakIdentityCacheTest (2).
 // P1-3C first batch adds SafeExceptionReportTest (7), ThrowableCausesTest (5).
 // P1-3D adds MarkerSnapshotTest (6), MarkerWinnerTest (11); P1-3 pure-JDK batches complete.
+// P2-2A-1 adds TestLevel + TestEntitySupport + EntityLocalGeometryRegistryTest (4)
+// and RaycastCandidateFlowTest (7).
+// P2-2A-2A adds MinecraftTargetSnapshotFactoryDetailedTest (1) and
+// EntitySelectionBlacklistTest (3); EntityOutlineStateTest remains for P2-2A-2B.
 // TestPlatformContextService stays as the ServiceLoader provider helper.
 sourceSets.test.java {
     include 'nx/pingwheel/common/client/outline/BlockPresentationResolverTest.java'
@@ -95,6 +98,8 @@ sourceSets.test.java {
     include 'nx/pingwheel/common/client/outline/TestEntitySupport.java'
     include 'nx/pingwheel/common/math/EntityLocalGeometryRegistryTest.java'
     include 'nx/pingwheel/common/math/RaycastCandidateFlowTest.java'
+    include 'nx/pingwheel/common/interaction/MinecraftTargetSnapshotFactoryDetailedTest.java'
+    include 'nx/pingwheel/common/client/outline/EntitySelectionBlacklistTest.java'
     include 'nx/pingwheel/common/config/TestPlatformContextService.java'
 }
 
