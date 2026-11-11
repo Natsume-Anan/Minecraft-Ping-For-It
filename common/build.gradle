@@ -91,6 +91,10 @@ sourceSets.test.java {
     include 'nx/pingwheel/common/util/ThrowableCausesTest.java'
     include 'nx/pingwheel/common/marker/MarkerSnapshotTest.java'
     include 'nx/pingwheel/common/marker/MarkerWinnerTest.java'
+    include 'nx/pingwheel/common/testing/TestLevel.java'
+    include 'nx/pingwheel/common/client/outline/TestEntitySupport.java'
+    include 'nx/pingwheel/common/math/EntityLocalGeometryRegistryTest.java'
+    include 'nx/pingwheel/common/math/RaycastCandidateFlowTest.java'
     include 'nx/pingwheel/common/config/TestPlatformContextService.java'
 }
 
