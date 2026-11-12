@@ -75,6 +75,8 @@ test {
 // EntitySelectionBlacklistTest (3).
 // P2-2A-2B rewrites EntityOutlineStateTest (7) for the static outline state API;
 // P2-2A is complete at this point.
+// P2-2B-B1 adds ClientConfigValidationTest (20) and ConfigurationNoticeSizeTest (2)
+// after re-checking the old 14 failures against the current 26.3 bounds/defaults.
 // TestPlatformContextService stays as the ServiceLoader provider helper.
 sourceSets.test.java {
     include 'nx/pingwheel/common/client/outline/BlockPresentationResolverTest.java'
@@ -103,6 +105,8 @@ sourceSets.test.java {
     include 'nx/pingwheel/common/interaction/MinecraftTargetSnapshotFactoryDetailedTest.java'
     include 'nx/pingwheel/common/client/outline/EntitySelectionBlacklistTest.java'
     include 'nx/pingwheel/common/client/outline/EntityOutlineStateTest.java'
+    include 'nx/pingwheel/common/config/ClientConfigValidationTest.java'
+    include 'nx/pingwheel/common/config/ConfigurationNoticeSizeTest.java'
     include 'nx/pingwheel/common/config/TestPlatformContextService.java'
 }
 
