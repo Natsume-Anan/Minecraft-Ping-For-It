@@ -79,6 +79,8 @@ test {
 // after re-checking the old 14 failures against the current 26.3 bounds/defaults.
 // P2-2B-B2 adds ServerConfigSerializationTest (3), ServerConfigUpdateTest (3) and
 // ConfigHandlerVersionTest (19) for the server/version config assertions.
+// P2-2B-B3 adds SyncDurationPolicyS2CPacketTest (3) and
+// ClientMarkerDisplayDurationTest (4) for the duration policy assertions.
 // TestPlatformContextService stays as the ServiceLoader provider helper.
 sourceSets.test.java {
     include 'nx/pingwheel/common/client/outline/BlockPresentationResolverTest.java'
@@ -112,6 +114,8 @@ sourceSets.test.java {
     include 'nx/pingwheel/common/config/ServerConfigSerializationTest.java'
     include 'nx/pingwheel/common/config/ServerConfigUpdateTest.java'
     include 'nx/pingwheel/common/config/ConfigHandlerVersionTest.java'
+    include 'nx/pingwheel/common/network/SyncDurationPolicyS2CPacketTest.java'
+    include 'nx/pingwheel/common/client/duration/ClientMarkerDisplayDurationTest.java'
     include 'nx/pingwheel/common/config/TestPlatformContextService.java'
 }
 
