@@ -59,73 +59,61 @@ test {
     useJUnitPlatform()
 }
 
-// P1-1..P1-3D focused whitelist: A1 presentation tests, policy/string tests,
-// outline structural tests, NeoForge WorldAware structural test, and pure-JDK core tests.
-// P1-2A only adds ExternalBlockOutlineTransformTest (2 tests); EntityOutlineStateTest
-// (old instance/logger/snapshot API) is deferred to P2-2A-2B.
-// P1-2B/P1-2C structural tests read mod-source-isolated/neoforge sources only;
-// they do not compile isolated sources or prove runtime behavior.
-// P1-3A adds MarkerIdTest (5), MarkerAnchorTest (4), ResolvedTargetTest (3).
-// P1-3B adds TargetKeyTest (16), TargetIdentityTest (18), WeakIdentityCacheTest (2).
-// P1-3C first batch adds SafeExceptionReportTest (7), ThrowableCausesTest (5).
-// P1-3D adds MarkerSnapshotTest (6), MarkerWinnerTest (11); P1-3 pure-JDK batches complete.
-// P2-2A-1 adds TestLevel + TestEntitySupport + EntityLocalGeometryRegistryTest (4)
-// and RaycastCandidateFlowTest (7).
-// P2-2A-2A adds MinecraftTargetSnapshotFactoryDetailedTest (1) and
-// EntitySelectionBlacklistTest (3).
-// P2-2A-2B rewrites EntityOutlineStateTest (7) for the static outline state API;
-// P2-2A is complete at this point.
-// P2-2B-B1 adds ClientConfigValidationTest (20) and ConfigurationNoticeSizeTest (2)
-// after re-checking the old 14 failures against the current 26.3 bounds/defaults.
-// P2-2B-B2 adds ServerConfigSerializationTest (3), ServerConfigUpdateTest (3) and
-// ConfigHandlerVersionTest (19) for the server/version config assertions.
-// P2-2B-B3 adds SyncDurationPolicyS2CPacketTest (3) and
-// ClientMarkerDisplayDurationTest (4) for the duration policy assertions.
-// P2-2B-B4 adds PingInteractionConfigValidationTest (1); P2-2B is complete here.
-// P2-2D-A adds BlockPresentationCoverageRelationTest (1) with local source-id constants.
-// P2-2D-BO1a adds BlockOutlineSpecLookupTest (3) for the spec constructor and
-// BlockPresentationLookup.specFor filtering/metadata; old orphan tests stay out of the whitelist.
-// P2-2D-BO2 adds BlockPresentationImmutabilityTest (1) for the List.copyOf subject guard.
-// TestPlatformContextService stays as the ServiceLoader provider helper.
+// P2-2E: run the full common test source set again; there is no include whitelist.
+// P2-2C/BO/EO/EBG/EXT/C archive files stay in the source tree but are not compiled:
+// they still reference removed render/presentation types and are tracked as 0-test archives.
 sourceSets.test.java {
-    include 'nx/pingwheel/common/client/outline/BlockPresentationResolverTest.java'
-    include 'nx/pingwheel/common/client/outline/BlockPresentationSubjectValidationTest.java'
-    include 'nx/pingwheel/common/client/outline/BlockDisplayPolicyTest.java'
-    include 'nx/pingwheel/common/client/outline/BlockDisplayWhitelistTest.java'
-    include 'nx/pingwheel/common/math/EntitySelectionBlacklistDefaultRuleTest.java'
-    include 'nx/pingwheel/common/client/outline/ExternalBlockOutlineTransformTest.java'
-    include 'nx/pingwheel/common/client/outline/CreateLargeWaterWheelPresentationResolverContractTest.java'
-    include 'nx/pingwheel/common/client/outline/SimulatedDockingConnectorPresentationResolverContractTest.java'
-    include 'nx/pingwheel/common/client/outline/NeoForgeWorldAwareBlockModelOutlineAdapterContractTest.java'
-    include 'nx/pingwheel/common/domain/MarkerIdTest.java'
-    include 'nx/pingwheel/common/marker/MarkerAnchorTest.java'
-    include 'nx/pingwheel/common/domain/ResolvedTargetTest.java'
-    include 'nx/pingwheel/common/marker/TargetKeyTest.java'
-    include 'nx/pingwheel/common/domain/TargetIdentityTest.java'
-    include 'nx/pingwheel/common/util/WeakIdentityCacheTest.java'
-    include 'nx/pingwheel/common/util/SafeExceptionReportTest.java'
-    include 'nx/pingwheel/common/util/ThrowableCausesTest.java'
-    include 'nx/pingwheel/common/marker/MarkerSnapshotTest.java'
-    include 'nx/pingwheel/common/marker/MarkerWinnerTest.java'
-    include 'nx/pingwheel/common/testing/TestLevel.java'
-    include 'nx/pingwheel/common/client/outline/TestEntitySupport.java'
-    include 'nx/pingwheel/common/math/EntityLocalGeometryRegistryTest.java'
-    include 'nx/pingwheel/common/math/RaycastCandidateFlowTest.java'
-    include 'nx/pingwheel/common/interaction/MinecraftTargetSnapshotFactoryDetailedTest.java'
-    include 'nx/pingwheel/common/client/outline/EntitySelectionBlacklistTest.java'
-    include 'nx/pingwheel/common/client/outline/EntityOutlineStateTest.java'
-    include 'nx/pingwheel/common/config/ClientConfigValidationTest.java'
-    include 'nx/pingwheel/common/config/ConfigurationNoticeSizeTest.java'
-    include 'nx/pingwheel/common/config/ServerConfigSerializationTest.java'
-    include 'nx/pingwheel/common/config/ServerConfigUpdateTest.java'
-    include 'nx/pingwheel/common/config/ConfigHandlerVersionTest.java'
-    include 'nx/pingwheel/common/network/SyncDurationPolicyS2CPacketTest.java'
-    include 'nx/pingwheel/common/client/duration/ClientMarkerDisplayDurationTest.java'
-    include 'nx/pingwheel/common/interaction/state/PingInteractionConfigValidationTest.java'
-    include 'nx/pingwheel/common/client/outline/BlockPresentationCoverageRelationTest.java'
-    include 'nx/pingwheel/common/client/outline/BlockOutlineSpecLookupTest.java'
-    include 'nx/pingwheel/common/client/outline/BlockPresentationImmutabilityTest.java'
-    include 'nx/pingwheel/common/config/TestPlatformContextService.java'
+    // P2-2C render archives (3).
+    exclude 'nx/pingwheel/common/render/WheelOpacityTest.java'
+    exclude 'nx/pingwheel/common/render/WheelOverlayRendererLayoutTest.java'
+    exclude 'nx/pingwheel/common/render/RenderColorPolicyTest.java'
+
+    // BO archives (3).
+    exclude 'nx/pingwheel/common/client/outline/BlockModelOutlineRouteModeIsolationTest.java'
+    exclude 'nx/pingwheel/common/client/outline/BlockOutlineSelectionTest.java'
+    exclude 'nx/pingwheel/common/client/outline/BlockModelOutlineRouteTest.java'
+
+    // BO archives (3).
+    exclude 'nx/pingwheel/common/client/outline/BlockOutlineStateTest.java'
+    exclude 'nx/pingwheel/common/client/outline/BlockModelOutlineStateTest.java'
+    exclude 'nx/pingwheel/common/client/outline/BlockModelRenderSeedTest.java'
+
+    // BO archives (4).
+    exclude 'nx/pingwheel/common/client/outline/BlockOutlineFrameStateTest.java'
+    exclude 'nx/pingwheel/common/client/outline/BlockOutlineRenderTypeTest.java'
+    exclude 'nx/pingwheel/common/client/outline/BlockDisplayPlacementTest.java'
+    exclude 'nx/pingwheel/common/client/outline/BlockPresentationCoverageTrackerTest.java'
+
+    // EO archives (4).
+    exclude 'nx/pingwheel/common/client/outline/EntityOutlineSelectionTest.java'
+    exclude 'nx/pingwheel/common/client/outline/EntityOutlineLocatorResolverTest.java'
+    exclude 'nx/pingwheel/common/client/outline/EntityOutlineRenderDecisionTest.java'
+    exclude 'nx/pingwheel/common/client/outline/EntityOutlineFrameStateTest.java'
+
+    // EBG/EXT archives (4).
+    exclude 'nx/pingwheel/common/client/outline/EntityBlockGeometryTransformTest.java'
+    exclude 'nx/pingwheel/common/client/outline/EntityBlockGeometryRunnerTest.java'
+    exclude 'nx/pingwheel/common/client/outline/ExternalBlockOutlineSelectionTest.java'
+    exclude 'nx/pingwheel/common/client/outline/VoxelShapeRenderUtilTest.java'
+
+    // C archives (17).
+    exclude 'nx/pingwheel/common/client/outline/AabbOutlineMaskTest.java'
+    exclude 'nx/pingwheel/common/client/outline/EntityBlockGeometrySourceRegistryTest.java'
+    exclude 'nx/pingwheel/common/client/outline/EntityOutlineRunnerTest.java'
+    exclude 'nx/pingwheel/common/client/outline/EntityOutlineSourceRegistryTest.java'
+    exclude 'nx/pingwheel/common/client/outline/FabricWorldAwareBlockModelOutlineAdapterContractTest.java'
+    exclude 'nx/pingwheel/common/client/outline/ForgeWorldAwareBlockModelOutlineAdapterContractTest.java'
+    exclude 'nx/pingwheel/common/client/outline/WorldAwareBlockModelOutlineAdapterRegistryTest.java'
+    exclude 'nx/pingwheel/common/client/outline/LevelRendererOutlineRequestTest.java'
+    exclude 'nx/pingwheel/common/client/outline/OptionalGeometryClassSafetyTest.java'
+    exclude 'nx/pingwheel/common/client/outline/OutlineOnlyBufferSourceTest.java'
+    exclude 'nx/pingwheel/common/client/outline/FlywheelDiagnosticsTest.java'
+    exclude 'nx/pingwheel/common/client/outline/FlywheelEnvironmentPolicyTest.java'
+    exclude 'nx/pingwheel/common/client/outline/FlywheelMeshCacheTest.java'
+    exclude 'nx/pingwheel/common/client/outline/FlywheelModelBudgetTest.java'
+    exclude 'nx/pingwheel/common/client/outline/FlywheelRenderClockTest.java'
+    exclude 'nx/pingwheel/common/client/outline/FlywheelSilhouetteMaskTest.java'
+    exclude 'nx/pingwheel/common/client/outline/FlywheelTransformMathTest.java'
 }
 
 // P1-1..P1-3D focused tests are enabled; full-suite restoration is P2.
