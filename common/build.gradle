@@ -85,6 +85,7 @@ test {
 // P2-2D-A adds BlockPresentationCoverageRelationTest (1) with local source-id constants.
 // P2-2D-BO1a adds BlockOutlineSpecLookupTest (3) for the spec constructor and
 // BlockPresentationLookup.specFor filtering/metadata; old orphan tests stay out of the whitelist.
+// P2-2D-BO2 adds BlockPresentationImmutabilityTest (1) for the List.copyOf subject guard.
 // TestPlatformContextService stays as the ServiceLoader provider helper.
 sourceSets.test.java {
     include 'nx/pingwheel/common/client/outline/BlockPresentationResolverTest.java'
@@ -123,6 +124,7 @@ sourceSets.test.java {
     include 'nx/pingwheel/common/interaction/state/PingInteractionConfigValidationTest.java'
     include 'nx/pingwheel/common/client/outline/BlockPresentationCoverageRelationTest.java'
     include 'nx/pingwheel/common/client/outline/BlockOutlineSpecLookupTest.java'
+    include 'nx/pingwheel/common/client/outline/BlockPresentationImmutabilityTest.java'
     include 'nx/pingwheel/common/config/TestPlatformContextService.java'
 }
 
