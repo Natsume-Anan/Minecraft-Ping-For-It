@@ -77,6 +77,8 @@ test {
 // P2-2A is complete at this point.
 // P2-2B-B1 adds ClientConfigValidationTest (20) and ConfigurationNoticeSizeTest (2)
 // after re-checking the old 14 failures against the current 26.3 bounds/defaults.
+// P2-2B-B2 adds ServerConfigSerializationTest (3), ServerConfigUpdateTest (3) and
+// ConfigHandlerVersionTest (19) for the server/version config assertions.
 // TestPlatformContextService stays as the ServiceLoader provider helper.
 sourceSets.test.java {
     include 'nx/pingwheel/common/client/outline/BlockPresentationResolverTest.java'
@@ -107,6 +109,9 @@ sourceSets.test.java {
     include 'nx/pingwheel/common/client/outline/EntityOutlineStateTest.java'
     include 'nx/pingwheel/common/config/ClientConfigValidationTest.java'
     include 'nx/pingwheel/common/config/ConfigurationNoticeSizeTest.java'
+    include 'nx/pingwheel/common/config/ServerConfigSerializationTest.java'
+    include 'nx/pingwheel/common/config/ServerConfigUpdateTest.java'
+    include 'nx/pingwheel/common/config/ConfigHandlerVersionTest.java'
     include 'nx/pingwheel/common/config/TestPlatformContextService.java'
 }
 
