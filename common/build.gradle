@@ -83,6 +83,8 @@ test {
 // ClientMarkerDisplayDurationTest (4) for the duration policy assertions.
 // P2-2B-B4 adds PingInteractionConfigValidationTest (1); P2-2B is complete here.
 // P2-2D-A adds BlockPresentationCoverageRelationTest (1) with local source-id constants.
+// P2-2D-BO1a adds BlockOutlineSpecLookupTest (3) for the spec constructor and
+// BlockPresentationLookup.specFor filtering/metadata; old orphan tests stay out of the whitelist.
 // TestPlatformContextService stays as the ServiceLoader provider helper.
 sourceSets.test.java {
     include 'nx/pingwheel/common/client/outline/BlockPresentationResolverTest.java'
@@ -120,6 +122,7 @@ sourceSets.test.java {
     include 'nx/pingwheel/common/client/duration/ClientMarkerDisplayDurationTest.java'
     include 'nx/pingwheel/common/interaction/state/PingInteractionConfigValidationTest.java'
     include 'nx/pingwheel/common/client/outline/BlockPresentationCoverageRelationTest.java'
+    include 'nx/pingwheel/common/client/outline/BlockOutlineSpecLookupTest.java'
     include 'nx/pingwheel/common/config/TestPlatformContextService.java'
 }
 
