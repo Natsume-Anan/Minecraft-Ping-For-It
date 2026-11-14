@@ -1,6 +1,10 @@
 package nx.pingwheel.common.client.outline;
 
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Camera;
@@ -75,6 +79,7 @@ public final class BlockOutlinePass {
 	/** Target types that are rendered through the block-model outline path upstream. */
 	private static final String TARGET_TYPE_BLOCK = "block";
 	private static final String TARGET_TYPE_ENTITY_BLOCK = "entity_block";
+	private static final String BLOCK_ENTITY_RENDERER_SOURCE_ID = "pingforit:block_entity_renderer";
 
 	/** Frames with submissions but no interception before the routing warning fires (~2s at 60fps). */
 	private static final int ROUTING_WARN_FRAMES = 120;
@@ -180,7 +185,12 @@ public final class BlockOutlinePass {
 				// (door halves, bed parts). Each subject is outlined on its own; the marker still
 				// owns the colour, and the counters below are per subject, so a composite outline
 				// can never look like a single captured half.
+				Set<String> coveredSubjectIds = coveredSubjectIds(presentation);
 				for (BlockRenderSubject subject : presentation.renderSubjects()) {
+					if (coveredSubjectIds.contains(subject.subjectId())) {
+						continue;
+					}
+
 					if (!BlockPresentationSubjectValidation.isLoadedAndCurrent(game.level, subject)) {
 						continue;
 					}
@@ -256,6 +266,37 @@ public final class BlockOutlinePass {
 					failure.getClass().getSimpleName());
 			}
 		}
+	}
+
+	/**
+	 * Subjects suppressed because an earlier subject finished the declared rendered
+	 * source this frame. Only the BER source is currently consumed; other source ids
+	 * remain future extension points and never suppress anything by themselves.
+	 */
+	private static Set<String> coveredSubjectIds(BlockPresentation presentation) {
+		if (presentation.coverageRelations().isEmpty()) {
+			return Set.of();
+		}
+
+		Map<String, BlockRenderSubject> subjectsById = new HashMap<>();
+		for (BlockRenderSubject subject : presentation.renderSubjects()) {
+			subjectsById.put(subject.subjectId(), subject);
+		}
+
+		Set<String> covered = new HashSet<>();
+		for (BlockPresentationCoverageRelation relation : presentation.coverageRelations()) {
+			if (!BLOCK_ENTITY_RENDERER_SOURCE_ID.equals(relation.requiredRenderedSourceId())) {
+				continue;
+			}
+
+			BlockRenderSubject owner = subjectsById.get(relation.ownerSubjectId());
+			if (owner != null
+				&& EntityBlockGlowState.isGlowing(owner.blockPos())
+				&& !EntityBlockGlowState.isDisabled()) {
+				covered.add(relation.coveredSubjectId());
+			}
+		}
+		return covered;
 	}
 
 	/** Mirrors upstream {@code BlockModelOutlineRoute.acceptsForBlockRendering}. */

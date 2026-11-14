@@ -18,10 +18,10 @@ repositories {
     maven { url = uri('https://maven.neoforged.net/releases') }
 }
 
-// junit-fml:12.0.0 is only published on maven.neoforged.net. If that host is
-// unreachable, enabling unitTest would make :neoforge:test fail during
-// testRuntimeClasspath resolution. Keep the FML test gate opt-in until the
-// artifact can be fetched; compileTestJava remains a normal compile gate.
+// junit-fml:12.0.0 is only published on maven.neoforged.net. Keep the FML test
+// gate opt-in so offline builds do not resolve it during testRuntimeClasspath;
+// compileTestJava remains a normal compile gate. Enable explicitly when the
+// artifact is cached or the NeoForged Maven is reachable.
 def fmlUnitTests = providers.gradleProperty('pfi.fmlUnitTests')
     .map { it.toBoolean() }
     .getOrElse(false)

@@ -121,7 +121,7 @@ neoforge/build/libs/Ping-For-It-0.4.2-pfi-beta1-neoforge-26.3.jar
 
 ### 5.3 小改点
 
-- `CreateDoorPresentationResolver`：`EntityBlockGeometryRunner.BLOCK_ENTITY_RENDERER_SOURCE_ID` 已删，内联合法 namespaced source id。
+- `CreateDoorPresentationResolver`：`EntityBlockGeometryRunner.BLOCK_ENTITY_RENDERER_SOURCE_ID` 已删，内联合法 namespaced source id；coverage relation 由 common `BlockOutlinePass` 消费：owner 的 BER 本帧实际渲染后抑制 covered upper，避免上半门重复 wireframe。
 - `Simulated`：`ResourceLocation` → `Identifier`，registry lookup/getKey 同步改名。
 - `NeoMain`：`FMLEnvironment.getDist()`；补 sound event 注册。
 - `NeoClient`：`AddClientReloadListenersEvent`；补 3 个 client event；移除 WorldAware 直调。
@@ -148,7 +148,7 @@ $env:JAVA_HOME = 'C:\Program Files\Java\jdk-25'
 .\gradlew.bat --no-daemon :common:compileJava
 .\gradlew.bat --no-daemon :neoforge:compileJava
 .\gradlew.bat --no-daemon :neoforge:compileTestJava
-.\gradlew.bat --no-daemon :neoforge:test
+.\gradlew.bat --no-daemon --project-prop pfi.fmlUnitTests=true :neoforge:test
 .\gradlew.bat --no-daemon :neoforge:runServer
 .\gradlew.bat --no-daemon :neoforge:runClient
 .\gradlew.bat --no-daemon :neoforge:build
@@ -175,12 +175,12 @@ $env:JAVA_HOME = 'C:\Program Files\Java\jdk-25'
 3. `JAVA_25` 与旧 AGENTS 规则冲突；以 NeoForge 实际 sponge-mixin 依赖为准。
 4. `SubmitCustomGeometryEvent` 时序已从 patched LevelRenderer 核实，但运行期仍需观察双画/漏画。
 5. Create/Flywheel 没有 26.3 artifact；不要加 1.21.1 compileOnly。
-6. `pack.mcmeta` 121 已在 client 资源重载中加载 `mod/pingforit`；具体资源内容仍需进世界验证。
+6. `pack.mcmeta` 使用 `min_format: 121`（data 格式）；client 资源重载已通过 `mod_resources` 加载 `mod/pingforit`，但资源侧格式未单独声明（26.3 resource 为 97.1）。若后续要支持独立 resource pack 安装，需复核或改为双端兼容区间；当前不作为 N6 阻断项。
 
 ## 9. 变更记录
 
 - 2026-11-13：N0 完成；建立本基线；首轮范围确定为核心 + door/Simulated。
-- 2026-11-13：N2 核心源码与 N3 测试源码写入；`:neoforge:compileJava`、`:neoforge:compileTestJava` 通过；静态审查 PASS。`:neoforge:test` 首次因 `SharedConstants` 在无 FML Loader 的普通 JUnit 中初始化失败，随后启用 MDG `unitTest`；但 `junit-fml:12.0.0` 只发布在不可达的 `maven.neoforged.net`，当前改为 `--project-prop pfi.fmlUnitTests=true` opt-in，默认不跑 FML 测试。
+- 2026-11-13：N2 核心源码与 N3 测试源码写入；`:neoforge:compileJava`、`:neoforge:compileTestJava` 通过；静态审查 PASS。`:neoforge:test` 首次因 `SharedConstants` 在无 FML Loader 的普通 JUnit 中初始化失败，随后启用 MDG `unitTest`；`junit-fml:12.0.0` 只发布在 `maven.neoforged.net`；首次在无缓存/无网络时会解析失败，当前已成功解析。测试改为 `--project-prop pfi.fmlUnitTests=true` opt-in，默认不跑 FML 测试。
 - 2026-11-13：`-Ppfi.fmlUnitTests=true` 被 Gradle/Windows 误解析为任务 `.fmlUnitTests=true`；改用 `--project-prop pfi.fmlUnitTests=true` 后属性识别正常。`neoforge.mods.toml` 改为 `src/main/templates` + `generateModMetadata`，消除 IDEA `MatchingCopyAction` 警告。
 - 2026-11-13：`:neoforge:test` 首次 FML 加载失败，根因是 common 类只在 legacy classpath，`IPacket` 由 AppClassLoader 加载、`CustomPacketPayload` 由 module classloader 加载；把 `project(':common').sourceSets.main` 加入 `neoForge.mods.pingforit` 后修复。`logoFile` 改为 `iconFile`。最终 `:neoforge:test` 15/15 通过，日志 `[PingForIt] Init`，无错误/警告。
 - 编译/测试交接：用户接管 Gradle 编译；下一步以用户返回的 `:neoforge:test`、runClient/runServer 结果为准。
