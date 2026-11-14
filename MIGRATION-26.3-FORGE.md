@@ -1,6 +1,6 @@
 # Ping For It — 26.3 Forge 迁移方案
 
-> 状态：**F0 已完成**（2026-11-14）。`26.3-Forge` 已从旧的 `407fbc6` 同步到 `26.3` @ `2954fcf`，F0 只新增本文档；本地原有的 `9a723c2` 仅重复添加 `.agents-work/`，rebase 时被安全跳过。F0 基线命令 `:forge:compileJava` 已实跑：`BUILD SUCCESSFUL`，ForgeGradle 7.0.40 / Forge 26.3-66.1.0 / JDK 25 解析成功；当前源集为空，因此任务为 `NO-SOURCE`。F1 尚未开始。
+> 状态：**F0–F1 已完成**（2026-11-14）。`26.3-Forge` 已从旧的 `407fbc6` 同步到 `26.3` @ `2954fcf`；本地原有的 `9a723c2` 仅重复添加 `.agents-work/`，rebase 时被安全跳过。F0 基线 `:forge:compileJava` 实跑成功（骨架 `NO-SOURCE`）；F1 已接好 common 依赖/资源合并、metadata、121 pack 和 8 条本地 mixin，`:forge:processResources` 与 `:forge:jar` 实跑成功。F2 尚未开始。
 > 分支：`26.3-Forge`（完成后合并回 `26.3`）
 > 目标：恢复 Forge 26.3 的核心 ping/marker/配置/网络/HUD/outline；首轮不追求 Create/Flywheel 等可选集成 parity。
 > 参考：`MIGRATION-26.3-NEOFORGE.md`、`AGENTS.md`、`docs/`（产品行为 owner；本文件不替代 docs）
@@ -27,7 +27,7 @@
 
 - `26.3-Forge` 原为 `407fbc6`，是 `26.3` 的祖先；F0 用 rebase 把它同步到 `26.3` @ `2954fcf`。
 - 本地 `26.3` / `26.3-NeoForge` 指向 `2954fcf`；`26.3-Forge` 基于 `2954fcf`，F0 只新增本文档。
-- `forge/build.gradle` 仍是骨架：ForgeGradle `7.0.40`、`mappings channel: 'official'`、`minecraft.dependency("net.minecraftforge:forge:26.3-66.1.0")`、client/server run 指向 `runs/skeleton/forge-*`、`test` 禁用。
+- F1 前的 `forge/build.gradle` 是骨架：ForgeGradle `7.0.40`、`mappings channel: 'official'`、`minecraft.dependency("net.minecraftforge:forge:26.3-66.1.0")`、client/server run 指向 `runs/skeleton/forge-*`、`test` 禁用；F1 已接入 common、metadata、pack、mixin 与 `runs/forge-*`，见 §3。
 - 旧 Forge 源码在 `mod-source-isolated/forge/src`：7 个 main Java（入口 2 个、SPI 实现 4 个、WorldAware adapter 1 个）、`mods.toml`、`pack.mcmeta`、`pingforit.mixins.json`、4 个 services。
 - 旧 Forge 只有 4 个 SPI 实现；common 现在有 6 个 SPI，缺少 `ClientNetworkServiceImpl` 与 `PlatformClientContextServiceImpl`。
 - common 是 Java 25 + NeoForm 26.3-1；Fabric/NeoForge 都采用“单 jar 合并 common classes/resources”的模型，Forge 应沿用同一模型。
@@ -53,6 +53,22 @@ $env:GRADLE_USER_HOME = '<workspace>\.agents-work\gradle-home'
 - JDK：`25.0.4.1`；Gradle：`9.8.2`；Forge：`26.3-66.1.0`
 
 说明：默认 `%USERPROFILE%\.gradle` 在当前受限运行环境里无法写 wrapper 锁；F0 用工作区内可写的 `GRADLE_USER_HOME` 和 `--configure-on-demand` 避开无关的 Fabric 配置期下载。该 workaround 不是项目构建要求。
+
+### 1.2 F1 实跑证据
+
+- `:forge:compileJava`：`BUILD SUCCESSFUL`；当前仍无 Forge Java 源，任务为 `NO-SOURCE`。common 依赖与编译类路径已解析。
+- `:forge:processResources`：`BUILD SUCCESSFUL`；生成 `build/generated/modMetadata/META-INF/mods.toml`，无未展开占位符。
+- 生成 metadata：`loaderVersion = "[24,)"`、`versionRange = "[66,)"`、`modId = "pingforit"`、`version = "0.4.2-pfi-beta1"`。
+- `pack.mcmeta`：`min_format=121` / `max_format=121`。
+- 本地 mixin：8 条，与 common 列表一致，`compatibilityLevel=JAVA_21`；common 的 `pingforit.mixins.json` 已被排除。
+- `:forge:jar`：`BUILD SUCCESSFUL`；
+  - 产物：`Ping-For-It-0.4.2-pfi-beta1-forge-26.3.jar`
+  - 484 entries / 421 classes / 0 duplicate / 0 test class
+  - `icon.png`、`assets/pingforit/`、`pack.mcmeta`、`META-INF/mods.toml`、`pingforit.mixins.json` 均在 jar 中
+  - `META-INF/MANIFEST.MF` 含 `MixinConfigs: pingforit.mixins.json`
+  - `META-INF/services` 为 0 是预期：F2 才补 6 个 SPI 实现
+
+F1 没有验证 Forge 客户端/服务端启动，也没有验证 mixin 在 Java 25 字节码下的实际注入；这些属于 F2/F3。
 
 ## 2. 目标架构
 
@@ -86,11 +102,12 @@ forge/     ForgeGradle 7.0.40，Java 25，单一 universal 源集
 - `base { archivesName = archive_name }`、`version = mod_version`。
 - `java { toolchain.languageVersion = JavaLanguageVersion.of(java_version) }`。
 - `minecraft { mappings channel: 'official', version: minecraft_version; runs { client { workingDir = rootProject.file('runs/forge-client') } server { workingDir = rootProject.file('runs/forge-server') } } }`。
+- `evaluationDependsOn(':common')` 只用于配置期读取 common source set；Forge 仍在独立 `forge/` 模块中，不 source common 源码。
 - `repositories { minecraft.mavenizer(it); maven fg.forgeMaven; maven fg.minecraftLibsMaven }`。
 - `dependencies { implementation minecraft.dependency("net.minecraftforge:forge:${minecraft_version}-${forge_version}"); implementation(project(':common')) { transitive = false } }`。
 - metadata：优先用 `generateModMetadata`（Sync）从 `src/main/templates` 展开 `META-INF/mods.toml`，避免 IntelliJ 的 `MatchingCopyAction` 警告；也可用 `processResources` 的 `filesMatching/expand`，但必须保证 `verifyModIdentity` 能读到最终 `mods.toml`。
 - `processResources`：依赖 metadata 生成；`from(project(':common').sourceSets.main.resources) { exclude("${mod_id}.mixins.json") }`。
-- `jar`：`archiveClassifier = 'forge-26.3'`；`dependsOn :common:classes`；`from common.classesDirs`；附 `LICENSE`（重命名为 `LICENSE_pingforit`）与 `THIRD-PARTY-NOTICES.md`。
+- `jar`：`archiveClassifier = 'forge-26.3'`；manifest 写 `MixinConfigs: pingforit.mixins.json`；`dependsOn :common:classes`；`from common.classesDirs`；附 `LICENSE`（重命名为 `LICENSE_pingforit`）与 `THIRD-PARTY-NOTICES.md`。
 - `test` 首轮保持禁用；Forge 没有 test 源集。需要 Forge 聚焦测试时再单独立项。
 - 不引入 `multiloader-loader`；`commonJava/commonResources` 在 26.3 已不存在。
 
@@ -256,7 +273,7 @@ common 的 `BlockOutlinePass.onWorldSubmit(WorldSubmitContext)` 需要 `PoseStac
 | 阶段 | 内容 | 出口条件 |
 | --- | --- | --- |
 | F0 | 同步分支 + 基线 | `26.3-Forge` 基于 `2954fcf`；`:forge:compileJava` 成功；工作区无意外改动 |
-| F1 | 构建接线、metadata、pack、mixin 配置 | `:forge:processResources` 成功；生成物含展开后的 `mods.toml` / 121 pack；静态审查通过 |
+| F1 | 构建接线、metadata、pack、mixin 配置 | **已完成**：`:forge:processResources`、`:forge:jar` 成功；metadata 无占位符、pack 121、8 条本地 mixin；静态审查通过 |
 | F2 | 入口、服务端网络、SPI、6 个 services | `:forge:compileJava` 通过；`:forge:runServer` 启动并出现 `[PingForIt] Init`，无 ERROR/FATAL |
 | F3 | 客户端事件、HUD、按键、reload、配置界面 | `:forge:runClient` 进入 26.3 主菜单；mixin 加载无致命错误；HUD 注册不崩 |
 | F4 | outline / world-submit spike | 进世界可见普通方块/门/床/entity_block outline；或明确记录阻塞并暂停 |
