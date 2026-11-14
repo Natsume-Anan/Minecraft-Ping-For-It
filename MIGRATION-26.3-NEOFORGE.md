@@ -1,6 +1,6 @@
 # Ping For It — 26.3 NeoForge 迁移方案
 
-> 状态：**N0–N4（client）已完成**。`26.3-NeoForge` 已 `--ff-only` 到 `26.3` @ `e7937b4`；`:neoforge:compileJava`、`:neoforge:compileTestJava` 通过；`:neoforge:test` 以 `--project-prop pfi.fmlUnitTests=true` 实跑 **15 tests / 15 successful / 0 failed / 0 skipped**；FML 日志出现 `[PingForIt] Init`，无 `IncompatibleClassChangeError`、无 `logoFile` 警告。NeoForge Client 已实跑进入 26.3 主菜单（NeoForge 26.3.0.0-beta，3 mods；`runs/neoforge-client/logs/latest.log` 显示 `CLIENT in DEV`、`[PingForIt] Init`、配置保存、outline pipeline 注册和 `mod/pingforit` 资源加载，无 ERROR/FATAL）。主菜单顶部 “NeoForge Beta” 是 loader beta 提示，不是故障。N4 server、N5 产物静态检查、N6 合并尚未完成。本文是维护者迁移计划与审查基线，不是产品行为规范。
+> 状态：**N0–N5 已完成**。`26.3-NeoForge` 已 `--ff-only` 到 `26.3` @ `e7937b4`；`:neoforge:compileJava`、`:neoforge:compileTestJava` 通过；`:neoforge:test` 以 `--project-prop pfi.fmlUnitTests=true` 实跑 **15 tests / 15 successful / 0 failed / 0 skipped**；FML 日志出现 `[PingForIt] Init`，无 `IncompatibleClassChangeError`、无 `logoFile` 警告。N4 client 进入 26.3 主菜单；N4 server `DEDICATED_SERVER in DEV`、`Done (0.365s)`，两者均无 ERROR/FATAL。N5 打包/静态检查 PASS：`Ping-For-It-0.4.2-pfi-beta1-neoforge-26.3.jar`，830380 B，SHA256 `a439960ba74f9a4f97cbda22010e2cec9750dfce09aead61c64602542b65e069`，508 entries / 433 classes / 6 services / 8 client mixins；无重复 entry、无 test class、无旧命名空间、无 refmap。主菜单顶部 “NeoForge Beta” 是 loader beta 提示，不是故障。N6 合并尚未完成。本文是维护者迁移计划与审查基线，不是产品行为规范。
 > 分支：`26.3-NeoForge`（从 `26.3` @ `e7937b4` 快进）
 > 目标：恢复 NeoForge 26.3 模块，使核心 ping/marker/配置/渲染/网络可用；首轮不含 Create/Flywheel 完整 parity。
 > 参考：`MIGRATION-26.3-FABRIC.md`、`docs/`（产品行为 owner；本文件不替代 docs）
@@ -136,8 +136,8 @@ neoforge/build/libs/Ping-For-It-0.4.2-pfi-beta1-neoforge-26.3.jar
 | N1 | build.gradle + docs/AGENTS 基线 | build 脚本可解析，静态审查通过 |
 | N2 | 核心入口/SPI/网络/资源 | `:neoforge:compileJava` 通过 |
 | N3 | door/Simulated + 2 个测试 | `:neoforge:compileTestJava` 通过；`:neoforge:test` 用 `--project-prop pfi.fmlUnitTests=true` 实跑 15/15 通过 |
-| N4 | client/server 启动 | client：进入 26.3 主菜单，`[PingForIt] Init`，无 ERROR/FATAL；server 待跑 |
-| N5 | 打包/静态检查 | 精确 jar，common 类/资源各一次，6 services，无旧命名空间 |
+| N4 | client/server 启动 | client：26.3 主菜单；server：`Done (0.365s)`；均有 `[PingForIt] Init`，无 ERROR/FATAL |
+| N5 | 打包/静态检查 | PASS：精确 jar、433 classes、6 services、8 client mixin；无重复/test class/旧命名空间/refmap |
 | N6 | 独立审查 + 合并 26.3 | 审查 PASS，回归 common 1193 tests，合并完成 |
 | N7 | Create/Flywheel parity | 需 26.3 artifact + common 几何框架决策；单独立项 |
 
@@ -165,6 +165,7 @@ $env:JAVA_HOME = 'C:\Program Files\Java\jdk-25'
 
   当前 Gradle/Windows 下 `-Ppfi.fmlUnitTests=true` 会被误解析成任务选择器（报 `Task '.fmlUnitTests=true' not found`），使用 `--project-prop` 长形式。不要用 `exclude` 绕过，那只会把依赖失败换成 FML Loader 失败。
 - NeoForge Client 已在 IDEA 中实跑进入 26.3 主菜单（`runs/neoforge-client/logs/latest.log`）；日志确认 `CLIENT in DEV`、`[PingForIt] Init`、配置保存、outline pipeline 注册、`mod/pingforit` 资源加载，无 ERROR/FATAL。IDEA Project SDK 21 会在 JVM 启动阶段报 `Unrecognized option: --sun-misc-unsafe-memory-access=allow`；必须用 25。
+- N5 已执行 `.\gradlew.bat --no-daemon :neoforge:build`（Gradle 自身必须运行在 JDK 25；Loom 1.19.3 在 Java 24 下拒绝配置）。产物 `Ping-For-It-0.4.2-pfi-beta1-neoforge-26.3.jar` 静态检查 PASS：830380 B / 508 entries / 433 classes（NeoForge 12 + common 421）/ 6 services / 8 client mixins；所有 class 与资源 SHA256 与 build 输出一致，无重复 entry、无 test class、无旧命名空间、无 refmap；`pack.mcmeta` 121，metadata/icon/LICENSE/THIRD-PARTY 完整。
 - 联机、可选集成、HUD/outline 视觉、mixin 注入、Create/Flywheel 运行时均未验证。
 
 ## 8. 风险
@@ -185,3 +186,5 @@ $env:JAVA_HOME = 'C:\Program Files\Java\jdk-25'
 - 编译/测试交接：用户接管 Gradle 编译；下一步以用户返回的 `:neoforge:test`、runClient/runServer 结果为准。
 - 2026-11-14：N4 client 完成。NeoForge Client 通过 IDEA 启动进入 26.3 主菜单；日志 `runs/neoforge-client/logs/latest.log` 显示 CLIENT in DEV、`[PingForIt] Init`、配置保存、outline pipeline 注册、`mod/pingforit` 资源加载，无 ERROR/FATAL；主菜单 “NeoForge Beta” 是 loader beta 提示。
 - 2026-11-14：修复 IDEA 启动 JVM 失败。项目 SDK 原为 21，无法识别 JDK 24+ 的 `--sun-misc-unsafe-memory-access=allow`；改为 25，并在 Application 配置启用 `ALTERNATIVE_JRE_PATH=25`。同时用 `disableIdeRun()` 阻止 MDG 重建重复的 `neoforge - Client/Server`。
+- 2026-11-14：N4 server 完成。`runs/neoforge-server/logs/latest.log` 显示 `DEDICATED_SERVER in DEV`、`[PingForIt] Init`、`Loaded config type=ServerConfig`、`Starting Minecraft server on *:25565`、`Done (0.365s)`，无 ERROR/FATAL。
+- 2026-11-14：N5 完成。`:neoforge:build` 在 JDK 25 下 BUILD SUCCESSFUL；jar `Ping-For-It-0.4.2-pfi-beta1-neoforge-26.3.jar`，830380 B，SHA256 `a439960ba74f9a4f97cbda22010e2cec9750dfce09aead61c64602542b65e069`；静态检查通过：508 entries、433 classes、6 services、8 client mixins、无重复/无 test class/无旧命名空间/无 refmap、metadata/icon/LICENSE/THIRD-PARTY 完整。首次在 Java 24 下构建失败（Loom 1.19.3 要求 JVM 25），设置 `JAVA_HOME=jdk-25` 后成功。
