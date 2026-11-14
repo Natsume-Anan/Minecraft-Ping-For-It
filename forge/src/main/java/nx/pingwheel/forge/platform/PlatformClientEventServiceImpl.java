@@ -4,11 +4,13 @@ import net.minecraft.resources.Identifier;
 import net.minecraftforge.client.event.AddGuiOverlayLayersEvent;
 import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
 import net.minecraftforge.client.gui.overlay.ForgeLayer;
+import net.minecraftforge.client.gui.overlay.ForgeLayeredDraw;
 import net.minecraftforge.event.TickEvent;
 import nx.pingwheel.common.platform.IPlatformClientEventService;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static nx.pingwheel.common.Global.LOGGER;
 import static nx.pingwheel.common.Global.MOD_ID;
 
 public class PlatformClientEventServiceImpl implements IPlatformClientEventService {
@@ -40,7 +42,11 @@ public class PlatformClientEventServiceImpl implements IPlatformClientEventServi
 		Identifier layerId = Identifier.fromNamespaceAndPath(
 			MOD_ID, "hud-layer-" + HUD_LAYER_COUNTER.incrementAndGet());
 		AddGuiOverlayLayersEvent.BUS.addListener(event ->
-			event.getLayeredDraw().add(layerId, (ForgeLayer) callback::render));
+			// POST_SLEEP_STACK is gated by !gui.isHidden(), matching vanilla HUD
+			// visibility, so the hide-HUD key (F1) hides this layer as well.
+			// Adding to the root would keep drawing while the HUD is hidden.
+			event.getLayeredDraw().add(
+				ForgeLayeredDraw.POST_SLEEP_STACK, layerId, (ForgeLayer) callback::render));
 	}
 
 	@Override
@@ -48,5 +54,8 @@ public class PlatformClientEventServiceImpl implements IPlatformClientEventServi
 		// F4: Forge 26.3 has no SubmitCustomGeometryEvent.  The LevelRenderer
 		// bridge will call this callback once its mixin injection point is
 		// verified; keeping registration a no-op preserves client startup.
+		// Do not pretend the callback is wired: the common outline pipeline
+		// is created, but it cannot submit marker outlines yet.
+		LOGGER.warn("Forge world-submit outline is unavailable until the F4 LevelRenderer bridge is implemented");
 	}
 }

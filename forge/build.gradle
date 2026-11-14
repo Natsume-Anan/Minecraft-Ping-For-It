@@ -95,6 +95,7 @@ tasks.withType(JavaCompile).configureEach {
 // Build one development mod directory (classes + resources) and use it in
 // place of the two project output roots for client/server runs.
 def devModDir = layout.buildDirectory.dir('devmod')
+def devManifest = layout.buildDirectory.file('devmod/META-INF/MANIFEST.MF')
 def prepareDevMod = tasks.register('prepareDevMod', Sync) {
     from sourceSets.main.output
     // Common classes must live in the same mod module as the Forge entrypoint;
@@ -103,6 +104,17 @@ def prepareDevMod = tasks.register('prepareDevMod', Sync) {
     from project(':common').sourceSets.main.output.classesDirs
     dependsOn project(':common').tasks.named('classes')
     into devModDir
+
+    // Mixin discovers configs from a container manifest.  The run classpath
+    // points at this directory, not the production jar, so add the manifest
+    // here; otherwise every common client mixin is silently absent in dev.
+    outputs.file(devManifest)
+    doLast {
+        def manifestFile = devManifest.get().asFile
+        manifestFile.parentFile.mkdirs()
+        manifestFile.text =
+            'Manifest-Version: 1.0\nMixinConfigs: pingforit.mixins.json\n'
+    }
 }
 
 tasks.matching { it.name == 'runClient' || it.name == 'runServer' }.configureEach { task ->

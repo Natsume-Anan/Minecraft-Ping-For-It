@@ -3,10 +3,14 @@ package nx.pingwheel.forge;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
+import net.minecraftforge.fml.loading.FMLEnvironment;
 import net.minecraftforge.network.ChannelBuilder;
 import net.minecraftforge.network.EventNetworkChannel;
+import net.minecraftforge.registries.DeferredRegister;
+import net.minecraftforge.registries.ForgeRegistries;
 import nx.pingwheel.common.CommonServer;
 import nx.pingwheel.common.network.MarkerCreateC2SPacket;
 import nx.pingwheel.common.network.MarkerCreatedS2CPacket;
@@ -22,6 +26,7 @@ import nx.pingwheel.common.network.ServerConfigSnapshotS2CPacket;
 import nx.pingwheel.common.network.ServerConfigUpdateC2SPacket;
 import nx.pingwheel.common.network.SyncDurationPolicyS2CPacket;
 import nx.pingwheel.common.network.UpdateChannelC2SPacket;
+import nx.pingwheel.common.resource.ResourceConstants;
 import nx.pingwheel.forge.platform.PlatformNetworkServiceImpl;
 
 import java.util.function.Function;
@@ -30,6 +35,13 @@ import static nx.pingwheel.common.Global.MOD_ID;
 
 @Mod(MOD_ID)
 public final class ForgeMain {
+
+	private static final DeferredRegister<SoundEvent> SOUND_EVENTS =
+		DeferredRegister.create(ForgeRegistries.SOUND_EVENTS, MOD_ID);
+
+	static {
+		SOUND_EVENTS.register("ping", () -> ResourceConstants.PING_SOUND_EVENT);
+	}
 
 	public static final EventNetworkChannel PING_LOCATION_CHANNEL_C2S =
 		ChannelBuilder.named(PingLocationC2SPacket.PACKET_ID).optional().eventNetworkChannel();
@@ -61,8 +73,15 @@ public final class ForgeMain {
 		ChannelBuilder.named(MarkerWinnerChangedS2CPacket.PACKET_ID).optional().eventNetworkChannel();
 
 	public ForgeMain(FMLJavaModLoadingContext context) {
+		SOUND_EVENTS.register(context.getModBusGroup());
 		registerChannels();
 		CommonServer.INSTANCE.onInit();
+
+		if (FMLEnvironment.dist.isClient()) {
+			// The bootstrap is the only client entrypoint referenced from this
+			// universal mod class; it loads ForgeClient only on the client.
+			ForgeClientBootstrap.register(context);
+		}
 	}
 
 	private static void registerChannels() {
