@@ -42,10 +42,6 @@ dependencies {
     implementation(project(':common')) {
         transitive = false
     }
-
-    // ForgeGradle 7 no longer applies MixinGradle.  The annotation processor
-    // expands the local mixin config; no refmap is requested for 26.3.
-    annotationProcessor 'org.spongepowered:mixin:0.8.7:processor'
 }
 
 // Generate META-INF/mods.toml from a template, keeping placeholders out of the
@@ -91,7 +87,45 @@ processResources {
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
-    options.compilerArgs += ['-mixin.config=${mod_id}.mixins.json']
+}
+
+// ForgeGradle's Slime Launcher exposes project classes and resources as two
+// separate classpath roots; FML then sees a "main" module and a separately
+// scanned mod metadata directory, which can produce duplicate package exports.
+// Build one development mod directory (classes + resources) and use it in
+// place of the two project output roots for client/server runs.
+def devModDir = layout.buildDirectory.dir('devmod')
+def prepareDevMod = tasks.register('prepareDevMod', Sync) {
+    from sourceSets.main.output
+    // Common classes must live in the same mod module as the Forge entrypoint;
+    // leaving common as a separate classpath jar splits net.minecraft types
+    // across class loaders and breaks Identifier fields at construction time.
+    from project(':common').sourceSets.main.output.classesDirs
+    dependsOn project(':common').tasks.named('classes')
+    into devModDir
+}
+
+tasks.matching { it.name == 'runClient' || it.name == 'runServer' }.configureEach { task ->
+    task.dependsOn prepareDevMod
+
+    def commonProject = project(':common')
+    def commonJar = commonProject.tasks.named('jar').flatMap { it.archiveFile }
+    def excludedOutputs = sourceSets.main.output.files + commonProject.sourceSets.main.output.files
+    def externalRuntimeClasspath = sourceSets.main.runtimeClasspath.filter { file ->
+        !excludedOutputs.contains(file) && file != commonJar.get().asFile
+    }
+
+    if (task.hasProperty('runtimeClasspath')) {
+        task.runtimeClasspath.setFrom(files(devModDir) + externalRuntimeClasspath)
+    }
+
+    task.doFirst {
+        def excluded = sourceSets.main.output.files + commonProject.sourceSets.main.output.files
+        def commonJarFile = commonJar.get().asFile
+        task.classpath = files(devModDir) + task.classpath.filter { file ->
+            !excluded.contains(file) && file != commonJarFile
+        }
+    }
 }
 
 jar {

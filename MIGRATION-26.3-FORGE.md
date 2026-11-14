@@ -1,6 +1,6 @@
 # Ping For It — 26.3 Forge 迁移方案
 
-> 状态：**F0–F1 已完成**（2026-11-14）。`26.3-Forge` 已从旧的 `407fbc6` 同步到 `26.3` @ `2954fcf`；本地原有的 `9a723c2` 仅重复添加 `.agents-work/`，rebase 时被安全跳过。F0 基线 `:forge:compileJava` 实跑成功（骨架 `NO-SOURCE`）；F1 已接好 common 依赖/资源合并、metadata、121 pack 和 8 条本地 mixin，`:forge:processResources` 与 `:forge:jar` 实跑成功。F2 尚未开始。
+> 状态：**F0–F2 已完成**（2026-11-14）。`26.3-Forge` 已从旧的 `407fbc6` 同步到 `26.3` @ `2954fcf`；本地原有的 `9a723c2` 仅重复添加 `.agents-work/`，rebase 时被安全跳过。F0 基线 `:forge:compileJava` 实跑成功（骨架 `NO-SOURCE`）；F1 已接好 common 依赖/资源合并、metadata、121 pack 和 8 条本地 mixin；F2 已添加入口、14 个 channel、6 个 SPI 实现和 6 个 services，`:forge:runServer` 实跑输出 `[PingForIt] Init` 与 `Done (1.937s)`。F3 尚未开始。
 > 分支：`26.3-Forge`（完成后合并回 `26.3`）
 > 目标：恢复 Forge 26.3 的核心 ping/marker/配置/网络/HUD/outline；首轮不追求 Create/Flywheel 等可选集成 parity。
 > 参考：`MIGRATION-26.3-NEOFORGE.md`、`AGENTS.md`、`docs/`（产品行为 owner；本文件不替代 docs）
@@ -69,6 +69,16 @@ $env:GRADLE_USER_HOME = '<workspace>\.agents-work\gradle-home'
   - `META-INF/services` 为 0 是预期：F2 才补 6 个 SPI 实现
 
 F1 没有验证 Forge 客户端/服务端启动，也没有验证 mixin 在 Java 25 字节码下的实际注入；这些属于 F2/F3。
+
+### 1.3 F2 实跑证据
+
+- 新增 7 个 Forge Java 类：`ForgeMain` + 6 个 SPI 实现。
+- 新增 6 个 `META-INF/services` 文件，指向 6 个实现类。
+- `:forge:compileJava`：`BUILD SUCCESSFUL`。
+- `:forge:runServer`：`[PingForIt] Init`、`Saved config type=ServerConfig`、`Done (1.937s)`；无 mod 加载 ERROR/FATAL。`server.properties` 首次缺失与 Windows 上的 netty kqueue/epoll 探测错误是非致命环境信息，未阻止服务器启动。
+- `:forge:jar`：`BUILD SUCCESSFUL`；501 entries / 429 classes / 6 个 service 文件 / 0 duplicate entry。
+
+F2 未启动客户端，未验证 S2C handler、HUD、输入或 mixin 注入；这些属于 F3。
 
 ## 2. 目标架构
 
@@ -175,7 +185,8 @@ side = "BOTH"
 
 - Forge 26.3 使用 `org.spongepowered:mixin:0.8.7`；已从源码核实其 `MixinEnvironment.CompatibilityLevel` 最高为 `JAVA_21`。
 - Forge 本地 `pingforit.mixins.json` 应列 common 26.3 的 8 条 client mixin，`package` 保持 `nx.pingwheel.common.mixin`，不写 refmap。
-- 使用 `annotationProcessor "org.spongepowered:mixin:0.8.7:processor"`，并在 Gradle 的 `JavaCompile` 参数中加 `-mixin.config=pingforit.mixins.json`；不要恢复 MixinGradle。
+- 26.3 no-remap 下本地配置不写 refmap；`jar` manifest 写 `MixinConfigs: pingforit.mixins.json`。不要依赖 `org.spongepowered:mixin:0.8.7:processor` 分类器：当前缓存可能没有该 artifact，F1 已将它移除并成功加载。
+- **FML dev run 的类路径**：ForgeGradle 7 把项目 classes 和 resources 作为两个 classpath root；common 依赖又作为独立 jar。直接运行会让 ModLauncher 看到重复的 `main`/`pingforit` 模块，或让 common 类落在另一个 classloader。F2 用 `prepareDevMod` 把 Forge + common classes/resources 合并到 `build/devmod`，并在 `runClient`/`runServer` 中用该目录替换项目输出、排除 common jar；这是 dev 运行配置，不影响发布 jar 的 common 合并。
 - **阻塞风险**：项目按 Java 25 编译（class file 69），vanilla mixin 0.8.7 的兼容级别最高只有 `JAVA_21`（class file 65）。F1/F2 的首次 Forge client 启动必须验证 common mixin 是否能被应用；若失败，优先评估把 Forge 模块（以及被 mixin 的 common 类）编译到 Java 21 字节码，或引入 Forge 实际使用的更新 mixin 栈。**不要简单把 `compatibilityLevel` 改成不存在的 `JAVA_25`。**
 - common mixin 配置与 Forge 本地配置必须同步；新增 common mixin 时同时更新两处。
 
@@ -274,7 +285,7 @@ common 的 `BlockOutlinePass.onWorldSubmit(WorldSubmitContext)` 需要 `PoseStac
 | --- | --- | --- |
 | F0 | 同步分支 + 基线 | `26.3-Forge` 基于 `2954fcf`；`:forge:compileJava` 成功；工作区无意外改动 |
 | F1 | 构建接线、metadata、pack、mixin 配置 | **已完成**：`:forge:processResources`、`:forge:jar` 成功；metadata 无占位符、pack 121、8 条本地 mixin；静态审查通过 |
-| F2 | 入口、服务端网络、SPI、6 个 services | `:forge:compileJava` 通过；`:forge:runServer` 启动并出现 `[PingForIt] Init`，无 ERROR/FATAL |
+| F2 | 入口、服务端网络、SPI、6 个 services | **已完成**：`:forge:compileJava` 通过；`:forge:runServer` 输出 `[PingForIt] Init`、`Done (1.937s)`；6 个 services 已入 jar |
 | F3 | 客户端事件、HUD、按键、reload、配置界面 | `:forge:runClient` 进入 26.3 主菜单；mixin 加载无致命错误；HUD 注册不崩 |
 | F4 | outline / world-submit spike | 进世界可见普通方块/门/床/entity_block outline；或明确记录阻塞并暂停 |
 | F5 | 客户端/服务端运行时验证 | client/server 均有 `[PingForIt] Init`；进世界、ping、HUD、outline、重连；无 ERROR/FATAL |
@@ -303,6 +314,7 @@ $env:GRADLE_OPTS = '-Dfile.encoding=UTF-8'
 ```
 
 - 首次解析依赖需要网络；缓存已存在时可 `--offline`。不要让 `--offline` 掩盖缺失依赖。
+- ForgeGradle 7 的 `runServer` 通过 `SlimeLauncherExec` 启动，要求 **Java 8 launcher toolchain**（与项目 Java 25 编译目标不同）。Gradle 需能发现 JDK 8（本机为 `~/.gradle/jdks/temurin-8-*`）；缺少时会在任务配置阶段报 toolchain 解析失败。
 - `verifyModIdentity` 仍依赖 `:forge:build`；F6 之前不要运行，也不要把 Forge 骨架的 compile 成功说成身份校验通过。
 - `:common:test` 仍应保持 1193/1193；Forge 迁移不应修改 common 测试源集。
 - 运行日志路径：`runs/forge-client/logs/latest.log`、`runs/forge-server/logs/latest.log`。
