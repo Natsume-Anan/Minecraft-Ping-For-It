@@ -1,6 +1,6 @@
 # Ping For It — 26.3 Forge 迁移方案
 
-> 状态：**F0–F3 已完成**（2026-11-14）。`26.3-Forge` 已从旧的 `407fbc6` 同步到 `26.3` @ `2954fcf`；本地原有的 `9a723c2` 仅重复添加 `.agents-work/`，rebase 时被安全跳过。F0 基线 `:forge:compileJava` 实跑成功（骨架 `NO-SOURCE`）；F1 已接好 common 依赖/资源合并、metadata、121 pack 和 8 条本地 mixin；F2 已添加入口、14 个 channel、6 个 SPI 实现和 6 个 services，`:forge:runServer` 实跑输出 `[PingForIt] Init` 与 `Done (1.937s)`。F3 已加入客户端入口、8 个 S2C handler、按键/reload/HUD/命令/配置界面与声音注册；`:forge:runClient` 进入主菜单，mixin 配置成功加载，outline pipeline 创建成功。F4 尚未开始。
+> 状态：**F0–F3 已完成**（2026-11-14）。`26.3-Forge` 已从旧的 `407fbc6` 同步到 `26.3` @ `2954fcf`；本地原有的 `9a723c2` 仅重复添加 `.agents-work/`，rebase 时被安全跳过。F0 基线 `:forge:compileJava` 实跑成功（骨架 `NO-SOURCE`）；F1 已接好 common 依赖/资源合并、metadata、121 pack 和 8 条本地 mixin；F2 已添加入口、14 个 channel、6 个 SPI 实现和 6 个 services，`:forge:runServer` 实跑输出 `[PingForIt] Init` 与 `Done (1.937s)`。F3 已加入客户端入口、8 个 S2C handler、按键/reload/HUD/命令/配置界面与声音注册；`:forge:runClient` 进入主菜单，mixin 配置成功加载，outline pipeline 创建成功。F4 观察基线已记录（2026-11-15）：当前 runClient 已进入单人世界并完成 3 次 block ping，但 world-submit 仍是 no-op，LevelRenderer bridge 尚未实现。
 > 分支：`26.3-Forge`（完成后合并回 `26.3`）
 > 目标：恢复 Forge 26.3 的核心 ping/marker/配置/网络/HUD/outline；首轮不追求 Create/Flywheel 等可选集成 parity。
 > 参考：`MIGRATION-26.3-NEOFORGE.md`、`AGENTS.md`、`docs/`（产品行为 owner；本文件不替代 docs）
@@ -113,10 +113,78 @@ F3 的 `:forge:jar` 产物：503 entries / 431 classes / 6 个 services / 0 dupl
 ```
 
 - `runs/forge-client/options.txt` 出现 5 个 `key_key.pingforit.*` 项，证明按键进入 `Options.keyMappings`；这是 F3 构造期注册生效的直接证据。
-- `runs/forge-client/logs/debug.log` 显示 config 只注册一次（`source=SecureJarResource(pingforit)`），主菜单阶段实际应用 7 条 mixin；`SubmitNodeCollectionMixin` 目标类要到世界提交路径才加载，F3 主菜单不能证明它已应用。debug 日志同时有 `Class version 69 ... JAVA_21 supports class version 65` 警告，但 accessor 已使 outline pipeline 创建成功；F5 必须验证按键桥和 world-submit 是否真正注入。
+- `runs/forge-client/logs/debug.log` 显示 config 只注册一次（`source=SecureJarResource(pingforit)`）；主菜单阶段应用 7 条 mixin，2026-11-15 进世界后第 8 条 `SubmitNodeCollectionMixin` 才在 `SubmitNodeCollection` 加载时应用。debug 日志同时有 `Class version 69 ... JAVA_21 supports class version 65` 警告，但 accessor 已使 outline pipeline 创建成功；F5 必须验证按键桥和 world-submit 是否真正注入。
 - `runs/forge-client/logs/latest.log` 无 mod 加载 ERROR/FATAL；Realm 认证失败与 Windows netty 平台探测错误是环境噪声。
 - `runServer` 未加载 `ForgeClient`/`CommonClient`，说明 universal jar 的客户端隔离有效。
-- 主菜单启动只能证明客户端入口、mixin 配置、按键/HUD 注册不崩；S2C 实际往返、HUD 视觉、命令输出、配置界面和声音仍需进世界/联机验证。
+
+### 1.5 F4/F5 观察基线（2026-11-15）
+
+本轮只记录当前 runClient 的运行信息和警告，供 F4（outline/world-submit）与 F5（运行时验证）使用；没有改代码。
+
+日志：
+
+- `runs/forge-client/logs/latest.log`：2026-11-15 22:39:58–22:41:08，进入单人世界、完成 3 次 block ping、正常退出。
+- `runs/forge-client/logs/debug.log`：同一次运行，含 mixin、14 channel 握手和 ping 状态机细节。
+- `runs/forge-client/options.txt`：5 个 `key_key.pingforit.*` 仍在。
+- 本次 `runClient` 第 1 行使用默认 assets 路径 `C:/Users/65653/AppData/Roaming/.minecraft/assets` 并成功进世界；assets 路径是环境相关，F5 前确认窗口前台、assets 可读，不要把早期 F3 的 workspace `APPDATA` workaround 当成固定要求。
+
+#### 1.5.1 已观察到的正常路径
+
+| 观察点 | 日志证据 | 结论 |
+| --- | --- | --- |
+| 客户端入口/配置 | `latest.log:33-35`：Init、ServerConfig、ClientConfig | F3 构造期初始化生效 |
+| outline pipeline | `latest.log:36-37`：pipeline registered / ready | accessor mixin 可工作 |
+| 集成服务器 | `latest.log:81` 起；`latest.log:100-105` | 单人世界启动、玩家加入、channel update |
+| 网络握手 | `debug.log:614-654`：14 个 channel 全部 ACCEPTED | optional channel 与 S2C 注册可用 |
+| ping 输入/服务端权威 | `debug.log:688-697` capture；`latest.log:121-126`、`139-141` | 3 次 block ping 成功发送并创建 marker |
+| marker 生命周期 | `debug.log:700-712`、`750-751`、`789` | created/winner/lifetime/disconnect cleanup 正常 |
+| 退出 | `latest.log:146-155` | 单人服务器和客户端正常停止 |
+| 声音 | 未出现 `Unable to play unknown soundEvent` | 只能说明没有该错误，不能证明听到了声音 |
+
+`options.txt:177-181` 的按键为：ping=`mouse.5`、pass-through=`K`、blacklisted=`left.control`、fluids=`J`、open_settings=`unknown`。`open_settings` 默认未绑定是 common `InputUtils` 的既有设计；三个 toggle 键本次没有被实际按下，F5 仍需验证。
+
+这些结果把 F5 的「核心 ping/marker 路径」推进了一步，但仍是单人集成服务器、block target、无视觉断言的局部证据。
+
+#### 1.5.2 警告与观察项
+
+| 级别 | 日志证据 | 判断 | F4/F5 动作 |
+| --- | --- | --- | --- |
+| **F4 阻塞** | `latest.log:38`、`debug.log:286`：Forge world-submit outline is unavailable until the F4 LevelRenderer bridge is implemented | 当前 F4 仍是 no-op；没有 `block outline: submitted=` 记录 | 实现 §5 的 `LevelRenderer#submitFeatures` bridge，移除该警告 |
+| **高** | `debug.log:164`：`Compatibility level JAVA_21 ... higher than the maximum level supported by this version of mixin (JAVA_13)`；紧接 `:165` 才 `set to JAVA_21` | 启动早期 Mixin 上限提示，随后实际设置 JAVA_21 并继续；不能只引用 `latest.log:12` 而忽略这条 | F4 新 mixin 同样观察；若出现 `Mixin apply failed` 再评估字节码/栈 |
+| **高** | `debug.log:198-200`：`Preparing pingforit.mixins.json (8)` / `Prepared 8 mixins`；`229-232`、`280-300`、`673-674`：8 条都有 `Class version 69 ... JAVA_21 supports class version 65` | 8/8 都出现 Mixing，`SubmitNodeCollectionMixin` 在世界加载时应用；但没有 `Mixin apply failed` 不等于注入语义已证明 | F4/F5 验证按键桥、EntityRenderer/BlockEntity/LevelExtractor/SubmitNodeCollection 的实际注入；若失败，评估 Java 21 字节码或更新 mixin 栈 |
+| **中** | `latest.log:107`、`debug.log:672`：Requested post effect does not exist: minecraft:end_of_frame | 世界加载时出现，未导致崩溃；来源可能是 Forge/vanilla 渲染管线而非本 mod | F4/F5 查 Forge 侧 post-effect 注册/资源；先不要归因于 pingforit |
+| **环境** | `debug.log:540`、`563`：sun.misc.Unsafe unavailable / Native access ... io.netty.common | JDK 25 + Netty 的启动回退；集成服务器仍启动 | 不阻塞 F4/F5；若做自动化测试，记录 JVM 参数/环境 |
+| **环境** | `latest.log:17-18`：Assets URL ... union ... uses unexpected schema | ForgeGradle dev 资源路径；客户端仍加载资源 | 视觉测试前确认资源包与 assets；不要当 mod 回归 |
+| **环境** | `latest.log:44-53`、`69-79`：Realm 认证/JWT/连接失败 | 开发账号无 Realm 会话 | 忽略；不要作为 ERROR 计入 mod |
+| **环境** | `latest.log:54`：Forge 66.1.0 vs 66.1.8 | 版本检查提示 | F6/版本决策再评估；F4 不升级 |
+| **环境** | `latest.log:83-89`：forge-server.toml 修正 | 新建世界首次配置默认值 | 正常；不是 pingforit 配置错误 |
+| **F5 待确认** | `debug.log:750-751`：marker created 后约 9.0 s 才 `lifetime ended`；`pingforit.json:24` `markerDisplayDuration: 0`（跟随服务端），`pingforit.server.json:6` `syncDuration: 7`；日志没有 SyncDurationPolicy 应用记录 | 9 s 与 7 s 的差异无法从当前日志解释 | F5 用秒表复测，并临时记录 SyncDurationPolicy 应用值；确认是策略、宽限还是计时误差 |
+| **正常** | `latest.log:108-120`、`135-138`：DynamicGpuDataStorage 扩容 | 首次进世界分配缓冲 | 正常，不当作 leak/回归 |
+| **调试噪声** | `debug.log:71-78`、`610`：JarJar metadata / SOMAXCONN | DEBUG 级别，非失败 | 不进入 F4/F5 结论 |
+| **历史环境** | 归档 F3 运行曾有 Cannot acquire minimized window | 窗口最小化时截图/渲染可能失败 | F4/F5 视觉测试必须保持窗口前台且未最小化 |
+
+#### 1.5.3 F4 注入点结论
+
+Forge 26.3 的 `LevelRenderer` 实际方法（来自缓存 injected sources）：
+
+```java
+private void submitFeatures(LevelRenderState levelRenderState,
+                            SubmitNodeCollector submitNodeCollector,
+                            boolean renderOutline) {
+    PoseStack poseStack = new PoseStack();
+    this.submitEntities(poseStack, levelRenderState, submitNodeCollector);
+    this.submitBlockEntities(poseStack, levelRenderState, submitNodeCollector);
+    ...
+}
+```
+
+F4 首选注入：目标 `LevelRenderer#submitFeatures(LevelRenderState, SubmitNodeCollector, boolean)` 的 `RETURN`；捕获方法参数 `submitNodeCollector` + 局部变量 `poseStack`（`LocalCapture.CAPTURE_FAILHARD` 或等价 `@Local`）；转发 `BlockOutlinePass.onWorldSubmit(new WorldSubmitContext(poseStack, collector, Minecraft.getInstance().gameRenderer.mainCamera(), 0.0f))`。
+
+为什么不是 HEAD：`submitFeatures` 内先提交 entity/block entity，Fabric 的 `COLLECT_SUBMITS` 也在 `submitFeatures` 的 RETURN；HEAD 会让 `EntityBlockGlowState` 尚不完整。为什么不是 `AddFramePassEvent`/`RenderHighlightEvent`：前者没有 `PoseStack`/`SubmitNodeCollector`，后者只在准星高亮时触发。
+
+配置：新增 Forge-local mixin（建议类放 `nx.pingwheel.common.mixin` 包以匹配本地配置），只加入 Forge 的 `pingforit.mixins.json`，不要加入 common 配置，避免 Fabric/NeoForge 重复提交。失败出口：若 bridge 无法应用，必须保留 no-op 警告并停止 F5 的 outline 门禁，不能把「pipeline ready」当成「outline 已画」。
+
+F4 验收至少要有：1) `block outline: submitted>0` 的 debug 日志；2) 普通方块可见 outline；3) 门/床两半、`entity_block` 至少各一个可见 outline；4) 与 `SubmitNodeCollectionMixin` 的 after-terrain 路由日志/行为一致。
 
 ## 2. 目标架构
 
@@ -293,7 +361,7 @@ common 的 `BlockOutlinePass.onWorldSubmit(WorldSubmitContext)` 需要 `PoseStac
 - `RenderHighlightEvent.Block/Entity` 的 custom renderer 有 `SubmitNodeCollector` / `PoseStack`，但只在 vanilla 已经产生 selection highlight 时触发；它不能覆盖所有 marker 的 outline。
 - 因此 F4 需要 spike，优先级：
 
-  1. **首选**：Forge-local mixin 到 `LevelRenderer` 的 block-entity/feature 提交路径，在合适的提交点把 `PoseStack` / `SubmitNodeCollector` / `Camera` 转给 common `BlockOutlinePass.onWorldSubmit`。注入点必须以 Forge 26.3 实际 `LevelRenderer` 方法签名为准，不能照搬 NeoForge 的 `SubmitCustomGeometryEvent`。
+  1. **首选**：Forge-local mixin 到 `LevelRenderer#submitFeatures(LevelRenderState, SubmitNodeCollector, boolean)` 的 `RETURN`。该点已提交 entity/block entity，和 Fabric `COLLECT_SUBMITS` 等价；用 `LocalCapture`/`@Local` 捕获局部 `PoseStack`，把 `PoseStack` / `SubmitNodeCollector` / `mainCamera()` 转给 common `BlockOutlinePass.onWorldSubmit`。注入点必须以 Forge 26.3 实际 `LevelRenderer` 方法签名为准，不能照搬 NeoForge 的 `SubmitCustomGeometryEvent`，也不要用没有 pose/collector 的 `AddFramePassEvent`。
   2. **备选**：把 `BlockOutlinePass` 重写成 Forge frame-pass 渲染器；工作量大，且需要自己处理 pose/camera/collector 生命周期。
   3. **不可接受**：静默不画 outline 或只画当前准星方块。
 - F4 的出口：Forge client 进世界后，普通方块、门/床两半、`entity_block` 至少各有一个可见 outline；若 mixin 失败，记录失败日志并暂停 F5，不在 F6 假装完成。
@@ -328,7 +396,7 @@ common 的 `BlockOutlinePass.onWorldSubmit(WorldSubmitContext)` 需要 `PoseStac
 | F1 | 构建接线、metadata、pack、mixin 配置 | **已完成**：`:forge:processResources`、`:forge:jar` 成功；metadata 无占位符、pack 121、8 条本地 mixin；静态审查通过 |
 | F2 | 入口、服务端网络、SPI、6 个 services | **已完成**：`:forge:compileJava` 通过；`:forge:runServer` 输出 `[PingForIt] Init`、`Done (1.937s)`；6 个 services 已入 jar |
 | F3 | 客户端事件、HUD、按键、reload、配置界面 | **已完成**：`:forge:runClient` 进入 26.3 主菜单；mixin 配置加载、outline pipeline 创建；5 个按键进入 options；无 mod ERROR/FATAL |
-| F4 | outline / world-submit spike | 进世界可见普通方块/门/床/entity_block outline；或明确记录阻塞并暂停 |
+| F4 | outline / world-submit spike | **观察基线已记录**（§1.5）；`LevelRenderer#submitFeatures` bridge 未实现，当前 no-op 警告仍存在；进世界可见普通方块/门/床/entity_block outline 才算完成 |
 | F5 | 客户端/服务端运行时验证 | client/server 均有 `[PingForIt] Init`；进世界、ping、HUD、outline、重连；无 ERROR/FATAL |
 | F6 | 打包/静态身份检查 | `:forge:build`；精确 jar 名、common classes/resources、6 services、8 mixin、metadata、pack、LICENSE |
 | F7 | 独立审查 + 合并 | 审查 PASS；F0–F6 证据齐全；`26.3-Forge` 合并回 `26.3` |
@@ -362,13 +430,13 @@ $env:GRADLE_OPTS = '-Dfile.encoding=UTF-8'
 
 ## 9. 风险与未决问题
 
-1. **Mixin 0.8.7 / Java 25**：最高兼容级别 `JAVA_21`。F3 的 `:forge:runClient` 已实际输出 `Compatibility level set to JAVA_21`，custom outline pipeline 创建成功，说明 accessor mixin 能工作；但 debug 日志同时给出 `Class version 69 ... JAVA_21 supports class version 65` 警告，且主菜单只观察到 7/8 条 mixin，`SubmitNodeCollectionMixin` 尚未经过世界提交路径。F5 必须验证按键桥和 world-submit 注入；该风险不能仅凭主菜单宣布完全解除。保留 `pingforit.mixins.json` 的 `JAVA_21`，不要伪造 `JAVA_25`。
+1. **Mixin 0.8.7 / Java 25**：最高兼容级别 `JAVA_21`。F3 的 `:forge:runClient` 已实际输出 `Compatibility level set to JAVA_21`，custom outline pipeline 创建成功；2026-11-15 的 runClient 进入世界后 8/8 条 mixin 都出现 `Mixing ...`，`SubmitNodeCollectionMixin` 也在世界路径应用。但 debug 日志同时给出 8 次 `Class version 69 ... JAVA_21 supports class version 65` 警告，不能把「Mixing 出现」当成「注入语义正确」。F4/F5 必须验证按键桥、EntityRenderer/BlockEntity/LevelExtractor/SubmitNodeCollection 的实际行为；若失败，评估 Java 21 字节码或更新 mixin 栈。保留 `pingforit.mixins.json` 的 `JAVA_21`，不要伪造 `JAVA_25`。
 2. **World submit 没有等价事件**：F4 的 `LevelRenderer` mixin 是唯一低风险路径；`AddFramePassEvent` 没有 pose/collector，不能直接复用 common pass。若 F4 失败，Forge 首轮 outline 不可宣称完成。
 3. **事件总线 7 迁移**：旧 `MinecraftForge.EVENT_BUS` + `@SubscribeEvent` 只是兼容层；新代码统一用静态 `BUS`，避免自动订阅和类加载顺序问题。
 4. **客户端类隔离与时序**：`ForgeMain` 不得直接引用 `ForgeClient` / `CommonClient` / `SettingsScreen`；客户端由 `ForgeClientBootstrap` 在 mod 构造期同步加载。HUD 层、按键、client reload 三个 `SelfDestructing` 事件在 `Minecraft` 构造期先 fire，不能等到 `FMLClientSetupEvent`。
 5. **metadata 版本字段**：`loaderVersion` 与 Forge 依赖 `versionRange` 不是同一个东西；旧 `forge_loader_version=66` 不能直接作为 `loaderVersion`。F1 以 Forge universal metadata 和实际启动日志复核。
 6. **可选集成**：Create/Flywheel 没有 26.3 artifact；不要加 1.21.1 compileOnly，也不要在 Forge metadata 声明可选依赖。
-7. **运行环境**：默认 Gradle 用户目录在受限环境可能不可写；使用工作区 `GRADLE_USER_HOME` 仅作为本机 workaround，不写入项目构建逻辑。`runClient` 需要可写的 assets 目录；本机通过工作区 `APPDATA` 指向已复制/缓存的 assets。该路径是环境 workaround，不进入构建脚本。
+7. **运行环境**：默认 Gradle 用户目录在受限环境可能不可写；使用工作区 `GRADLE_USER_HOME` 仅作为本机 workaround，不写入项目构建逻辑。`runClient` 的 assets 路径是环境相关：早期 F3 在本机用 workspace `APPDATA` 指向缓存 assets；2026-11-15 的 runClient 使用默认 `C:/Users/.../.minecraft/assets` 并成功进世界。F5 前确认窗口前台、assets 可读；不要把某一台机器的路径写成构建要求。
 8. **客户端注册时序**：HUD/key/reload 三类 `SelfDestructing` 事件早于 `FMLClientSetupEvent`；不要把客户端注册移回 setup 事件，否则不会报错但会永久丢失。`POST_SLEEP_STACK` 是 F1 隐藏语义的一部分，不要改回 root。
 9. **dev Mixin manifest**：`prepareDevMod` 的 manifest 只服务目录型 dev mod；生产 jar 的 `MixinConfigs` 仍由 `jar.manifest` 提供。删除 dev manifest 会让开发运行静默失去 mixin，但发布 jar 不受影响。
 
