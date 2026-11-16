@@ -1,6 +1,6 @@
 # Ping For It — 26.3 Forge 迁移方案
 
-> 状态：**F0–F3 已完成**（2026-11-14）。`26.3-Forge` 已从旧的 `407fbc6` 同步到 `26.3` @ `2954fcf`；本地原有的 `9a723c2` 仅重复添加 `.agents-work/`，rebase 时被安全跳过。F0 基线 `:forge:compileJava` 实跑成功（骨架 `NO-SOURCE`）；F1 已接好 common 依赖/资源合并、metadata、121 pack 和 8 条本地 mixin；F2 已添加入口、14 个 channel、6 个 SPI 实现和 6 个 services，`:forge:runServer` 实跑输出 `[PingForIt] Init` 与 `Done (1.937s)`。F3 已加入客户端入口、8 个 S2C handler、按键/reload/HUD/命令/配置界面与声音注册；`:forge:runClient` 进入主菜单，mixin 配置成功加载，outline pipeline 创建成功。F4 观察基线已记录（2026-11-15）：当前 runClient 已进入单人世界并完成 3 次 block ping，但 world-submit 仍是 no-op，LevelRenderer bridge 尚未实现。
+> 状态：**F0–F3 已完成**（2026-11-14）；**F4 实现已落地、待游戏内验证**（2026-11-16，`204e42e`）。`26.3-Forge` 已从旧的 `407fbc6` 同步到 `26.3` @ `2954fcf`；本地原有的 `9a723c2` 仅重复添加 `.agents-work/`，rebase 时被安全跳过。F0 基线 `:forge:compileJava` 实跑成功（骨架 `NO-SOURCE`）；F1 已接好 common 依赖/资源合并、metadata、121 pack 和 8 条本地 mixin；F2 已添加入口、14 个 channel、6 个 SPI 实现和 6 个 services，`:forge:runServer` 实跑输出 `[PingForIt] Init` 与 `Done (1.937s)`。F3 已加入客户端入口、8 个 S2C handler、按键/reload/HUD/命令/配置界面与声音注册；`:forge:runClient` 进入主菜单，mixin 配置成功加载，outline pipeline 创建成功。F4 观察基线已记录（2026-11-15）：当前 runClient 已进入单人世界并完成 3 次 block ping，但 world-submit 仍是 no-op。**F4 实现已落地**（2026-11-16，`204e42e`）：Forge-local `LevelRendererSubmitMixin` 注入 `LevelRenderer#submitFeatures` 的 RETURN，取代 no-op；`:forge:compileJava` / `:forge:prepareDevMod` / `:forge:jar` 实跑通过，独立审查 PASS、无 P0/P1；游戏内 outline 视觉验证仍未完成，F4 不能宣称完成。
 > 分支：`26.3-Forge`（完成后合并回 `26.3`）
 > 目标：恢复 Forge 26.3 的核心 ping/marker/配置/网络/HUD/outline；首轮不追求 Create/Flywheel 等可选集成 parity。
 > 参考：`MIGRATION-26.3-NEOFORGE.md`、`AGENTS.md`、`docs/`（产品行为 owner；本文件不替代 docs）
@@ -186,6 +186,24 @@ F4 首选注入：目标 `LevelRenderer#submitFeatures(LevelRenderState, SubmitN
 
 F4 验收至少要有：1) `block outline: submitted>0` 的 debug 日志；2) 普通方块可见 outline；3) 门/床两半、`entity_block` 至少各一个可见 outline；4) 与 `SubmitNodeCollectionMixin` 的 after-terrain 路由日志/行为一致。
 
+### 1.6 F4 实现记录（2026-11-16，`204e42e`）
+
+实现已提交到 `26.3-Forge`：`feat(forge): bridge 26.3 outline world-submit via LevelRenderer mixin`（3 文件，+115/−7）。
+
+- **注入点**：`forge/src/main/java/nx/pingwheel/common/mixin/LevelRendererSubmitMixin.java`，`@Mixin(LevelRenderer.class)`，`@Inject(method = "submitFeatures(Lnet/minecraft/client/renderer/state/level/LevelRenderState;Lnet/minecraft/client/renderer/SubmitNodeCollector;Z)V", at = @At("RETURN"), require = 0)`。包名必须是 `nx.pingwheel.common.mixin`，只加入 Forge 本地 `pingforit.mixins.json` 的 `client` 段（第 9 条）；common 配置与 Fabric/NeoForge 未动。
+- **描述符证据**：`javap -p -c -l` 读 `recompiled.jar` 与 `injected.jar`，`submitFeatures` 均为 private、3 参数、唯一方法、单 RETURN（pc 229），注解描述符逐字符一致；`poseStack` 局部在 slot 4、作用域覆盖到 RETURN。
+- **PoseStack 偏离**：§1.5.3/§5 原写“捕获局部 `PoseStack`”，实现改用 `new PoseStack()`。依据：该局部本身在方法头 `new PoseStack()` 创建，RETURN 前 `checkPoseStack` 已断言为空栈，而 `BlockOutlinePass` 只 push/translate/pop、从不读已有矩阵；不依赖 `@Local` 解析（解析失败可能被 `required: true` 升级为致命）。这是对 spike 方案的等价实现，不是契约变化。
+- **接线**：`PlatformClientEventServiceImpl.registerWorldSubmitEvent` 只保存 `volatile` 回调；新增 `dispatchWorldSubmit(PoseStack, SubmitNodeCollector)` 在 dispatch 内取 `Minecraft.getInstance().gameRenderer.mainCamera()`、partialTick 传 `0.0f`（与 Fabric 适配器一致），首帧一次性 INFO `block outline: Forge world-submit bridge active (LevelRenderer#submitFeatures RETURN)`，异常用一次性 WARN 隔离。旧 no-op WARN 已删除。
+- **构建证据**（2026-11-16，JDK 25 + 工作区 `GRADLE_USER_HOME` + `--configure-on-demand`）：`:forge:compileJava` BUILD SUCCESSFUL（12s）；`:forge:prepareDevMod` 后 `build/devmod/nx/pingwheel/common/mixin/LevelRendererSubmitMixin.class` 存在、devmod 内 9 个 mixin class、`pingforit.mixins.json` 9 条、`META-INF/MANIFEST.MF` 仍为 `MixinConfigs: pingforit.mixins.json`；`:forge:jar` 822518 B / 504 entries / 432 classes / 0 重复条目，新 class 仅 1 次。审查子代理独立复跑（含 `--rerun-tasks`）复核通过：P0/P1 无，P2 三条（日志措辞已修；`require = 0` 静默失效见 §9.10；PoseStack 偏离记录在本节）。
+- **未验证**：mixin 运行时应用、`Class version 69` 对新类的影响、`bridge active`、`block outline: submitted>0`、普通方块/门床两半/entity_block 视觉、after-terrain 路由、F4 之后的服务端回归，全部未观测。
+
+F4 游戏内验收（缺一不可）：`debug.log` 出现 `Preparing pingforit.mixins.json (9)`、`Mixing net.minecraft.client.renderer.LevelRenderer`、`block outline: Forge world-submit bridge active`、`block outline: submitted=<n>`（n>0），且普通方块、门/床两半、`entity_block` 至少各有一个可见 outline。日志 grep：
+
+```powershell
+Select-String -Path runs/forge-client/logs/debug.log -Pattern 'Preparing pingforit.mixins.json','Mixing net.minecraft.client.renderer.LevelRenderer','world-submit bridge active','block outline: submitted='
+Select-String -Path runs/forge-client/logs/*.log -Pattern 'Forge world-submit outline is unavailable','block outline: pass failed','routing mixin inactive'
+```
+
 ## 2. 目标架构
 
 ```text
@@ -361,10 +379,10 @@ common 的 `BlockOutlinePass.onWorldSubmit(WorldSubmitContext)` 需要 `PoseStac
 - `RenderHighlightEvent.Block/Entity` 的 custom renderer 有 `SubmitNodeCollector` / `PoseStack`，但只在 vanilla 已经产生 selection highlight 时触发；它不能覆盖所有 marker 的 outline。
 - 因此 F4 需要 spike，优先级：
 
-  1. **首选**：Forge-local mixin 到 `LevelRenderer#submitFeatures(LevelRenderState, SubmitNodeCollector, boolean)` 的 `RETURN`。该点已提交 entity/block entity，和 Fabric `COLLECT_SUBMITS` 等价；用 `LocalCapture`/`@Local` 捕获局部 `PoseStack`，把 `PoseStack` / `SubmitNodeCollector` / `mainCamera()` 转给 common `BlockOutlinePass.onWorldSubmit`。注入点必须以 Forge 26.3 实际 `LevelRenderer` 方法签名为准，不能照搬 NeoForge 的 `SubmitCustomGeometryEvent`，也不要用没有 pose/collector 的 `AddFramePassEvent`。
+  1. **首选**：Forge-local mixin 到 `LevelRenderer#submitFeatures(LevelRenderState, SubmitNodeCollector, boolean)` 的 `RETURN`。该点已提交 entity/block entity，和 Fabric `COLLECT_SUBMITS` 等价；`PoseStack` 在实现中改用 `new PoseStack()`（RETURN 处局部栈已由 `checkPoseStack` 断言为空，等价性见 §1.6），把 `PoseStack` / `SubmitNodeCollector` / `mainCamera()` 转给 common `BlockOutlinePass.onWorldSubmit`。注入点必须以 Forge 26.3 实际 `LevelRenderer` 方法签名为准，不能照搬 NeoForge 的 `SubmitCustomGeometryEvent`，也不要用没有 pose/collector 的 `AddFramePassEvent`。
   2. **备选**：把 `BlockOutlinePass` 重写成 Forge frame-pass 渲染器；工作量大，且需要自己处理 pose/camera/collector 生命周期。
   3. **不可接受**：静默不画 outline 或只画当前准星方块。
-- F4 的出口：Forge client 进世界后，普通方块、门/床两半、`entity_block` 至少各有一个可见 outline；若 mixin 失败，记录失败日志并暂停 F5，不在 F6 假装完成。
+- F4 的出口：Forge client 进世界后，普通方块、门/床两半、`entity_block` 至少各有一个可见 outline；若 mixin 失败，记录失败日志并暂停 F5，不在 F6 假装完成。实现与当前证据见 §1.6。
 
 ## 6. 源码迁移分类
 
@@ -376,7 +394,7 @@ common 的 `BlockOutlinePass.onWorldSubmit(WorldSubmitContext)` 需要 `PoseStac
 - `PlatformClientContextServiceImpl`：新增；继承/组合 context，实现 `registerKeyMapping`。
 - `PlatformNetworkServiceImpl`：服务端 `sendToClient`；`CHANNEL_MAP` 用 `Identifier`。
 - `ClientNetworkServiceImpl`：新增；客户端 `sendToServer`。
-- `PlatformClientEventServiceImpl`：6 个方法全部实现；world submit 先留 F4 接口。
+- `PlatformClientEventServiceImpl`：6 个方法全部实现；world submit 由 Forge-local `LevelRendererSubmitMixin` 在 `submitFeatures` RETURN 驱动（F4，见 §1.6）。
 - `PlatformServerEventServiceImpl`：logout + server tick Post。
 - 6 个 `META-INF/services`；旧 4 个补 2 个。
 - `mods.toml` 模板、`pack.mcmeta`、本地 `pingforit.mixins.json`。
@@ -396,9 +414,9 @@ common 的 `BlockOutlinePass.onWorldSubmit(WorldSubmitContext)` 需要 `PoseStac
 | F1 | 构建接线、metadata、pack、mixin 配置 | **已完成**：`:forge:processResources`、`:forge:jar` 成功；metadata 无占位符、pack 121、8 条本地 mixin；静态审查通过 |
 | F2 | 入口、服务端网络、SPI、6 个 services | **已完成**：`:forge:compileJava` 通过；`:forge:runServer` 输出 `[PingForIt] Init`、`Done (1.937s)`；6 个 services 已入 jar |
 | F3 | 客户端事件、HUD、按键、reload、配置界面 | **已完成**：`:forge:runClient` 进入 26.3 主菜单；mixin 配置加载、outline pipeline 创建；5 个按键进入 options；无 mod ERROR/FATAL |
-| F4 | outline / world-submit spike | **观察基线已记录**（§1.5）；`LevelRenderer#submitFeatures` bridge 未实现，当前 no-op 警告仍存在；进世界可见普通方块/门/床/entity_block outline 才算完成 |
+| F4 | outline / world-submit spike | **实现完成**（2026-11-16，`204e42e`，见 §1.6）：Forge-local `LevelRendererSubmitMixin` 注入 `LevelRenderer#submitFeatures` 的 RETURN，no-op 警告已删除；`:forge:compileJava`、`:forge:prepareDevMod`、`:forge:jar` 实跑通过（devmod/jar 9 条 mixin），独立审查 PASS、无 P0/P1。**游戏内验证未完成**：需 `bridge active` + `block outline: submitted>0` + 普通方块/门床两半/entity_block 视觉全部满足才算完成 |
 | F5 | 客户端/服务端运行时验证 | client/server 均有 `[PingForIt] Init`；进世界、ping、HUD、outline、重连；无 ERROR/FATAL |
-| F6 | 打包/静态身份检查 | `:forge:build`；精确 jar 名、common classes/resources、6 services、8 mixin、metadata、pack、LICENSE |
+| F6 | 打包/静态身份检查 | `:forge:build`；精确 jar 名、common classes/resources、6 services、9 mixin（8 common + 1 Forge-local）、metadata、pack、LICENSE |
 | F7 | 独立审查 + 合并 | 审查 PASS；F0–F6 证据齐全；`26.3-Forge` 合并回 `26.3` |
 
 F1 的 metadata 门禁至少检查：
@@ -406,7 +424,7 @@ F1 的 metadata 门禁至少检查：
 - `build/generated/modMetadata/META-INF/mods.toml`（或最终 resources 输出）无未展开 `${...}`。
 - `mods.toml` 的 `modId` / `displayName` / `version` 与 `gradle.properties` 一致。
 - `pack.mcmeta` 为 121。
-- 本地 mixin 配置没有 refmap，mixin 列表与 common 的 8 条一致。
+- 本地 mixin 配置没有 refmap；F1 时 mixin 列表与 common 的 8 条一致，F4 起为 8 common + 1 Forge-local = 9 条。
 
 ## 8. 验证命令
 
@@ -440,6 +458,8 @@ $env:GRADLE_OPTS = '-Dfile.encoding=UTF-8'
 8. **客户端注册时序**：HUD/key/reload 三类 `SelfDestructing` 事件早于 `FMLClientSetupEvent`；不要把客户端注册移回 setup 事件，否则不会报错但会永久丢失。`POST_SLEEP_STACK` 是 F1 隐藏语义的一部分，不要改回 root。
 9. **dev Mixin manifest**：`prepareDevMod` 的 manifest 只服务目录型 dev mod；生产 jar 的 `MixinConfigs` 仍由 `jar.manifest` 提供。删除 dev manifest 会让开发运行静默失去 mixin，但发布 jar 不受影响。
 
+10. **F4 静默失效风险**：`LevelRendererSubmitMixin` 使用 `require = 0`，描述符漂移时不会崩溃，但 outline 也不会绘制；唯一正信号是首帧一次性 INFO `block outline: Forge world-submit bridge active`。F5 必须把「`bridge active` + `block outline: submitted>0` + 视觉」作为硬门禁，缺一不可；不要用 `Preparing 9 mixins`/`Mixing` 代替 outline 已画。
+
 ## 10. 审查基线
 
 F7 独立审查至少检查：
@@ -447,5 +467,5 @@ F7 独立审查至少检查：
 - 分支：`26.3-Forge` 基于 `2954fcf`，diff 只含 Forge 迁移与本文档；未修改 `docs/`。
 - 编译：F2/F3/F5 的 Gradle 命令与结果；不是只读源码推导。
 - 运行：client/server 日志中的 loader、MC 版本、`[PingForIt] Init`、错误/致命日志。
-- 产物：精确 jar 名、common class/resource 合并、6 services、8 mixin、`mods.toml` 展开、`pack.mcmeta` 121、LICENSE/THIRD-PARTY。
+- 产物：精确 jar 名、common class/resource 合并、6 services、9 mixin、`mods.toml` 展开、`pack.mcmeta` 121、LICENSE/THIRD-PARTY。
 - 未验证项：多人、可选集成、HUD/outline 视觉细节、Create/Flywheel parity；不要用编译或静态检查替代。
