@@ -1,6 +1,6 @@
 # Ping For It — 26.3 Forge 迁移方案
 
-> 状态：**F0–F3 已完成**（2026-11-14）；**F4 实现已落地、待游戏内验证**（2026-11-16，`204e42e`）。`26.3-Forge` 已从旧的 `407fbc6` 同步到 `26.3` @ `2954fcf`；本地原有的 `9a723c2` 仅重复添加 `.agents-work/`，rebase 时被安全跳过。F0 基线 `:forge:compileJava` 实跑成功（骨架 `NO-SOURCE`）；F1 已接好 common 依赖/资源合并、metadata、121 pack 和 8 条本地 mixin；F2 已添加入口、14 个 channel、6 个 SPI 实现和 6 个 services，`:forge:runServer` 实跑输出 `[PingForIt] Init` 与 `Done (1.937s)`。F3 已加入客户端入口、8 个 S2C handler、按键/reload/HUD/命令/配置界面与声音注册；`:forge:runClient` 进入主菜单，mixin 配置成功加载，outline pipeline 创建成功。F4 观察基线已记录（2026-11-15）：当前 runClient 已进入单人世界并完成 3 次 block ping，但 world-submit 仍是 no-op。**F4 已完成**（2026-11-16，`204e42e`）：Forge-local `LevelRendererSubmitMixin` 注入 `LevelRenderer#submitFeatures` 的 RETURN，取代 no-op；`:forge:compileJava` / `:forge:prepareDevMod` / `:forge:jar` 实跑通过，独立审查 PASS、无 P0/P1；22:13–22:14 的 runClient 已观察到 `bridge active` 与 `submitted=1..8`、无 routing/pass 失败。用户已确认普通方块/门床两半/entity_block 视觉正常，F4 门禁通过。
+> 状态：**F0–F3 已完成**（2026-11-14）；**F4 已完成**（2026-11-16，`204e42e`）。`26.3-Forge` 已从旧的 `407fbc6` 同步到 `26.3` @ `2954fcf`；本地原有的 `9a723c2` 仅重复添加 `.agents-work/`，rebase 时被安全跳过。F0 基线 `:forge:compileJava` 实跑成功（骨架 `NO-SOURCE`）；F1 已接好 common 依赖/资源合并、metadata、121 pack 和 8 条本地 mixin；F2 已添加入口、14 个 channel、6 个 SPI 实现和 6 个 services，`:forge:runServer` 实跑输出 `[PingForIt] Init` 与 `Done (1.937s)`。F3 已加入客户端入口、8 个 S2C handler、按键/reload/HUD/命令/配置界面与声音注册；`:forge:runClient` 进入主菜单，mixin 配置成功加载，outline pipeline 创建成功。F4 观察基线已记录（2026-11-15）：当前 runClient 已进入单人世界并完成 3 次 block ping，但 world-submit 仍是 no-op。**F4 已完成**（2026-11-16，`204e42e`）：Forge-local `LevelRendererSubmitMixin` 注入 `LevelRenderer#submitFeatures` 的 RETURN，取代 no-op；`:forge:compileJava` / `:forge:prepareDevMod` / `:forge:jar` 实跑通过，独立审查 PASS、无 P0/P1；22:13–22:14 的 runClient 已观察到 `bridge active` 与 `submitted=1..8`、无 routing/pass 失败。用户已确认普通方块/门床两半/entity_block 视觉正常，F4 门禁通过。**F5 暂停，进行 Forge/Fabric/NeoForge parity 审查（2026-11-16）**：结论见 §11（P0 = 0、P1 = 2、P2 = 14、P3 = 8），逐项报告在 `.agents-work/parity/parity-analysis.md`。
 > 分支：`26.3-Forge`（完成后合并回 `26.3`）
 > 目标：恢复 Forge 26.3 的核心 ping/marker/配置/网络/HUD/outline；首轮不追求 Create/Flywheel 等可选集成 parity。
 > 参考：`MIGRATION-26.3-NEOFORGE.md`、`AGENTS.md`、`docs/`（产品行为 owner；本文件不替代 docs）
@@ -485,3 +485,96 @@ F7 独立审查至少检查：
 - 运行：client/server 日志中的 loader、MC 版本、`[PingForIt] Init`、错误/致命日志。
 - 产物：精确 jar 名、common class/resource 合并、6 services、9 mixin、`mods.toml` 展开、`pack.mcmeta` 121、LICENSE/THIRD-PARTY。
 - 未验证项：多人、可选集成、HUD/outline 视觉细节、Create/Flywheel parity；不要用编译或静态检查替代。
+
+## 11. Forge 与 Fabric/NeoForge 的 parity 差异（2026-11-16 审查）
+
+> 背景：F0–F4 让 Forge 端跑通后，用户判断 Forge 与原模组（Fabric/NeoForge 实现 + `docs/` 行为契约）仍有大量差异，要求逐项核对，F5 暂停。本节只记录**分析与建议**，不声称已修复；逐项证据见 `.agents-work/parity/parity-analysis.md`。审查期间未修改任何产品代码、未 commit、未跑 runClient/runServer。
+
+### 11.1 审查范围与方法
+
+- 三方源码：`fabric/src/main`+`fabric/src/client`、`neoforge/src/main`、`forge/src/main`（含 resources/templates/build.gradle dev 接线）、共享 `common/src/main`；`mod-source-isolated/` 只读，未恢复。
+- 行为权威：`docs/`（只读，未改动）与 `AGENTS.md`。`docs/` 没有 loader 机制条款，但把 Create/Simulated 明确定义为 NeoForge-only（`docs/integrations/create.md:1`、`docs/integrations/simulated.md:3`）。因此基准分两层：**按用户 parity 目标**，以 NeoForge in-tree 实现为参照；**按 docs**，这两个集成属于 documented NeoForge-only scope，不是 Forge 的契约缺口。
+- 机制核实不只读本仓库：读了 loader 发布的源码（Fabric API `27.2.0` 的 `LevelRendererMixin`/`HudElementRegistry`/`HudElementRegistryImpl`/`SubtitleOverlayMixin`、Forge patched `Minecraft.java`/`LevelRenderer.java`/`ForgeLayeredDraw.java`/`TickEvent.java`/`RegisterKeyMappingsEvent.java`/`EventNetworkChannel.java`、NeoForge `PayloadRegistrar`/`RegisterClientPayloadHandlersEvent`/`SubmitCustomGeometryEvent`/`RenderFrameEvent`/`RegisterGuiLayersEvent`、vanilla `LevelExtractor`/`Options`），以及既有 `runs/forge-client/logs/`（2026-11-16 22:44–22:47 会话）。
+- 证据分级沿用 AGENTS §9：源码推导 / 运行时观测（既有日志）/ 未验证，三者不混写。
+
+### 11.2 差异总表
+
+计数：**P0 = 0，P1 = 2，P2 = 14，P3 = 8**。
+
+| # | 级别 | 项 | Fabric / NeoForge 做法与效果 | Forge 做法与效果 | 证据 | 建议 |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | **P1** | `mods.toml` 缺 `displayTest` | NeoForge 模板也写了 `displayTest = "IGNORE_SERVER_VERSION"`，但 **NeoForge 26.3 loader 没有该字段的实现 → inert**（sources jar 0 命中），不能当作对齐理由 | Forge fmlcore **支持**该字段，缺省 `MATCH_VERSION`：客户端/服务端 pingforit 版本不一致时多人列表标红（仅影响服务器列表兼容标记） | `forge/src/main/templates/META-INF/mods.toml:6-13`；`forge/build/generated/modMetadata/META-INF/mods.toml`；1.21.1 旧模板 `mod-source-isolated/forge/src/main/resources/META-INF/mods.toml:14`；fmlcore `ModContainer.java` 的 `displayTest` switch 默认分支；本节 §3.1 模板也写了该字段 | **迁移丢失**（旧模板/§3.1 有、当前模板没有）：加 1 行 + 重建；理由写"恢复既有字段"，不是"对齐 NeoForge" |
+| 2 | **P1** | Forge 缺 Create door / Simulated docking presentation resolver | NeoForge in-tree：`CreateDoorPresentationResolver`、`SimulatedDockingConnectorPresentationResolver`（含 join 时重试 + 各自单测）。两者**只 import vanilla+common**（ID 字符串 + registry 查询，无 Create/Simulated 类依赖） | Forge 无 `integration` 包；装了 Create/Simulated 时 presentation 与 NeoForge 不同 | `NeoClient.java:99-120` + `integration/create`、`integration/simulated`（两 resolver 的 import 全是 vanilla/common）；Forge 无对应文件 | §0.2/§6.2 已显式延后。**不是工件阻塞**：可按 docs 的 NeoForge-only 保持现状，或由用户决定纳入 Forge 范围（届时同步 §6.2 延后清单；改 docs 需单独授权） |
+| 3 | P2 | 网络机制 | payload type + StreamCodec（Fabric 2 流 14 类型；NeoForge 1 registrar `.optional()`） | 14 个独立 `EventNetworkChannel` + 裸 `FriendlyByteBuf`，不用 payload type | `FabricMain.java:45-58`；`NeoMain.java:71-103`；`ForgeMain.java:46-73,87-134` | loader 必要差异；包 ID/方向/optional/主线程语义一致，不修 |
+| 4 | P2 | world submit 触发点 | Fabric `LevelRenderEvents.COLLECT_SUBMITS` = `submitFeatures` `@At("RETURN")`；NeoForge `SubmitCustomGeometryEvent` 在 `submitBlockOutline`（L341）**之后**、outline 桶清理（L347-351）**之前**（调用点约 L345） | `LevelRendererSubmitMixin` 注入同一 `submitFeatures` `RETURN`，`new PoseStack()` | Fabric API `LevelRendererMixin.java:84-93`；`LevelRendererSubmitMixin.java:38-51`；patched `LevelRenderer.java:329-354`；NeoForge patched `submitFeatures`（审查复核） | **Forge 与 Fabric 同一注入点**，PoseStack/collector/camera/partialTick 等价；NeoForge 的"更早"只指早于 outline 清理、晚于 `submitBlockOutline`；不需要改 |
+| 5 | P2 | render frame 语义 | Fabric `LevelExtractionEvents.END_EXTRACTION`；NeoForge `RenderFrameEvent.Pre`（once per frame） | `TickEvent.RenderTickEvent.Pre` | patched `Minecraft.java:1304-1318`：事件在 `gameRenderer.extract(...)` 之后、`gameRenderer.render()` 之前 fire → **每帧一次、post-extract** | 语义等价；CommonClient 的注释（`END_EXTRACTION`）可补一句 Forge 映射，不必改代码 |
+| 6 | P2 | HUD 注册与 F1 门控 | Fabric `addLast` 不继承 render condition：hidden 且无界面 → 不画；hidden 且开 in-game 界面 → 仍画，且经 **deferred subtitles 延后到界面之上**。NeoForge `registerAboveAll` **无任何 F1 条件**（`GuiLayerManager#renderInner` 逐层无条件调用）→ hidden 时仍画，但仍在 HUD 阶段、界面之下 | `AddGuiOverlayLayersEvent` + `ForgeLayeredDraw.POST_SLEEP_STACK`（`!gui.isHidden()`）→ hidden 时始终不画，界面之下 | `HudElementRegistry.java:30-36`、`HudElementRegistryImpl.java:85-88`；`Gui.java`（deferred subtitles）；`RegisterGuiLayersEvent.java:81-83` + `GuiLayerManager`；`ForgeLayeredDraw.java:443-463` | 三家 F1 门控都不同（Forge 最严格）；界面层叠 Fabric 在界面之上、Forge/Neo 在界面之下 → **P3 补充**，不修 |
+| 7 | P2 | 按键注册 | Fabric `KeyMappingHelper.registerKeyMapping`；NeoForge `RegisterKeyMappingsEvent` | `RegisterKeyMappingsEvent.BUS` | `RegisterKeyMappingsEvent.java:37-39` | 等价；分类都用 vanilla `KeyMapping.Category.register` |
+| 8 | P2 | join/leave 事件 | Fabric `JOIN`/`DISCONNECT`（play 连接） | `ClientPlayerNetworkEvent.LoggingIn`/`LoggingOut` | `ClientPlayerNetworkEvent.java:51-111`；日志 `Channel update: Dev -> default` 证明 join 期 C2S 送达 | 等价；`LoggingOut` 可能在建集成服务器时 fire，清理幂等 |
+| 9 | P2 | 声音注册 | Fabric 只在 client 注册；NeoForge `DeferredRegister` 双端 | `DeferredRegister<ForgeRegistries.SOUND_EVENTS>` 双端 | `FabricClient.java:46`；`NeoMain.java:53-61`；`ForgeMain.java:39-44,76` | 机制差异；ID/资源/播放路径（common `ClientPingRuntime:1024-1043`）一致 |
+| 10 | P2 | mixin 配置 | Fabric 直接用 common 8 条（`JAVA_25`）；NeoForge 本地 8 条（`JAVA_25`） | 本地 9 条（8 common + `LevelRendererSubmitMixin`，`JAVA_21`） | 三份 `pingforit.mixins.json`；`debug.log` 9 条 `Mixing` | compatibilityLevel 是 loader 必要差异；保持 `JAVA_21` |
+| 11 | P2 | services 布局 | Fabric 3 main + 3 client；NeoForge 6 在 main | 6 在 main（universal） | `*/META-INF/services/*` | 覆盖无缺失；universal jar 的必然 |
+| 12 | P2 | 客户端初始化 | Fabric client initializer；NeoForge 构造 + dist 分支 | 构造 + `ForgeClientBootstrap` + dist 分支 | `ForgeMain.java:80-84`；`ForgeClientBootstrap.java:15-21` | loader 必要；bootstrap 是防御性间接层，保留 |
+| 13 | P2 | dev 类路径 | Loom / MDG 各自处理 | `prepareDevMod` + dev `META-INF/MANIFEST.MF` + run classpath 替换 | `forge/build.gradle:92-141` | 只影响 dev run，不影响发布 jar |
+| 14 | P2 | 配置界面 | Fabric **当前无**（`ModMenuIntegration` 仍在隔离区）；NeoForge `IConfigScreenFactory` | `ConfigScreenHandler.ConfigScreenFactory` | `mod-source-isolated/fabric/.../ModMenuIntegration.java`；`NeoClient.java:49-52`；`ForgeClient.java:69-72` | Forge 与 NeoForge 等价；Fabric 反而缺，属基线不对称 |
+| 15 | P2 | 服务端登出/ tick | `DISCONNECT` + `END_SERVER_TICK` | `PlayerLoggedOutEvent` + `ServerTickEvent.Post` | 三个 `PlatformServerEventServiceImpl` | 等价；时序略不同（连接断开 vs 玩家移除） |
+| 16 | P2 | C2S 守卫 | NeoForge `withServerPlayer`（检查 `instanceof ServerPlayer` 且 server 非 null） | 直接 `sender.level().getServer()` | `NeoMain.java:105-112`；`ForgeMain.java:122-133` | 专用服务器恒非 null；可选补守卫（P3） |
+| 17 | P3 | 命令输出 API | Fabric `sendFeedback`/`sendError` | `sendSuccess(()->..., false)`/`sendFailure` | `FabricClient.java:90-98`；`ForgeClient.java:60-67` | 客户端 source 上都只加本地聊天行；不修 |
+| 18 | P3 | reload listener id | Fabric/NeoForge 带 `pingforit:reload-listener` | Forge API 不取 id | `ForgeClient.java:57-58` | 行为等价 |
+| 19 | P3 | world submit 异常隔离 | Fabric 不隔离；NeoForge 事件总线记录 | 捕获 `RuntimeException|LinkageError`，每会话一次 | `PlatformClientEventServiceImpl.java:89-114` | Forge 更防御（可能掩盖 bug），可接受 |
+| 20 | P3 | world submit 回调槽 | 多监听 | `volatile` 单槽（后注册覆盖） | `PlatformClientEventServiceImpl.java:73` | 当前只有 common 注册一次；如未来多监听再改列表 |
+| 21 | P3 | SPI 委托方式 | Fabric/NeoForge 组合 delegate | `PlatformClientContextServiceImpl extends PlatformContextServiceImpl` | `forge/.../PlatformClientContextServiceImpl.java:7` | 风格差异 |
+| 22 | P3 | packet 处理标记 | 框架侧处理 | `finally { setPacketHandled(true); }` | `ForgeClient.java:80-96`；`ForgeMain.java:122-133` | 防御性，可接受 |
+| 23 | P3 | `SyncDurationPolicyS2CPacket` 身份断言 | — | — | `ModIdentityTest` 的 ID 集合仍缺该包（AGENTS 已知缺口） | 测试缺口，与 Forge 迁移无关 |
+| 24 | P3 | NeoForge 订阅风格 | `NeoForge.EVENT_BUS.register(this)`+`@SubscribeEvent` | 静态 `BUS.addListener` | `NeoClient.java:45,88-97` | 风格差异；Forge 侧保持 eventbus 7 主路径 |
+
+补充 **P3（发布卫生，未计入上表计数）**：`forge/build/libs/` 仍留着 1.21.1 旧产物 `Ping-For-It-0.4.2-pfi-beta1-forge-1.21.1.jar`（0.89 MB，2026-11-08）与旧 `sources`/`javadoc` jar。`verifyModIdentity` 只匹配精确名、不会误判，但 F6 打包/发布前应清理，避免手工取 jar 时拿错。
+
+### 11.3 loader 必要差异（不需要"修"）
+
+1. `EventNetworkChannel`/`ChannelBuilder` 取代 payload type 注册（Forge 26.3 仍提供该 API，且是当前唯一稳定路径）。
+2. `LevelRendererSubmitMixin` 取代 `COLLECT_SUBMITS`/`SubmitCustomGeometryEvent`（Forge 没有等价事件；注入点与 Fabric 完全相同）。
+3. `ForgeLayeredDraw.POST_SLEEP_STACK`（Forge 用 layered draw 取代 vanilla HUD 分支；root 没有 `!isHidden`）。
+4. `RegisterKeyMappingsEvent.BUS`/`RegisterClientCommandsEvent.BUS`/`RegisterClientReloadListenersEvent.BUS`（eventbus 7 静态 bus；这三类事件在 `Minecraft` 构造期 fire 且 `SelfDestructing`）。
+5. `ClientPlayerNetworkEvent.LoggingIn/Out` + `PlayerEvent.PlayerLoggedOutEvent`（Forge 无 Fabric 的连接事件）。
+6. mixin `compatibilityLevel = JAVA_21`（vanilla mixin 0.8.7 上限，**不是** toolchain 版本）。
+7. dev 目录 `META-INF/MANIFEST.MF` + `prepareDevMod`（ForgeGradle 7 类路径模型；目录型 dev mod 无 jar manifest）。
+8. `ForgeClientBootstrap` 间接层（防御性；Java 符号解析本就惰性，保留不影响行为）。
+
+### 11.4 待用户批准的修复清单（建议顺序）
+
+| 序 | 动作 | 级别 | 范围 | 前置 |
+| --- | --- | --- | --- | --- |
+| 1 | `forge/src/main/templates/META-INF/mods.toml` 的 `[[mods]]` 加 `displayTest = "IGNORE_SERVER_VERSION"`，重建 `:forge:jar` 并确认展开结果 | P1 | 模板 1 行 | 无 |
+| 2 | 补 F5 运行时验证（不改代码）：进世界观察 HUD/wheel/F1、执行 `/pingforit help`/`channel`、听 ping 声、打开配置界面、看 Controls 分类；双客户端/专用服务器验证 marker/限流/重连 | P0 排查 | 无代码 | 无 |
+| 3 | 先由用户决定是否把 Create door / Simulated resolver 纳入 Forge 范围；若纳入，复制两 resolver + `isModLoaded` 门控 + join 重试 + fail-soft 日志，并同步 §6.2 延后清单 | P1 | `forge/.../integration` + `ForgeClient` | **无工件前置**（resolver 只 import common+vanilla）；docs 的 NeoForge-only 条款若要改需单独文档授权 |
+| 4 | （可选）world-submit 回调改列表；C2S 补 `getServer()!=null` 守卫；`ModIdentityTest` 补 `SyncDurationPolicyS2CPacket` | P3 | 各 1-3 行 | 无 |
+| 5 | （可选）Fabric 恢复 `ModMenuIntegration`；在本文件 §6.2 明确列出可选集成延后范围（Create/Simulated/WorldAware/Contraption/WaterWheel/Flywheel/Create mixin） | P3 | 文档/隔离区 | 文档授权 |
+
+不建议做（会引入真实回归）：把 Forge 网络改回 payload type；用 `AddFramePassEvent` 取代 mixin；把 HUD 挂回 root；把客户端注册挪到 `FMLClientSetupEvent`。
+
+### 11.5 未验证 / 需实跑（不得写成"已验证"）
+
+| 项 | 现状 | 需要的证据 |
+| --- | --- | --- |
+| HUD 绘制（marker 图标/名字/距离/方向箭头/wheel/toggle notice） | 未验证（F3/F4 日志无 HUD 正信号） | 进世界观察/截图 |
+| F1 隐藏 HUD 时 marker/wheel 是否消失 | 未验证（静态推导：Forge 会隐藏） | 按 F1 观察 |
+| 命令输出（`/pingforit help`、`channel get/set`、`config`） | 未验证 | 游戏内执行 |
+| ping 声音（音量/方向） | 未验证 | 听觉确认 |
+| 配置界面：mods 列表打开、保存、重载 | 未验证 | 打开设置 + 改值 + 重载资源包 |
+| Controls 里 `pingforit:name` 分类与 5 个按键 | 未验证（options.txt 已见 5 个 key） | 打开按键设置 |
+| 多人：双客户端、专用服务器、winner/限流/syncDuration、重连 | 未验证 | 双端会话 + 日志 |
+| `improvedTransparency=ON` 时的 outline | 未验证（Forge 与 Fabric 同在 RETURN 注入） | 开选项后观察 |
+| Create/Simulated 可选集成 | 未实现（无工件阻塞，可移植） | 需要产品决定 + 复制 resolver + join 重试验证 |
+| `displayTest` 修复后的多人兼容提示 | 未验证 | 版本不一致的 client/server |
+
+### 11.6 既有运行证据（支持"P0 = 0"判断）
+
+`runs/forge-client/logs/latest.log`（2026-11-16 22:44–22:47，Forge 26.3-66.1.0，JDK 25）：
+
+- `[PingForIt] Init`、`Loaded config type=ServerConfig`、`Loaded config type=ClientConfig`、`ping outline pipeline registered`；
+- `Channel update: Dev -> default`（`onJoinServer` 的 C2S 在真实 join 时序下送达服务端）；
+- `block outline: Forge world-submit bridge active (LevelRenderer#submitFeatures RETURN)` + **2 次** `send ping`/`marker created`（22:46:44、22:46:51）+ wheel open/close（3 次 ping 属 2026-11-15 那轮会话，不要混用）；
+- `debug.log`：9 条 `Mixing ... from pingforit.mixins.json`（含 `LevelRendererSubmitMixin`、`SubmitNodeCollectionMixin`）；同时有 **9 条** `Class version 69 ... JAVA_21 supports class version 65` DEBUG 警告（9/9 仍应用成功）；0 条 pingforit WARN/ERROR。
+
+这些只证明"链路通"，不证明 HUD 视觉、命令输出、声音、多人；后者仍属 §11.5。
