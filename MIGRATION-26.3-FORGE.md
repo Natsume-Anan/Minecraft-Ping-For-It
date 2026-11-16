@@ -207,7 +207,7 @@ Select-String -Path runs/forge-client/logs/*.log -Pattern 'Forge world-submit ou
 
 ### 1.7 F4 runClient 警告复核（2026-11-16 22:15–22:17）
 
-同一会话的 `latest.log` 共 7 条 WARN/ERROR，全部归类如下；**pingforit 自身 0 条 WARN/ERROR**，无 unknown sound/texture/model 警告。
+同一会话的 `latest.log` 共 6 条 WARN/ERROR，全部归类如下；**pingforit 自身 0 条 WARN/ERROR**，无 unknown sound/texture/model 警告。
 
 | 警告 | 次数 | 归因 | 是否阻塞 F4 |
 | --- | --- | --- | --- |
