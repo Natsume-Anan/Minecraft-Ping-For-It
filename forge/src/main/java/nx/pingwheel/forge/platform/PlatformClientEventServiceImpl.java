@@ -1,5 +1,8 @@
 package nx.pingwheel.forge.platform;
 
+import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.resources.Identifier;
 import net.minecraftforge.client.event.AddGuiOverlayLayersEvent;
 import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
@@ -16,6 +19,18 @@ import static nx.pingwheel.common.Global.MOD_ID;
 public class PlatformClientEventServiceImpl implements IPlatformClientEventService {
 
 	private static final AtomicInteger HUD_LAYER_COUNTER = new AtomicInteger();
+
+	/**
+	 * Written once from {@code CommonClient#onInit} during mod construction and read once
+	 * per frame on the render thread, so {@code volatile} is the whole handshake this needs.
+	 */
+	private static volatile WorldSubmitCallback worldSubmitCallback;
+
+	/** Render thread only: one "bridge active" line per session. */
+	private static boolean worldSubmitActiveLogged;
+
+	/** Render thread only: one failure report, same policy as {@code BlockOutlinePass}. */
+	private static boolean worldSubmitFailureLogged;
 
 	@Override
 	public void registerTickStartEvent(Runnable callback) {
@@ -51,11 +66,51 @@ public class PlatformClientEventServiceImpl implements IPlatformClientEventServi
 
 	@Override
 	public void registerWorldSubmitEvent(WorldSubmitCallback callback) {
-		// F4: Forge 26.3 has no SubmitCustomGeometryEvent.  The LevelRenderer
-		// bridge will call this callback once its mixin injection point is
-		// verified; keeping registration a no-op preserves client startup.
-		// Do not pretend the callback is wired: the common outline pipeline
-		// is created, but it cannot submit marker outlines yet.
-		LOGGER.warn("Forge world-submit outline is unavailable until the F4 LevelRenderer bridge is implemented");
+		// F4: Forge 26.3 has no SubmitCustomGeometryEvent / COLLECT_SUBMITS equivalent, so
+		// the outline pass is driven from the RETURN of LevelRenderer#submitFeatures by
+		// nx.pingwheel.common.mixin.LevelRendererSubmitMixin.  The native context mapping
+		// (camera, partialTick) stays here, exactly like the Fabric adapter does.
+		worldSubmitCallback = callback;
+	}
+
+	/**
+	 * Bridge target for {@code nx.pingwheel.common.mixin.LevelRendererSubmitMixin}; runs on
+	 * the render thread once per frame, between {@code submitFeatures} and
+	 * {@code prepareFrame}, so nodes submitted here still belong to the current frame.
+	 */
+	public static void dispatchWorldSubmit(PoseStack poseStack, SubmitNodeCollector collector) {
+		WorldSubmitCallback callback = worldSubmitCallback;
+
+		// Covers "mixin already applied, callback not registered yet" without touching the field twice.
+		if (callback == null) {
+			return;
+		}
+
+		try {
+			Minecraft game = Minecraft.getInstance();
+
+			if (game == null) {
+				return;
+			}
+
+			if (!worldSubmitActiveLogged) {
+				worldSubmitActiveLogged = true;
+				LOGGER.info("block outline: Forge world-submit bridge active (LevelRenderer#submitFeatures RETURN)");
+			}
+
+			// Same contract as the Fabric adapter: this is the camera the frame was extracted
+			// with (extractCamera ran before LevelRenderer#render) and BlockOutlinePass never
+			// reads partialTick, so 0.0f keeps both adapters identical.
+			callback.submit(new WorldSubmitContext(
+				poseStack, collector, game.gameRenderer.mainCamera(), 0.0f));
+		} catch (RuntimeException | LinkageError failure) {
+			// We sit at the RETURN of a vanilla submit pass: an exception escaping here would
+			// abort the whole frame.  Report once and keep rendering.
+			if (!worldSubmitFailureLogged) {
+				worldSubmitFailureLogged = true;
+				LOGGER.warn("block outline: world-submit bridge failed, further failures suppressed this session ({})",
+					failure.getClass().getSimpleName());
+			}
+		}
 	}
 }

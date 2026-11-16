@@ -11,7 +11,8 @@
     "SubmitNodeCollectionMixin",
     "BlockEntityRenderDispatcherMixin",
     "EntityRendererMixin",
-    "LevelExtractorMixin"
+    "LevelExtractorMixin",
+    "LevelRendererSubmitMixin"
   ],
   "injectors": {
     "defaultRequire": 1
