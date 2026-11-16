@@ -152,7 +152,7 @@ F3 的 `:forge:jar` 产物：503 entries / 431 classes / 6 个 services / 0 dupl
 | **F4 阻塞** | `latest.log:38`、`debug.log:286`：Forge world-submit outline is unavailable until the F4 LevelRenderer bridge is implemented | 当前 F4 仍是 no-op；没有 `block outline: submitted=` 记录 | 实现 §5 的 `LevelRenderer#submitFeatures` bridge，移除该警告 |
 | **高** | `debug.log:164`：`Compatibility level JAVA_21 ... higher than the maximum level supported by this version of mixin (JAVA_13)`；紧接 `:165` 才 `set to JAVA_21` | 启动早期 Mixin 上限提示，随后实际设置 JAVA_21 并继续；不能只引用 `latest.log:12` 而忽略这条 | F4 新 mixin 同样观察；若出现 `Mixin apply failed` 再评估字节码/栈 |
 | **高** | `debug.log:198-200`：`Preparing pingforit.mixins.json (8)` / `Prepared 8 mixins`；`229-232`、`280-300`、`673-674`：8 条都有 `Class version 69 ... JAVA_21 supports class version 65` | 8/8 都出现 Mixing，`SubmitNodeCollectionMixin` 在世界加载时应用；但没有 `Mixin apply failed` 不等于注入语义已证明 | F4/F5 验证按键桥、EntityRenderer/BlockEntity/LevelExtractor/SubmitNodeCollection 的实际注入；若失败，评估 Java 21 字节码或更新 mixin 栈 |
-| **中** | `latest.log:107`、`debug.log:672`：Requested post effect does not exist: minecraft:end_of_frame | 世界加载时出现，未导致崩溃；来源可能是 Forge/vanilla 渲染管线而非本 mod | F4/F5 查 Forge 侧 post-effect 注册/资源；先不要归因于 pingforit |
+| **已知 vanilla bug** | `latest.log:107`、`debug.log:672`：Requested post effect does not exist: minecraft:end_of_frame | 2026-11-16 复核确认是 Mojira **MC-310992**：26.3 在登录世界/重载资源包时请求 `minecraft:end_of_frame`，即使没有资源包定义它；vanilla 与 Forge-patched `GameRenderer.update()` 都会无条件加入。非本 mod、非致命 | 不修；按 vanilla 噪声记录，见 §1.7 |
 | **环境** | `debug.log:540`、`563`：sun.misc.Unsafe unavailable / Native access ... io.netty.common | JDK 25 + Netty 的启动回退；集成服务器仍启动 | 不阻塞 F4/F5；若做自动化测试，记录 JVM 参数/环境 |
 | **环境** | `latest.log:17-18`：Assets URL ... union ... uses unexpected schema | ForgeGradle dev 资源路径；客户端仍加载资源 | 视觉测试前确认资源包与 assets；不要当 mod 回归 |
 | **环境** | `latest.log:44-53`、`69-79`：Realm 认证/JWT/连接失败 | 开发账号无 Realm 会话 | 忽略；不要作为 ERROR 计入 mod |
@@ -195,7 +195,7 @@ F4 验收至少要有：1) `block outline: submitted>0` 的 debug 日志；2) �
 - **PoseStack 偏离**：§1.5.3/§5 原写“捕获局部 `PoseStack`”，实现改用 `new PoseStack()`。依据：该局部本身在方法头 `new PoseStack()` 创建，RETURN 前 `checkPoseStack` 已断言为空栈，而 `BlockOutlinePass` 只 push/translate/pop、从不读已有矩阵；不依赖 `@Local` 解析（解析失败可能被 `required: true` 升级为致命）。这是对 spike 方案的等价实现，不是契约变化。
 - **接线**：`PlatformClientEventServiceImpl.registerWorldSubmitEvent` 只保存 `volatile` 回调；新增 `dispatchWorldSubmit(PoseStack, SubmitNodeCollector)` 在 dispatch 内取 `Minecraft.getInstance().gameRenderer.mainCamera()`、partialTick 传 `0.0f`（与 Fabric 适配器一致），首帧一次性 INFO `block outline: Forge world-submit bridge active (LevelRenderer#submitFeatures RETURN)`，异常用一次性 WARN 隔离。旧 no-op WARN 已删除。
 - **构建证据**（2026-11-16，JDK 25 + 工作区 `GRADLE_USER_HOME` + `--configure-on-demand`）：`:forge:compileJava` BUILD SUCCESSFUL（12s）；`:forge:prepareDevMod` 后 `build/devmod/nx/pingwheel/common/mixin/LevelRendererSubmitMixin.class` 存在、devmod 内 9 个 mixin class、`pingforit.mixins.json` 9 条、`META-INF/MANIFEST.MF` 仍为 `MixinConfigs: pingforit.mixins.json`；`:forge:jar` 822518 B / 504 entries / 432 classes / 0 重复条目，新 class 仅 1 次。审查子代理独立复跑（含 `--rerun-tasks`）复核通过：P0/P1 无，P2 三条（日志措辞已修；`require = 0` 静默失效见 §9.10；PoseStack 偏离记录在本节）。
-- **运行时证据**（2026-11-16 22:13–22:14，`:forge:runClient`，单人世界）：`debug.log` 出现 `Preparing pingforit.mixins.json (9)`、`Mixing LevelRendererSubmitMixin ... into net.minecraft.client.renderer.LevelRenderer`、首帧 `block outline: Forge world-submit bridge active (LevelRenderer#submitFeatures RETURN)`；本次会话 32 条 `block outline: submitted=`（1–8），并出现 `entity outline pass active`；无 `pass failed` / `routing mixin inactive` / `bridge failed` / `Mixin apply failed`，`latest.log` 无 mod ERROR/FATAL，客户端正常退出。`Class version 69` 警告对新类仍出现，但 Mixing 与注入行为均正常。
+- **运行时证据**（2026-11-16 22:13–22:17，两轮 `:forge:runClient`，单人世界）：`debug.log` 出现 `Preparing pingforit.mixins.json (9)`、`Mixing LevelRendererSubmitMixin ... into net.minecraft.client.renderer.LevelRenderer`、首帧 `block outline: Forge world-submit bridge active (LevelRenderer#submitFeatures RETURN)`；本次会话 32 条 `block outline: submitted=`（1–8），并出现 `entity outline pass active`；无 `pass failed` / `routing mixin inactive` / `bridge failed` / `Mixin apply failed`，`latest.log` 无 mod ERROR/FATAL，客户端正常退出。`Class version 69` 警告对新类仍出现，但 Mixing 与注入行为均正常。
 - **未验证（仅剩视觉）**：普通方块方框、门/床两半、`entity_block` 原生发光、半透明/after-terrain 视觉效果，以及 F4 之后的服务端回归；这些仍需游戏内目视确认。
 
 F4 游戏内验收（缺一不可）：日志侧已满足——`Preparing pingforit.mixins.json (9)`、`Mixing net.minecraft.client.renderer.LevelRenderer`、`block outline: Forge world-submit bridge active`、`block outline: submitted=<n>`（n>0）均已出现；视觉侧仍待确认——普通方块、门/床两半、`entity_block` 至少各有一个可见 outline。日志 grep：
@@ -204,6 +204,21 @@ F4 游戏内验收（缺一不可）：日志侧已满足——`Preparing pingfo
 Select-String -Path runs/forge-client/logs/debug.log -Pattern 'Preparing pingforit.mixins.json','Mixing net.minecraft.client.renderer.LevelRenderer','world-submit bridge active','block outline: submitted='
 Select-String -Path runs/forge-client/logs/*.log -Pattern 'Forge world-submit outline is unavailable','block outline: pass failed','routing mixin inactive'
 ```
+
+### 1.7 F4 runClient 警告复核（2026-11-16 22:15–22:17）
+
+同一会话的 `latest.log` 共 7 条 WARN/ERROR，全部归类如下；**pingforit 自身 0 条 WARN/ERROR**，无 unknown sound/texture/model 警告。
+
+| 警告 | 次数 | 归因 | 是否阻塞 F4 |
+| --- | --- | --- | --- |
+| `Requested post effect does not exist: minecraft:end_of_frame` | 1 | vanilla 26.3 已知 bug **MC-310992**（登录世界/重载资源包触发；Forge-patched `GameRenderer.update()` 也无条件请求） | 否 |
+| `oshi ... PerfmonDisabled ... Invalid registry value type ... PerfOS` | 1 | 本机 Windows 性能计数器注册表类型；oshi 硬件探测 | 否 |
+| `Assets URL 'union:...forge-26.3-66.1.0.jar%230!/assets/.mcassetsroot' uses unexpected schema` | 2 | ForgeGradle dev 的 assets union；开发环境噪声 | 否 |
+| Realm `Failed to fetch Realms feature flags` / `Couldn't connect to realms` | 2 | 开发账号无 Realm 会话 | 否 |
+| Mixin `Class version 69 ... JAVA_21 supports class version 65` | 9 条（DEBUG） | 既有 mixin 限制；9/9 都随后 `Mixing ...`，含新增 `LevelRendererSubmitMixin` | 否 |
+| `Mixin apply failed` / `InvalidInjectionException` | 0 | — | — |
+
+同一会话的 F4 证据：22:17:02 首帧 `block outline: Forge world-submit bridge active`；`submitted` 峰值 4（2 个 `block` + 2 个 `entity_block` 目标，含 `entity-block glow colour resolved`）；`SubmitNodeCollectionMixin` 在 22:17:02 世界加载时应用；客户端 22:17:29 正常停止。
 
 ## 2. 目标架构
 
