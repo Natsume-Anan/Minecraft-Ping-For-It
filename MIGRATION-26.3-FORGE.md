@@ -1,6 +1,6 @@
 # Ping For It — 26.3 Forge 迁移方案
 
-> 状态：**F0–F3 已完成**（2026-11-14）；**F4 已完成**（2026-11-16，`204e42e`）。`26.3-Forge` 已从旧的 `407fbc6` 同步到 `26.3` @ `2954fcf`；本地原有的 `9a723c2` 仅重复添加 `.agents-work/`，rebase 时被安全跳过。F0 基线 `:forge:compileJava` 实跑成功（骨架 `NO-SOURCE`）；F1 已接好 common 依赖/资源合并、metadata、121 pack 和 8 条本地 mixin；F2 已添加入口、14 个 channel、6 个 SPI 实现和 6 个 services，`:forge:runServer` 实跑输出 `[PingForIt] Init` 与 `Done (1.937s)`。F3 已加入客户端入口、8 个 S2C handler、按键/reload/HUD/命令/配置界面与声音注册；`:forge:runClient` 进入主菜单，mixin 配置成功加载，outline pipeline 创建成功。F4 观察基线已记录（2026-11-15）：当前 runClient 已进入单人世界并完成 3 次 block ping，但 world-submit 仍是 no-op。**F4 已完成**（2026-11-16，`204e42e`）：Forge-local `LevelRendererSubmitMixin` 注入 `LevelRenderer#submitFeatures` 的 RETURN，取代 no-op；`:forge:compileJava` / `:forge:prepareDevMod` / `:forge:jar` 实跑通过，独立审查 PASS、无 P0/P1；22:13–22:14 的 runClient 已观察到 `bridge active` 与 `submitted=1..8`、无 routing/pass 失败。用户已确认普通方块/门床两半/entity_block 视觉正常，F4 门禁通过。**F5 暂停，进行 Forge/Fabric/NeoForge parity 审查（2026-11-16）**：结论见 §11（P0 = 0、P1 = 2、P2 = 14、P3 = 8），逐项报告在 `.agents-work/parity/parity-analysis.md`。
+> 状态：**F0–F3 已完成**（2026-11-14）；**F4 已完成**（2026-11-16，`204e42e`）。`26.3-Forge` 已从旧的 `407fbc6` 同步到 `26.3` @ `2954fcf`；本地原有的 `9a723c2` 仅重复添加 `.agents-work/`，rebase 时被安全跳过。F0 基线 `:forge:compileJava` 实跑成功（骨架 `NO-SOURCE`）；F1 已接好 common 依赖/资源合并、metadata、121 pack 和 8 条本地 mixin；F2 已添加入口、14 个 channel、6 个 SPI 实现和 6 个 services，`:forge:runServer` 实跑输出 `[PingForIt] Init` 与 `Done (1.937s)`。F3 已加入客户端入口、8 个 S2C handler、按键/reload/HUD/命令/配置界面与声音注册；`:forge:runClient` 进入主菜单，mixin 配置成功加载，outline pipeline 创建成功。F4 观察基线已记录（2026-11-15）：当前 runClient 已进入单人世界并完成 3 次 block ping，但 world-submit 仍是 no-op。**F4 已完成**（2026-11-16，`204e42e`）：Forge-local `LevelRendererSubmitMixin` 注入 `LevelRenderer#submitFeatures` 的 RETURN，取代 no-op；`:forge:compileJava` / `:forge:prepareDevMod` / `:forge:jar` 实跑通过，独立审查 PASS、无 P0/P1；22:13–22:14 的 runClient 已观察到 `bridge active` 与 `submitted=1..8`、无 routing/pass 失败。用户已确认普通方块/门床两半/entity_block 视觉正常，F4 门禁通过。**F5 暂停，进行 Forge/Fabric/NeoForge parity 审查（2026-11-16）**：结论见 §11（P0 = 0、P1 = 2、P2 = 14、P3 = 8），逐项报告在 `.agents-work/parity/parity-analysis.md`。**方案 A 已执行**（2026-11-17，`14c44f9`）：`mods.toml` 恢复 `displayTest`，`:forge:jar` 重建通过；P1-1 关闭，P1-2 仍待范围决定。
 > 分支：`26.3-Forge`（完成后合并回 `26.3`）
 > 目标：恢复 Forge 26.3 的核心 ping/marker/配置/网络/HUD/outline；首轮不追求 Create/Flywheel 等可选集成 parity。
 > 参考：`MIGRATION-26.3-NEOFORGE.md`、`AGENTS.md`、`docs/`（产品行为 owner；本文件不替代 docs）
@@ -499,11 +499,11 @@ F7 独立审查至少检查：
 
 ### 11.2 差异总表
 
-计数：**P0 = 0，P1 = 2，P2 = 14，P3 = 8**。
+计数：**P0 = 0，P1 = 2，P2 = 14，P3 = 8**（P1-1 已于 2026-11-17 修复，P1-2 仍待用户决定范围）。
 
 | # | 级别 | 项 | Fabric / NeoForge 做法与效果 | Forge 做法与效果 | 证据 | 建议 |
 | --- | --- | --- | --- | --- | --- | --- |
-| 1 | **P1** | `mods.toml` 缺 `displayTest` | NeoForge 模板也写了 `displayTest = "IGNORE_SERVER_VERSION"`，但 **NeoForge 26.3 loader 没有该字段的实现 → inert**（sources jar 0 命中），不能当作对齐理由 | Forge fmlcore **支持**该字段，缺省 `MATCH_VERSION`：客户端/服务端 pingforit 版本不一致时多人列表标红（仅影响服务器列表兼容标记） | `forge/src/main/templates/META-INF/mods.toml:6-13`；`forge/build/generated/modMetadata/META-INF/mods.toml`；1.21.1 旧模板 `mod-source-isolated/forge/src/main/resources/META-INF/mods.toml:14`；fmlcore `ModContainer.java` 的 `displayTest` switch 默认分支；本节 §3.1 模板也写了该字段 | **迁移丢失**（旧模板/§3.1 有、当前模板没有）：加 1 行 + 重建；理由写"恢复既有字段"，不是"对齐 NeoForge" |
+| 1 | **P1** | `mods.toml` 缺 `displayTest` | NeoForge 模板也写了 `displayTest = "IGNORE_SERVER_VERSION"`，但 **NeoForge 26.3 loader 没有该字段的实现 → inert**（sources jar 0 命中），不能当作对齐理由 | Forge fmlcore **支持**该字段，缺省 `MATCH_VERSION`：客户端/服务端 pingforit 版本不一致时多人列表标红（仅影响服务器列表兼容标记） | `forge/src/main/templates/META-INF/mods.toml:6-13`；`forge/build/generated/modMetadata/META-INF/mods.toml`；1.21.1 旧模板 `mod-source-isolated/forge/src/main/resources/META-INF/mods.toml:14`；fmlcore `ModContainer.java` 的 `displayTest` switch 默认分支；本节 §3.1 模板也写了该字段 | **已修复**（2026-11-17，`14c44f9`）：模板加 1 行 + 重建；generated metadata 与 jar 均为 L14 `displayTest = "IGNORE_SERVER_VERSION"`；理由为恢复旧 1.21.1/§3.1 字段，不是对齐 NeoForge |
 | 2 | **P1** | Forge 缺 Create door / Simulated docking presentation resolver | NeoForge in-tree：`CreateDoorPresentationResolver`、`SimulatedDockingConnectorPresentationResolver`（含 join 时重试 + 各自单测）。两者**只 import vanilla+common**（ID 字符串 + registry 查询，无 Create/Simulated 类依赖） | Forge 无 `integration` 包；装了 Create/Simulated 时 presentation 与 NeoForge 不同 | `NeoClient.java:99-120` + `integration/create`、`integration/simulated`（两 resolver 的 import 全是 vanilla/common）；Forge 无对应文件 | §0.2/§6.2 已显式延后。**不是工件阻塞**：可按 docs 的 NeoForge-only 保持现状，或由用户决定纳入 Forge 范围（届时同步 §6.2 延后清单；改 docs 需单独授权） |
 | 3 | P2 | 网络机制 | payload type + StreamCodec（Fabric 2 流 14 类型；NeoForge 1 registrar `.optional()`） | 14 个独立 `EventNetworkChannel` + 裸 `FriendlyByteBuf`，不用 payload type | `FabricMain.java:45-58`；`NeoMain.java:71-103`；`ForgeMain.java:46-73,87-134` | loader 必要差异；包 ID/方向/optional/主线程语义一致，不修 |
 | 4 | P2 | world submit 触发点 | Fabric `LevelRenderEvents.COLLECT_SUBMITS` = `submitFeatures` `@At("RETURN")`；NeoForge `SubmitCustomGeometryEvent` 在 `submitBlockOutline`（L341）**之后**、outline 桶清理（L347-351）**之前**（调用点约 L345） | `LevelRendererSubmitMixin` 注入同一 `submitFeatures` `RETURN`，`new PoseStack()` | Fabric API `LevelRendererMixin.java:84-93`；`LevelRendererSubmitMixin.java:38-51`；patched `LevelRenderer.java:329-354`；NeoForge patched `submitFeatures`（审查复核） | **Forge 与 Fabric 同一注入点**，PoseStack/collector/camera/partialTick 等价；NeoForge 的"更早"只指早于 outline 清理、晚于 `submitBlockOutline`；不需要改 |
@@ -545,7 +545,7 @@ F7 独立审查至少检查：
 
 | 序 | 动作 | 级别 | 范围 | 前置 |
 | --- | --- | --- | --- | --- |
-| 1 | `forge/src/main/templates/META-INF/mods.toml` 的 `[[mods]]` 加 `displayTest = "IGNORE_SERVER_VERSION"`，重建 `:forge:jar` 并确认展开结果 | P1 | 模板 1 行 | 无 |
+| 1 | **已完成（2026-11-17，`14c44f9`）**：`mods.toml` 的 `[[mods]]` 加 `displayTest = "IGNORE_SERVER_VERSION"`，重建 `:forge:jar`，generated/jar 均确认 | P1（已关闭） | 模板 1 行 | — |
 | 2 | 补 F5 运行时验证（不改代码）：进世界观察 HUD/wheel/F1、执行 `/pingforit help`/`channel`、听 ping 声、打开配置界面、看 Controls 分类；双客户端/专用服务器验证 marker/限流/重连 | P0 排查 | 无代码 | 无 |
 | 3 | 先由用户决定是否把 Create door / Simulated resolver 纳入 Forge 范围；若纳入，复制两 resolver + `isModLoaded` 门控 + join 重试 + fail-soft 日志，并同步 §6.2 延后清单 | P1 | `forge/.../integration` + `ForgeClient` | **无工件前置**（resolver 只 import common+vanilla）；docs 的 NeoForge-only 条款若要改需单独文档授权 |
 | 4 | （可选）world-submit 回调改列表；C2S 补 `getServer()!=null` 守卫；`ModIdentityTest` 补 `SyncDurationPolicyS2CPacket` | P3 | 各 1-3 行 | 无 |
@@ -578,3 +578,13 @@ F7 独立审查至少检查：
 - `debug.log`：9 条 `Mixing ... from pingforit.mixins.json`（含 `LevelRendererSubmitMixin`、`SubmitNodeCollectionMixin`）；同时有 **9 条** `Class version 69 ... JAVA_21 supports class version 65` DEBUG 警告（9/9 仍应用成功）；0 条 pingforit WARN/ERROR。
 
 这些只证明"链路通"，不证明 HUD 视觉、命令输出、声音、多人；后者仍属 §11.5。
+
+### 11.7 方案 A 执行记录（2026-11-17，`14c44f9`）
+
+用户批准方案 A 后只做了一项修复 + 发布卫生：
+
+- **修复**：`forge/src/main/templates/META-INF/mods.toml` 的 `[[mods]]` 在 `description` 后加 `displayTest = "IGNORE_SERVER_VERSION"`（1 行，无其它字段变化）；理由为恢复旧 1.21.1 模板/§3.1 的字段，Forge `ModContainer` 读取并接受该值，缺省为 `MATCH_VERSION`。
+- **构建**：`.\gradlew.bat --no-daemon --console=plain --configure-on-demand :forge:jar` → BUILD SUCCESSFUL（15s）；generated `forge/build/generated/modMetadata/META-INF/mods.toml` 与 jar 内 `META-INF/mods.toml` 均为 L14 精确值；jar 822548 B / 504 entries / 432 classes / 0 duplicate / 6 services / 9 mixins / manifest `MixinConfigs` / pack 121 / LICENSE / THIRD-PARTY / assets 齐全。
+- **发布卫生**：删除 `forge/build/libs` 的 1.21.1 旧 jar 与旧 sources/javadoc（build 目录，不可发布物；`verifyModIdentity` 只匹配精确名，本来不会误判）；现只剩 26.3 jar。
+- **审查**：`parity-reviewer` 复核 PASS（P0=0/P1=0，可提交）；模板/generated/jar 用 tomllib 解析、无重复 key、无 `${...}` 残留；未复跑 build/runClient/runServer。
+- **未验证**：多人版本不一致提示、channel 握手兼容性仍归 F5；P1-2（Create/Simulated resolver）仍待用户决定是否纳入 Forge 范围。
