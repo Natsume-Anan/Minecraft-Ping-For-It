@@ -1,6 +1,6 @@
 # Ping For It — 26.3 Forge 迁移方案
 
-> 状态：**F0–F3 已完成**（2026-11-14）；**F4 已完成**（2026-11-16，`204e42e`）。`26.3-Forge` 已从旧的 `407fbc6` 同步到 `26.3` @ `2954fcf`；本地原有的 `9a723c2` 仅重复添加 `.agents-work/`，rebase 时被安全跳过。F0 基线 `:forge:compileJava` 实跑成功（骨架 `NO-SOURCE`）；F1 已接好 common 依赖/资源合并、metadata、121 pack 和 8 条本地 mixin；F2 已添加入口、14 个 channel、6 个 SPI 实现和 6 个 services，`:forge:runServer` 实跑输出 `[PingForIt] Init` 与 `Done (1.937s)`。F3 已加入客户端入口、8 个 S2C handler、按键/reload/HUD/命令/配置界面与声音注册；`:forge:runClient` 进入主菜单，mixin 配置成功加载，outline pipeline 创建成功。F4 观察基线已记录（2026-11-15）：当前 runClient 已进入单人世界并完成 3 次 block ping，但 world-submit 仍是 no-op。**F4 已完成**（2026-11-16，`204e42e`）：Forge-local `LevelRendererSubmitMixin` 注入 `LevelRenderer#submitFeatures` 的 RETURN，取代 no-op；`:forge:compileJava` / `:forge:prepareDevMod` / `:forge:jar` 实跑通过，独立审查 PASS、无 P0/P1；22:13–22:14 的 runClient 已观察到 `bridge active` 与 `submitted=1..8`、无 routing/pass 失败。用户已确认普通方块/门床两半/entity_block 视觉正常，F4 门禁通过。**F5 暂停，进行 Forge/Fabric/NeoForge parity 审查（2026-11-16）**：结论见 §11（P0 = 0、P1 = 2、P2 = 14、P3 = 8），逐项报告在 `.agents-work/parity/parity-analysis.md`。**方案 A 已执行**（2026-11-17，`14c44f9`）：`mods.toml` 恢复 `displayTest`，`:forge:jar` 重建通过；P1-1 关闭，P1-2 于 2026-11-18 裁决 B（不纳入）关闭。**第二轮 parity 逐项复核完成（2026-11-18）**：P1 open = 0（P1-2 经用户裁决 **B：不纳入**，按 docs 的 NeoForge-only 保持现状）/ P2 = 14 / P3 = 12，结论见 §11，报告在 `.agents-work/parity2/analysis.md`；F5 暂停，待修复范围决定。
+> 状态：**F0–F3 已完成**（2026-11-14）；**F4 已完成**（2026-11-16，`204e42e`）。`26.3-Forge` 已从旧的 `407fbc6` 同步到 `26.3` @ `2954fcf`；本地原有的 `9a723c2` 仅重复添加 `.agents-work/`，rebase 时被安全跳过。F0 基线 `:forge:compileJava` 实跑成功（骨架 `NO-SOURCE`）；F1 已接好 common 依赖/资源合并、metadata、121 pack 和 8 条本地 mixin；F2 已添加入口、14 个 channel、6 个 SPI 实现和 6 个 services，`:forge:runServer` 实跑输出 `[PingForIt] Init` 与 `Done (1.937s)`。F3 已加入客户端入口、8 个 S2C handler、按键/reload/HUD/命令/配置界面与声音注册；`:forge:runClient` 进入主菜单，mixin 配置成功加载，outline pipeline 创建成功。F4 观察基线已记录（2026-11-15）：当前 runClient 已进入单人世界并完成 3 次 block ping，但 world-submit 仍是 no-op。**F4 已完成**（2026-11-16，`204e42e`）：Forge-local `LevelRendererSubmitMixin` 注入 `LevelRenderer#submitFeatures` 的 RETURN，取代 no-op；`:forge:compileJava` / `:forge:prepareDevMod` / `:forge:jar` 实跑通过，独立审查 PASS、无 P0/P1；22:13–22:14 的 runClient 已观察到 `bridge active` 与 `submitted=1..8`、无 routing/pass 失败。用户已确认普通方块/门床两半/entity_block 视觉正常，F4 门禁通过。**F5 暂停，进行 Forge/Fabric/NeoForge parity 审查（2026-11-16）**：结论见 §11（P0 = 0、P1 = 2、P2 = 14、P3 = 8），逐项报告在 `.agents-work/parity/parity-analysis.md`。**方案 A 已执行**（2026-11-17，`14c44f9`）：`mods.toml` 恢复 `displayTest`，`:forge:jar` 重建通过；P1-1 关闭，P1-2 于 2026-11-18 裁决 B（不纳入）关闭。**第二轮 parity 逐项复核完成（2026-11-18）**：P1 open = 0（P1-2 经用户裁决 **B：不纳入**，按 docs 的 NeoForge-only 保持现状）/ P2 = 14 / P3 = 12，结论见 §11，报告在 `.agents-work/parity2/analysis.md`；F5 暂停，待修复范围决定。**P3 小修复已执行**（2026-11-18，`224e0c2`）：C2S try/finally + server 守卫、world-submit 多监听、`ModIdentityTest` 第 14 包；`:common:test` 1193/1193、`:forge:compileJava` 实跑通过。
 > 分支：`26.3-Forge`（完成后合并回 `26.3`）
 > 目标：恢复 Forge 26.3 的核心 ping/marker/配置/网络/HUD/outline；首轮不追求 Create/Flywheel 等可选集成 parity。
 > 参考：`MIGRATION-26.3-NEOFORGE.md`、`AGENTS.md`、`docs/`（产品行为 owner；本文件不替代 docs）
@@ -706,16 +706,16 @@ F7 独立审查至少检查：
 
 | # | 项 | 现状 | 证据 | 建议/性质 |
 | --- | --- | --- | --- | --- |
-| P3-1 | C2S 缺 `ServerPlayer`/server 守卫 | `enqueueWork` 内直接 `sender.level().getServer()` | `ForgeMain.java:122-133`；Neo `NeoMain.java:105-112` 有守卫 | 可选补 2 行（理论边界） |
-| P3-2 | 服务端 `setPacketHandled` 不在 `finally` | `ForgeMain.java:132` 在 `if` 之后 | `PacketHandler.java:16-33` 不抛 → 实际风险低 | 可选 |
-| P3-3 | world submit 单槽 `volatile` | 后注册覆盖 | `PlatformClientEventServiceImpl.java:27,73` | 当前只注册 1 次，可保持 |
+| P3-1 | C2S 缺 `ServerPlayer`/server 守卫 | **已修**（2026-11-18，`224e0c2`）：`enqueueWork` 内取 `sender.level().getServer()` 并判空 | `ForgeMain.java:122-141`；Neo `NeoMain.java:105-112` 有守卫 | 已完成 |
+| P3-2 | 服务端 `setPacketHandled` 不在 `finally` | **已修**（2026-11-18，`224e0c2`）：`setPacketHandled(true)` 移入 `finally` | `ForgeMain.java:139-141` | 已完成 |
+| P3-3 | world submit 单槽 `volatile` | **已修**（2026-11-18，`224e0c2`）：`CopyOnWriteArrayList` 多监听，逐回调独立 catch | `PlatformClientEventServiceImpl.java:24-35,89-140` | 已完成；重入会累积，见 P3-7 |
 | P3-4 | reload listener 无 id | Forge API 不取 id | `ForgeClient.java:57-58` | API 限制，不修 |
 | P3-5 | client context 用 `extends` | 而非 delegate | `PlatformClientContextServiceImpl.java:7` | 风格 |
 | P3-6 | `ForgeClientBootstrap` 间接层 | 防御性 | `ForgeClientBootstrap.java:15-21` | 保留 |
 | P3-7 | `CommonClient.onInit` 无 once guard | `CommonServer` 有 `serverEventsRegistered` | `CommonClient.java:72-97`；`CommonServer.java:37-42` | 当前只调用一次；未来多路径调用需 guard |
 | P3-8 | 打包卫生 | `pack.mcmeta` int vs Neo 数组；manifest 只有 `MixinConfigs` | jar 内 `pack.mcmeta`、`META-INF/MANIFEST.MF` | 不影响行为 |
 | P3-9 | `displayTest` 在 NeoForge inert | Neo 26.3 sources 0 命中 | `neoforge.mods.toml:14` | 不要以“对齐 Neo”为理由；文档注意 |
-| P3-10 | `ModIdentityTest` 缺 `SyncDurationPolicyS2CPacket` | 仓库级已知缺口 | `AGENTS.md` §10.5 | 与 Forge 无关；可选补 |
+| P3-10 | `ModIdentityTest` 缺 `SyncDurationPolicyS2CPacket` | **已修**（2026-11-18，`224e0c2`）：补第 14 个包并改名 `allFourteenPacketIdsUseNewNamespaces` | `ModIdentityTest.java:24,63-94`；聚焦 7 tests / 全量 1193 tests 通过 | 已完成 |
 | P3-11 | Fabric 缺配置界面 | 基线不对称 | `fabric/src` 无 `ConfigScreen`/`ModMenu` 引用；`ModMenuIntegration` 在隔离区 | 不是 Forge 缺陷 |
 | P3-12 | dev manifest / `prepareDevMod` | 只服务 dev | `forge/build.gradle:97-118` | 构建期，不改发布物 |
 
@@ -791,7 +791,7 @@ F7 独立审查至少检查：
 
 1. **P1-2 已裁决 B（不纳入，2026-11-18）。** Forge 保持无 `integration` 包，Create door / Simulated resolver 按 `docs/` 为 NeoForge-only（`docs/integrations/create.md:1`、`docs/integrations/simulated.md:3`）；§6.2 已写明范围。若未来改为 A（纳入），再按“复制 resolver + `isModLoaded`/反射 + join 重试 + fail-soft”实施，并单独申请 `docs/` 范围更新授权。
 2. **F5 运行时矩阵（不改代码）**：按 §11.14 顺序，先 HUD/F1/outline 视觉与命令/声音，再双客户端/专用服务器/重连；只记录观察，不把日志当视觉证据。
-3. **P3 可选项（各 1–3 行）**：C2S 补 `instanceof ServerPlayer` + `getServer() != null` 守卫；服务端 `setPacketHandled(true)` 移入 `finally`；world-submit 回调改列表；`ModIdentityTest` 补 `SyncDurationPolicyS2CPacket`。
+3. **P3 小修复已完成（2026-11-18，`224e0c2`）**：ForgeMain C2S try/finally + server null 守卫；world-submit 改 COW 多监听（逐回调隔离）；`ModIdentityTest` 补 `SyncDurationPolicyS2CPacket`（聚焦 7 tests、全量 1193 tests 通过）。P3-7 的 `CommonClient.onInit` once-guard 仍为后续可选：当前只注册一次；若未来重入，COW 会累积重复提交。
 4. **文档卫生**：§6.2 已列出 Forge 可选集成范围；Fabric 配置界面缺口记录在 §11.3（不改 `docs/`）。
 5. **不建议做（会引入真实回归）**：把 Forge 网络改回 payload type；用 `AddFramePassEvent` 取代 mixin；把 HUD 挂回 root；把客户端注册挪到 `FMLClientSetupEvent`；为对齐 Neo 改 `compatibilityLevel`；删 dev manifest。
 
