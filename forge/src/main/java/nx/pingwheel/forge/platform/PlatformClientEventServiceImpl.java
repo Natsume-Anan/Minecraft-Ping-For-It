@@ -11,6 +11,7 @@ import net.minecraftforge.client.gui.overlay.ForgeLayeredDraw;
 import net.minecraftforge.event.TickEvent;
 import nx.pingwheel.common.platform.IPlatformClientEventService;
 
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static nx.pingwheel.common.Global.LOGGER;
@@ -21,10 +22,17 @@ public class PlatformClientEventServiceImpl implements IPlatformClientEventServi
 	private static final AtomicInteger HUD_LAYER_COUNTER = new AtomicInteger();
 
 	/**
-	 * Written once from {@code CommonClient#onInit} during mod construction and read once
-	 * per frame on the render thread, so {@code volatile} is the whole handshake this needs.
+	 * Registered from {@code CommonClient#onInit} during mod construction and iterated once per
+	 * frame on the render thread. Copy-on-write keeps registration lock-free and makes the list
+	 * safe to read while it is being updated.
+	 *
+	 * <p>Every callback receives the bridge's scratch {@link PoseStack}. It is empty at the
+	 * {@code submitFeatures} RETURN, so a callback must leave it balanced (push/pop or
+	 * translate/pop). A callback that unbalances it only corrupts the later callbacks of the
+	 * same frame; vanilla's own stack is never touched.
 	 */
-	private static volatile WorldSubmitCallback worldSubmitCallback;
+	private static final CopyOnWriteArrayList<WorldSubmitCallback> worldSubmitCallbacks =
+		new CopyOnWriteArrayList<>();
 
 	/** Render thread only: one "bridge active" line per session. */
 	private static boolean worldSubmitActiveLogged;
@@ -70,7 +78,7 @@ public class PlatformClientEventServiceImpl implements IPlatformClientEventServi
 		// the outline pass is driven from the RETURN of LevelRenderer#submitFeatures by
 		// nx.pingwheel.common.mixin.LevelRendererSubmitMixin.  The native context mapping
 		// (camera, partialTick) stays here, exactly like the Fabric adapter does.
-		worldSubmitCallback = callback;
+		worldSubmitCallbacks.add(callback);
 	}
 
 	/**
@@ -79,10 +87,10 @@ public class PlatformClientEventServiceImpl implements IPlatformClientEventServi
 	 * {@code prepareFrame}, so nodes submitted here still belong to the current frame.
 	 */
 	public static void dispatchWorldSubmit(PoseStack poseStack, SubmitNodeCollector collector) {
-		WorldSubmitCallback callback = worldSubmitCallback;
+		var callbacks = worldSubmitCallbacks;
 
-		// Covers "mixin already applied, callback not registered yet" without touching the field twice.
-		if (callback == null) {
+		// Covers "mixin already applied, callback not registered yet" without touching the list twice.
+		if (callbacks.isEmpty()) {
 			return;
 		}
 
@@ -101,16 +109,29 @@ public class PlatformClientEventServiceImpl implements IPlatformClientEventServi
 			// Same contract as the Fabric adapter: this is the camera the frame was extracted
 			// with (extractCamera ran before LevelRenderer#render) and BlockOutlinePass never
 			// reads partialTick, so 0.0f keeps both adapters identical.
-			callback.submit(new WorldSubmitContext(
-				poseStack, collector, game.gameRenderer.mainCamera(), 0.0f));
+			WorldSubmitContext context = new WorldSubmitContext(
+				poseStack, collector, game.gameRenderer.mainCamera(), 0.0f);
+
+			for (WorldSubmitCallback callback : callbacks) {
+				try {
+					callback.submit(context);
+				} catch (RuntimeException | LinkageError failure) {
+					// One failing listener must not starve the others: isolate it and keep going.
+					reportWorldSubmitFailure(failure);
+				}
+			}
 		} catch (RuntimeException | LinkageError failure) {
 			// We sit at the RETURN of a vanilla submit pass: an exception escaping here would
 			// abort the whole frame.  Report once and keep rendering.
-			if (!worldSubmitFailureLogged) {
-				worldSubmitFailureLogged = true;
-				LOGGER.warn("block outline: world-submit bridge failed, further failures suppressed this session ({})",
-					failure.getClass().getSimpleName());
-			}
+			reportWorldSubmitFailure(failure);
+		}
+	}
+
+	private static void reportWorldSubmitFailure(Throwable failure) {
+		if (!worldSubmitFailureLogged) {
+			worldSubmitFailureLogged = true;
+			LOGGER.warn("block outline: world-submit bridge failed, further failures suppressed this session ({})",
+				failure.getClass().getSimpleName());
 		}
 	}
 }

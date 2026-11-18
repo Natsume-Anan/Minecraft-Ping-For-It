@@ -121,15 +121,24 @@ public final class ForgeMain {
 	) {
 		channel.addListener(event -> {
 			var context = event.getSource();
-			var payload = event.getPayload();
-			var sender = context.getSender();
 
-			if (payload != null && sender != null) {
-				var packet = packetReader.apply(payload);
-				context.enqueueWork(() -> packetHandler.handle(sender.level().getServer(), sender, packet));
+			try {
+				var payload = event.getPayload();
+				var sender = context.getSender();
+
+				if (payload != null && sender != null) {
+					var packet = packetReader.apply(payload);
+					context.enqueueWork(() -> {
+						var server = sender.level().getServer();
+
+						if (server != null) {
+							packetHandler.handle(server, sender, packet);
+						}
+					});
+				}
+			} finally {
+				context.setPacketHandled(true);
 			}
-
-			context.setPacketHandled(true);
 		});
 	}
 

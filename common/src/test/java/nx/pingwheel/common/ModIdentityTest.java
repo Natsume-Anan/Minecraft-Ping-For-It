@@ -21,6 +21,7 @@ import nx.pingwheel.common.network.RateLimitPolicyS2CPacket;
 import nx.pingwheel.common.network.ServerConfigRequestC2SPacket;
 import nx.pingwheel.common.network.ServerConfigSnapshotS2CPacket;
 import nx.pingwheel.common.network.ServerConfigUpdateC2SPacket;
+import nx.pingwheel.common.network.SyncDurationPolicyS2CPacket;
 import nx.pingwheel.common.network.UpdateChannelC2SPacket;
 import nx.pingwheel.common.resource.ResourceConstants;
 
@@ -59,7 +60,7 @@ class ModIdentityTest {
 	}
 
 	@Test
-	void allThirteenPacketIdsUseNewNamespaces() {
+	void allFourteenPacketIdsUseNewNamespaces() {
 		assertEquals(Set.of(
 			"pingforit-c2s:marker-create",
 			"pingforit-c2s:marker-remove",
@@ -73,6 +74,7 @@ class ModIdentityTest {
 			"pingforit-s2c:marker-winner-changed",
 			"pingforit-s2c:rate-limit-policy",
 			"pingforit-s2c:server-config-snapshot",
+			"pingforit-s2c:sync-duration-policy",
 			"pingforit-s2c:ping-location"
 		), Set.of(
 			MarkerCreateC2SPacket.PACKET_ID.toString(),
@@ -87,6 +89,7 @@ class ModIdentityTest {
 			MarkerWinnerChangedS2CPacket.PACKET_ID.toString(),
 			RateLimitPolicyS2CPacket.PACKET_ID.toString(),
 			ServerConfigSnapshotS2CPacket.PACKET_ID.toString(),
+			SyncDurationPolicyS2CPacket.PACKET_ID.toString(),
 			PingLocationS2CPacket.PACKET_ID.toString()
 		));
 	}
