@@ -1,6 +1,6 @@
 # Ping For It — 26.3 Forge 迁移方案
 
-> 状态：**F0–F3 已完成**（2026-11-14）；**F4 已完成**（2026-11-16，`204e42e`）。`26.3-Forge` 已从旧的 `407fbc6` 同步到 `26.3` @ `2954fcf`；本地原有的 `9a723c2` 仅重复添加 `.agents-work/`，rebase 时被安全跳过。F0 基线 `:forge:compileJava` 实跑成功（骨架 `NO-SOURCE`）；F1 已接好 common 依赖/资源合并、metadata、121 pack 和 8 条本地 mixin；F2 已添加入口、14 个 channel、6 个 SPI 实现和 6 个 services，`:forge:runServer` 实跑输出 `[PingForIt] Init` 与 `Done (1.937s)`。F3 已加入客户端入口、8 个 S2C handler、按键/reload/HUD/命令/配置界面与声音注册；`:forge:runClient` 进入主菜单，mixin 配置成功加载，outline pipeline 创建成功。F4 观察基线已记录（2026-11-15）：当前 runClient 已进入单人世界并完成 3 次 block ping，但 world-submit 仍是 no-op。**F4 已完成**（2026-11-16，`204e42e`）：Forge-local `LevelRendererSubmitMixin` 注入 `LevelRenderer#submitFeatures` 的 RETURN，取代 no-op；`:forge:compileJava` / `:forge:prepareDevMod` / `:forge:jar` 实跑通过，独立审查 PASS、无 P0/P1；22:13–22:14 的 runClient 已观察到 `bridge active` 与 `submitted=1..8`、无 routing/pass 失败。用户已确认普通方块/门床两半/entity_block 视觉正常，F4 门禁通过。**F5 暂停，进行 Forge/Fabric/NeoForge parity 审查（2026-11-16）**：结论见 §11（P0 = 0、P1 = 2、P2 = 14、P3 = 8），逐项报告在 `.agents-work/parity/parity-analysis.md`。**方案 A 已执行**（2026-11-17，`14c44f9`）：`mods.toml` 恢复 `displayTest`，`:forge:jar` 重建通过；P1-1 关闭，P1-2 于 2026-11-18 裁决 B（不纳入）关闭。**第二轮 parity 逐项复核完成（2026-11-18）**：P1 open = 0（P1-2 经用户裁决 **B：不纳入**，按 docs 的 NeoForge-only 保持现状）/ P2 = 14 / P3 = 12，结论见 §11，报告在 `.agents-work/parity2/analysis.md`；F5 暂停，待修复范围决定。**P3 小修复已执行**（2026-11-18，`224e0c2`）：C2S try/finally + server 守卫、world-submit 多监听、`ModIdentityTest` 第 14 包；`:common:test` 1193/1193、`:forge:compileJava` 实跑通过；P3-7 的 `CommonClient.onInit` once-guard 也已补（`e890578`），P3 代码项清零；轮盘选择提交 race 已修（`0f5db07`，见 §11.18）。**F5 进行中（2026-11-19）**：核心 ping/marker/block outline 与轮盘选择已验证；HUD/F1/命令输出/声音/entity outline/多人/重连/improvedTransparency 仍未验证；F6/F7 未开始。
+> 状态：**F0–F3 已完成**（2026-11-14）；**F4 已完成**（2026-11-16，`204e42e`）。`26.3-Forge` 已从旧的 `407fbc6` 同步到 `26.3` @ `2954fcf`；本地原有的 `9a723c2` 仅重复添加 `.agents-work/`，rebase 时被安全跳过。F0 基线 `:forge:compileJava` 实跑成功（骨架 `NO-SOURCE`）；F1 已接好 common 依赖/资源合并、metadata、121 pack 和 8 条本地 mixin；F2 已添加入口、14 个 channel、6 个 SPI 实现和 6 个 services，`:forge:runServer` 实跑输出 `[PingForIt] Init` 与 `Done (1.937s)`。F3 已加入客户端入口、8 个 S2C handler、按键/reload/HUD/命令/配置界面与声音注册；`:forge:runClient` 进入主菜单，mixin 配置成功加载，outline pipeline 创建成功。F4 观察基线已记录（2026-11-15）：当前 runClient 已进入单人世界并完成 3 次 block ping，但 world-submit 仍是 no-op。**F4 已完成**（2026-11-16，`204e42e`）：Forge-local `LevelRendererSubmitMixin` 注入 `LevelRenderer#submitFeatures` 的 RETURN，取代 no-op；`:forge:compileJava` / `:forge:prepareDevMod` / `:forge:jar` 实跑通过，独立审查 PASS、无 P0/P1；22:13–22:14 的 runClient 已观察到 `bridge active` 与 `submitted=1..8`、无 routing/pass 失败。用户已确认普通方块/门床两半/entity_block 视觉正常，F4 门禁通过。**F5 暂停，进行 Forge/Fabric/NeoForge parity 审查（2026-11-16）**：结论见 §11（P0 = 0、P1 = 2、P2 = 14、P3 = 8），逐项报告在 `.agents-work/parity/parity-analysis.md`。**方案 A 已执行**（2026-11-17，`14c44f9`）：`mods.toml` 恢复 `displayTest`，`:forge:jar` 重建通过；P1-1 关闭，P1-2 于 2026-11-18 裁决 B（不纳入）关闭。**第二轮 parity 逐项复核完成（2026-11-18）**：P1 open = 0（P1-2 经用户裁决 **B：不纳入**，按 docs 的 NeoForge-only 保持现状）/ P2 = 14 / P3 = 12，结论见 §11，报告在 `.agents-work/parity2/analysis.md`；F5 暂停，待修复范围决定。**P3 小修复已执行**（2026-11-18，`224e0c2`）：C2S try/finally + server 守卫、world-submit 多监听、`ModIdentityTest` 第 14 包；`:common:test` 1193/1193、`:forge:compileJava` 实跑通过；P3-7 的 `CommonClient.onInit` once-guard 也已补（`e890578`），P3 代码项清零；轮盘选择提交 race 已修（`0f5db07`，见 §11.18）。**F5 已完成（2026-11-19 收口）**：单人流程由用户确认完成（未附截图）；日志证明核心 ping/marker、轮盘选择/中心取消/超时、entity outline、winner、配置保存；双客户端/跨玩家 winner/限流/取消他人 marker 与 `displayTest` 版本不一致未运行时验证，按 Fabric/Forge 源码 parity 审查替代（见 §11.20）。F6 打包已过、`verifyModIdentity` 未跑；F7 未开始。
 > 分支：`26.3-Forge`（完成后合并回 `26.3`）
 > 目标：恢复 Forge 26.3 的核心 ping/marker/配置/网络/HUD/outline；首轮不追求 Create/Flywheel 等可选集成 parity。
 > 参考：`MIGRATION-26.3-NEOFORGE.md`、`AGENTS.md`、`docs/`（产品行为 owner；本文件不替代 docs）
@@ -432,7 +432,7 @@ common 的 `BlockOutlinePass.onWorldSubmit(WorldSubmitContext)` 需要 `PoseStac
 | F2 | 入口、服务端网络、SPI、6 个 services | **已完成**：`:forge:compileJava` 通过；`:forge:runServer` 输出 `[PingForIt] Init`、`Done (1.937s)`；6 个 services 已入 jar |
 | F3 | 客户端事件、HUD、按键、reload、配置界面 | **已完成**：`:forge:runClient` 进入 26.3 主菜单；mixin 配置加载、outline pipeline 创建；5 个按键进入 options；无 mod ERROR/FATAL |
 | F4 | outline / world-submit spike | **实现完成**（2026-11-16，`204e42e`，见 §1.6）：Forge-local `LevelRendererSubmitMixin` 注入 `LevelRenderer#submitFeatures` 的 RETURN，no-op 警告已删除；`:forge:compileJava`、`:forge:prepareDevMod`、`:forge:jar` 实跑通过（devmod/jar 9 条 mixin），独立审查 PASS、无 P0/P1。**已完成**（2026-11-16）：日志 `bridge active`、`submitted=1..8`、无 `routing mixin inactive`/`pass failed`；用户确认普通方块/门床两半/entity_block 视觉正常；F4 门禁通过 |
-| F5 | 客户端/服务端运行时验证 | **进行中**：核心 ping/marker/block outline 与轮盘选择已验证（F4 视觉 + 2026-11-19 会话）；HUD/F1/命令输出/声音/entity outline/多人/重连/improvedTransparency 未验证；F6/F7 未开始 |
+| F5 | 客户端/服务端运行时验证 | **已完成**（2026-11-19 收口）：单人用户确认完成；日志证据见 §11.20；双客户端/跨玩家项按源码 parity 审查，未运行时验证 |
 | F6 | 打包/静态身份检查 | `:forge:build`；精确 jar 名、common classes/resources、6 services、9 mixin（8 common + 1 Forge-local）、metadata、pack、LICENSE |
 | F7 | 独立审查 + 合并 | 审查 PASS；F0–F6 证据齐全；`26.3-Forge` 合并回 `26.3` |
 
@@ -767,6 +767,8 @@ F7 独立审查至少检查：
 
 ### 11.14 未验证 / 需 F5 实跑
 
+> 2026-11-19 收口：F5 已完成（单人用户确认 + 日志证据；双客户端/跨玩家项按源码 parity 审查），最新状态与证据见 §11.19/§11.20；下表保留 2026-11-18 的原始待验证清单，不再作为当前门禁。
+
 | 项 | 现状 | 需要的证据 |
 | --- | --- | --- |
 | HUD marker 层视觉（图标/名字/距离/方向/状态） | 静态：2 层已注册；HUD 不写正信号日志 | 进世界观察/截图（F5） |
@@ -835,25 +837,68 @@ F7 独立审查至少检查：
 - **根因**：Forge 的 `RenderTickEvent.Pre`（HUD 之前）先推进状态机并消费/清空 `wheelSelection`；原始释放事件若落在“状态机推进之后、HUD 刷新之前”，`onRelease` 读到空值，`updateWheelOpen` 又用它覆盖 `machine.selection`，于是按无选择关闭。
 - **修复**：`ClientPingRuntime` 增加 `wheelSelectionFresh`；HUD `setWheelSelection` 置 fresh；`advanceInteraction` 在 `!keyDown && phase==WHEEL_OPEN && !fresh` 时回退到最后一次 HUD 选择（`machine.selection()`）；abort/空闲/超时仍清空。释放时打印 `wheel release: no fresh HUD selection, using last=...` 作为诊断。
 - **验证（实跑 2026-11-19 21:35）**：轮盘选择 attention / danger / go_to 均出现 `wheel select pingType=...` + `send ping` + `marker created`；一次 `last=None` 仍按 no-selection 取消（符合“松手时无选择”的预期）；用户确认修复后无问题；`:common:test` **1193/1193** 通过。
-- **未验证**：轮盘视觉高亮/中心取消/超时、HUD/声音/多人仍属 F5；本修复不改变这些项的结论。
+- **未验证（当轮）**：轮盘视觉高亮/中心取消/超时、HUD/声音/多人当时仍属 F5；后续 F5 收口见 §11.19/§11.20。
 
-### 11.19 F5 当前完成度与未完成项（2026-11-19）
+### 11.19 F5 完成记录与逐项状态（2026-11-19 收口）
 
-| 项 | 状态 | 证据/说明 |
+> 用户裁决（2026-11-19）：不需要截图，发现问题会直接报告；“单人已完成，双客户端没办法直接验证；可以参考 Fabric 和 Forge 端进行编写和审查”。因此 F5 以“单人用户确认 + 日志证据”收口；双客户端/跨玩家项按源码 parity 审查替代运行时验证，残余风险见 §11.20.4。
+
+| 项 | 状态 | 证据/边界 |
 | --- | --- | --- |
-| 核心 ping / marker / block outline | 已验证 | F4 视觉确认；2026-11-19 20:55–20:56 与 21:35 会话 `send ping` / `marker created` / `submitted=1..7` |
-| 轮盘打开与扇区选择 | 已验证 | `wheel select pingType=attention/danger/go_to` + ping；用户确认修复后无问题 |
-| 轮盘中心取消 / 超时 | 未验证 | 无日志/视觉确认 |
-| HUD marker 点/名字/距离/方向/状态、toggle notice | 未验证 | 轮盘层可见；marker 层无视觉确认 |
-| F1 隐藏 HUD / 界面层叠 | 未验证 | 仅源码推导 |
-| 命令输出 `/pingforit help|channel|config` | 部分 | `Channel update` 多次观测；输出文本/颜色未确认 |
-| 配置界面打开/保存/reload | 部分 | 4× `Saved config type=ClientConfig`；打开/reload 未逐项确认 |
-| ping 声音（音量/方向/异维度） | 未验证 | 无听觉确认 |
-| entity outline | 未验证 | 本轮无 entity ping |
-| improvedTransparency / after-terrain | 未验证 | 无视觉确认 |
-| 多人 / 专用服务器+客户端 / 重连 / winner / 限流 / syncDuration | 未验证 | 只有单人集成服务器 |
-| `displayTest` 版本不一致 | 未验证 | 仅 jar 字段证据 |
-| F6 打包/身份 | 未完成 | `:forge:build` 已过；`verifyModIdentity`、精确产物/身份未跑 |
+| 核心 ping / marker / block outline | 已验证 | F4 视觉确认；2026-11-19 22:21–22:24 会话 40+ 次 `send ping`/`marker created`（BLOCK/ENTITY/LOCATION，attention/go_to/danger/loot），`bridge active`，`debug.log:576-747` 的 `submitted=1..5` 随 marker 生命周期变化 |
+| 轮盘打开与扇区选择 | 已验证 | `wheel open types=[...]`、`wheel select pingType=attention/go_to/danger/loot` + ping；用户确认修复后无问题 |
+| 轮盘中心取消（有自己 marker） | 已验证 | `wheel cancel reason=marker markerId=33`（22:24:33）；随后 marker 移除 |
+| 轮盘超时 | 已验证 | `wheel timeout reason=duration-exceeded openMillis=3002`（22:24:42，默认 3000ms） |
+| 轮盘空中心 / 外圈松手 | 源码已审，本轮未触发 | 目标分支 `wheel cancel reason=no-locally-owned-marker`、`wheel close reason=no-selection`；本次日志均为 `reason=marker`/`timeout`，21:35 会话有 `no-selection` |
+| HUD marker 点/名字/距离/方向/状态、toggle notice | 用户确认 | 用户确认单人 F5 完成（未提供截图）；HUD 无逐帧日志 |
+| F1 隐藏 HUD / 界面层叠 | 用户确认 | 用户确认单人 F5 完成（未提供截图）；Forge `POST_SLEEP_STACK` 门控与源码一致 |
+| 命令 `/pingforit help\|channel\|config` | 用户确认 + 链路 | 用户确认单人无问题；日志有 2× `Channel update`；输出文本/颜色未由日志证明 |
+| 配置界面打开/保存/reload | 用户确认 + 保存日志 | `Saved config type=ClientConfig`（22:23:40）；用户确认界面/保存无问题 |
+| ping 声音（音量/方向/异维度） | 用户确认 | 用户确认单人无问题；无 mod 播放日志；异维度负例需第二玩家 |
+| entity outline | 已验证（日志）+ 用户确认 | `entity outline pass active`（22:23:55），debug active 数 1/2/0；多次 entity ping；用户确认视觉 |
+| improvedTransparency / after-terrain | 用户确认；分支未单独证明 | 用户确认单人无问题；本次日志无 `improved transparency is ON`，fallback 分支未由日志触发 |
+| 多人 / 专用服务器+客户端 / 重连 / winner / 限流 / syncDuration | 未运行时验证；源码 parity | 单玩家 winner 变化日志已证；双客户端/跨玩家项见 §11.20.3/§11.20.4 |
+| `displayTest` 版本不一致 | 静态已证；运行时未测 | `mods.toml:14 IGNORE_SERVER_VERSION`；影响 server-list 兼容标记，不是连接准入 |
+| F6 打包/身份 | 部分完成 | `:forge:build` 823256 B / 504 entries / 432 classes / 9 mixins / 6 services / 0 duplicate；`verifyModIdentity` 未跑 |
 | F7 独立审查 + 合并 | 未开始 | 需 F0–F6 证据 |
 
-结论：**F5 仍未完成**；已确认核心 ping、block outline、轮盘选择；其余项按 §11.14 与本表继续。F6/F7 未开始。
+结论：**F5 已完成**（2026-11-19 收口）。单人由用户确认，日志覆盖核心链路、轮盘取消/超时、entity outline、winner、配置保存；双客户端/跨玩家项以源码 parity 审查替代运行时验证，残余风险明示，不阻塞 F6；F6 的 `verifyModIdentity` 与 F7 仍未完成。
+
+### 11.20 F5 完成记录（2026-11-19）
+
+#### 11.20.1 会话与环境
+
+- 环境：Forge `26.3-66.1.0`、JDK `25.0.4.1`、Windows 11；单人集成服务器；世界 `新的世界`；`--quickPlaySingleplayer` 直接进世界；时间 2026-11-19 22:21–22:24（Asia/Shanghai）。
+- 启动：`latest.log:33-37` `[PingForIt] Init`、`Loaded config type=ServerConfig/ClientConfig`、outline pipeline、block outline pass ready；`debug.log:198` `Preparing pingforit.mixins.json (9)`，9 条 `Mixing` 全部应用（含 `LevelRendererSubmitMixin`、世界加载后的 `SubmitNodeCollectionMixin`）。
+- 链路：`latest.log:83` `Channel update: Dev -> default`；`:86` `block outline: Forge world-submit bridge active`；无 pingforit `ERROR`/`FATAL`（Realm/Forge VersionChecker/oshi 噪声不计）。
+- 说明：客户端首次启动因本机沙箱临时目录 ACL 损坏导致 JNA/LWJGL 无法解压原生库；重建临时目录后以不受限方式启动。该问题是环境问题，不是 mod 行为，也不改变上述运行证据。
+
+#### 11.20.2 日志已证（不能升级为视觉的单独证据）
+
+- **ping/marker**：`latest.log:113-245` 40+ 次 `send ping` + `marker created`，覆盖 BLOCK / ENTITY / LOCATION 与 attention/go_to/danger/loot；`marker removed applied ... reason=EXPIRED` 正常；`debug.log:576-747` 的 `submitted=1..5` 随 marker 出现/过期变化，`:1490-1497` 回落 0。
+- **轮盘**：`wheel open` / `wheel select` 多次；`wheel cancel reason=marker markerId=33`；`wheel timeout reason=duration-exceeded openMillis=3002`；`wheel release: no fresh HUD selection, using last=...` 为已知 release-race 诊断，属预期。
+- **entity outline**：`entity outline pass active (native glow channel via outlineColor)`（22:23:55）；`debug.log` 的 `entity outline: 1/2/0 entities active` 随 entity marker 生命周期变化。
+- **winner**：多次 `marker winner applied: kind=BLOCK/ENTITY winner=N`，过期后 `winner=none`；单玩家同目标 winner 路径可用。
+- **配置/通道**：`Saved config type=ClientConfig`（22:23:40）；第二次 `Channel update: Dev -> default`。
+- **自动门禁**：`:common:test` 151 suites / 1193 tests / 0 failures / 0 errors / 0 skipped；`:forge:build` BUILD SUCCESSFUL（823256 B，504 entries，432 classes，9 mixins，6 services，0 duplicate）；自动验证阶段工作区无代码改动，随后按用户指示更新本技术文档。
+
+#### 11.20.3 用户人工确认（2026-11-19）
+
+- 用户确认“单人已完成”，不需要截图；发现问题会直接报告。
+- 因此 §11.19 中 HUD marker/notice、F1/界面层叠、`/pingforit` 输出、配置界面、声音、entity outline 视觉、improvedTransparency 的单人部分以用户人工确认为准；日志只对 ping/marker、轮盘取消/超时、entity outline 激活、winner、配置保存、channel 往返提供独立证据。
+- `improved transparency is ON` 日志本轮未出现，不能声称 fallback 分支已被日志单独证明；仅能记录“用户确认单人无问题 + 源码与 Fabric 同提交点”。
+
+#### 11.20.4 未运行时验证项与 Fabric/Forge 源码 parity
+
+- **双客户端/跨玩家**（两玩家 winner、取消对方 marker、服务端限流强制、跨维度声音负例）：未运行时验证。原因：`forge/build.gradle:23-31` 只有 `client`/`server` 两个 run；ForgeGradle `runs.json` 固定 `--gameDir .`；dev 默认用户名均为 `Dev`，同一 `runs/forge-client` 会互相踢下线。方案 A（增加 `client2` run + 独立 workingDir + devmod task 匹配）或 B（第二个真实 Forge 客户端装 jar）均未执行。
+- **源码 parity 结论**：上述行为由 common 的 `ServerCore`/`MarkerStore`/`CancelCandidatePicker`/`ClientPingRuntime` 共享；Forge 仅替换 14 个 `EventNetworkChannel`、8 个 S2C handler、6 个 C2S handler 与 `ClientPlayerNetworkEvent.LoggingIn/LoggingOut` 桥接；未发现 Forge 专属 authority/winner/rate 分支。第 11 章的 14 路由/6 SPI/jar/metadata 逐项复核仍适用。
+- **专用服务器 + 单客户端/重连**：本轮未连接；既有 `:forge:runServer` 已输出 `Done (0.219s)` 且无客户端类加载。join 路径与 Fabric 的差异仅在 `LoggingIn` 时机（Forge 在 `handleLogin` 中途），仍需真实多人会话确认同 tick 的 marker 包/Runtime 创建顺序。
+- **`displayTest` 版本不一致**：仅静态证 `IGNORE_SERVER_VERSION`；Forge `ForgeHooksClient.processForgeListPingData` 影响服务器列表兼容标记，不决定连接准入；未构造第二版本 jar/客户端，运行时未验证。
+- **服务端 `RATE_LIMITED`**：正常客户端 courtesy gate 先丢弃，服务端强制拒绝只对 modified client 可达；本轮只记录源码边界，不作为 F5 运行时项。
+- **残余风险**：跨玩家 winner/取消、重连状态清理、`LoggingIn` 同 tick 顺序、improvedTransparency fallback 日志缺失；若后续需要两玩家矩阵，按方案 A/B 单独立项，不阻塞 F6/F7。
+
+#### 11.20.5 F5 出口与后续
+
+- F5 按用户裁决收口：单人已确认，双客户端/跨玩家项以源码 parity 审查替代运行时验证，残余风险已记录；F5 不因“无截图”被升级为视觉证据。
+- F6：`:forge:build` 已过（823256 B / 504 / 432 / 9 / 6 / 0 duplicate）；`verifyModIdentity` 未跑（需三端 build 与精确产物检查）。
+- F7：未开始；待 F6 完成后独立审查并合并 `26.3-Forge` → `26.3`。
