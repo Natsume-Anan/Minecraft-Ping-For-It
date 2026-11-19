@@ -66,10 +66,17 @@ public class CommonClient {
 	/** One-shot guard so a failing HUD pass cannot spam the log every frame. */
 	private static boolean hudFailureLogged = false;
 	private static boolean toggleNoticeFailureLogged = false;
+	/** Guards against duplicate SPI/HUD registration if a loader ever calls {@link #onInit()} twice. */
+	private boolean initialized;
 
 	private CommonClient() {}
 
 	public void onInit() {
+		if (initialized) {
+			return;
+		}
+
+		initialized = true;
 		ClientConfig.HANDLER.load();
 
 		IPlatformClientEventService.INSTANCE.registerTickStartEvent(this::onTickStart);
