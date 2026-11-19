@@ -157,6 +157,8 @@ public final class ClientPingRuntime {
 
 	private long localTick;
 	private WheelSelection wheelSelection = WheelSelection.NONE;
+	/** True when the HUD pass refreshed {@link #wheelSelection} since the last machine advance. */
+	private boolean wheelSelectionFresh;
 	/**
 	 * The ray captured at the current press edge. It remains available while an
 	 * asynchronous target resolution is pending and is cleared when that
@@ -457,7 +459,7 @@ public final class ClientPingRuntime {
 			compatibilityController.abort();
 			InputUtils.resetPingHold();
 			pendingRay = null;
-			wheelSelection = WheelSelection.NONE;
+			clearWheelSelection();
 		}
 
 		observedLevel = currentLevel;
@@ -514,7 +516,7 @@ public final class ClientPingRuntime {
 		// remains open; it is preserved between open frames by the runtime's normal
 		// wheel input path.
 		if (machine.phase() != PingInteractionPhase.WHEEL_OPEN) {
-			wheelSelection = WheelSelection.NONE;
+			clearWheelSelection();
 		}
 
 		if (machine.phase() == PingInteractionPhase.IDLE) {
@@ -528,7 +530,7 @@ public final class ClientPingRuntime {
 	private void baselineAbort() {
 		machine.abort();
 		pendingRay = null;
-		wheelSelection = WheelSelection.NONE;
+		clearWheelSelection();
 		wheelMouseCapture.close(Game);
 	}
 
@@ -581,13 +583,22 @@ public final class ClientPingRuntime {
 
 	private Optional<PingInteractionAction> advanceInteraction(boolean keyDown, Long observedTimeMillis) {
 		if (machine.phase() == PingInteractionPhase.IDLE) {
-			wheelSelection = WheelSelection.NONE;
+			clearWheelSelection();
 			pendingRay = null;
 			return Optional.empty();
 		}
 
 		WheelSelection consumedSelection = wheelSelection;
-		wheelSelection = WheelSelection.NONE;
+		boolean selectionFresh = wheelSelectionFresh;
+		clearWheelSelection();
+
+		if (!keyDown && machine.phase() == PingInteractionPhase.WHEEL_OPEN && !selectionFresh) {
+			// A raw release can arrive after the render-frame advance but before the
+			// HUD pass has refreshed the selection. Reuse the last hovered value
+			// instead of committing an empty sample (which would close with no ping).
+			consumedSelection = machine.selection();
+			logger.debug("wheel release: no fresh HUD selection, using last={}", consumedSelection);
+		}
 		// Cancellation is resolved only when the open wheel is released.  While
 		// pressed, including every hover/selection frame, the machine only needs
 		// O(1) state advancement and the empty sentinel below.
@@ -605,7 +616,7 @@ public final class ClientPingRuntime {
 
 		if (machine.phase() == PingInteractionPhase.IDLE) {
 			pendingRay = null;
-			wheelSelection = WheelSelection.NONE;
+			clearWheelSelection();
 		}
 
 		return action;
@@ -1255,6 +1266,12 @@ public final class ClientPingRuntime {
 	 */
 	public void setWheelSelection(WheelSelection selection) {
 		this.wheelSelection = Objects.requireNonNull(selection, "selection");
+		this.wheelSelectionFresh = true;
+	}
+
+	private void clearWheelSelection() {
+		wheelSelection = WheelSelection.NONE;
+		wheelSelectionFresh = false;
 	}
 
 	/**
