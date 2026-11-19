@@ -1,6 +1,6 @@
 # Ping For It — 26.3 Forge 迁移方案
 
-> 状态：**F0–F3 已完成**（2026-11-14）；**F4 已完成**（2026-11-16，`204e42e`）。`26.3-Forge` 已从旧的 `407fbc6` 同步到 `26.3` @ `2954fcf`；本地原有的 `9a723c2` 仅重复添加 `.agents-work/`，rebase 时被安全跳过。F0 基线 `:forge:compileJava` 实跑成功（骨架 `NO-SOURCE`）；F1 已接好 common 依赖/资源合并、metadata、121 pack 和 8 条本地 mixin；F2 已添加入口、14 个 channel、6 个 SPI 实现和 6 个 services，`:forge:runServer` 实跑输出 `[PingForIt] Init` 与 `Done (1.937s)`。F3 已加入客户端入口、8 个 S2C handler、按键/reload/HUD/命令/配置界面与声音注册；`:forge:runClient` 进入主菜单，mixin 配置成功加载，outline pipeline 创建成功。F4 观察基线已记录（2026-11-15）：当前 runClient 已进入单人世界并完成 3 次 block ping，但 world-submit 仍是 no-op。**F4 已完成**（2026-11-16，`204e42e`）：Forge-local `LevelRendererSubmitMixin` 注入 `LevelRenderer#submitFeatures` 的 RETURN，取代 no-op；`:forge:compileJava` / `:forge:prepareDevMod` / `:forge:jar` 实跑通过，独立审查 PASS、无 P0/P1；22:13–22:14 的 runClient 已观察到 `bridge active` 与 `submitted=1..8`、无 routing/pass 失败。用户已确认普通方块/门床两半/entity_block 视觉正常，F4 门禁通过。**F5 暂停，进行 Forge/Fabric/NeoForge parity 审查（2026-11-16）**：结论见 §11（P0 = 0、P1 = 2、P2 = 14、P3 = 8），逐项报告在 `.agents-work/parity/parity-analysis.md`。**方案 A 已执行**（2026-11-17，`14c44f9`）：`mods.toml` 恢复 `displayTest`，`:forge:jar` 重建通过；P1-1 关闭，P1-2 于 2026-11-18 裁决 B（不纳入）关闭。**第二轮 parity 逐项复核完成（2026-11-18）**：P1 open = 0（P1-2 经用户裁决 **B：不纳入**，按 docs 的 NeoForge-only 保持现状）/ P2 = 14 / P3 = 12，结论见 §11，报告在 `.agents-work/parity2/analysis.md`；F5 暂停，待修复范围决定。**P3 小修复已执行**（2026-11-18，`224e0c2`）：C2S try/finally + server 守卫、world-submit 多监听、`ModIdentityTest` 第 14 包；`:common:test` 1193/1193、`:forge:compileJava` 实跑通过；P3-7 的 `CommonClient.onInit` once-guard 也已补（`e890578`），P3 代码项清零。
+> 状态：**F0–F3 已完成**（2026-11-14）；**F4 已完成**（2026-11-16，`204e42e`）。`26.3-Forge` 已从旧的 `407fbc6` 同步到 `26.3` @ `2954fcf`；本地原有的 `9a723c2` 仅重复添加 `.agents-work/`，rebase 时被安全跳过。F0 基线 `:forge:compileJava` 实跑成功（骨架 `NO-SOURCE`）；F1 已接好 common 依赖/资源合并、metadata、121 pack 和 8 条本地 mixin；F2 已添加入口、14 个 channel、6 个 SPI 实现和 6 个 services，`:forge:runServer` 实跑输出 `[PingForIt] Init` 与 `Done (1.937s)`。F3 已加入客户端入口、8 个 S2C handler、按键/reload/HUD/命令/配置界面与声音注册；`:forge:runClient` 进入主菜单，mixin 配置成功加载，outline pipeline 创建成功。F4 观察基线已记录（2026-11-15）：当前 runClient 已进入单人世界并完成 3 次 block ping，但 world-submit 仍是 no-op。**F4 已完成**（2026-11-16，`204e42e`）：Forge-local `LevelRendererSubmitMixin` 注入 `LevelRenderer#submitFeatures` 的 RETURN，取代 no-op；`:forge:compileJava` / `:forge:prepareDevMod` / `:forge:jar` 实跑通过，独立审查 PASS、无 P0/P1；22:13–22:14 的 runClient 已观察到 `bridge active` 与 `submitted=1..8`、无 routing/pass 失败。用户已确认普通方块/门床两半/entity_block 视觉正常，F4 门禁通过。**F5 暂停，进行 Forge/Fabric/NeoForge parity 审查（2026-11-16）**：结论见 §11（P0 = 0、P1 = 2、P2 = 14、P3 = 8），逐项报告在 `.agents-work/parity/parity-analysis.md`。**方案 A 已执行**（2026-11-17，`14c44f9`）：`mods.toml` 恢复 `displayTest`，`:forge:jar` 重建通过；P1-1 关闭，P1-2 于 2026-11-18 裁决 B（不纳入）关闭。**第二轮 parity 逐项复核完成（2026-11-18）**：P1 open = 0（P1-2 经用户裁决 **B：不纳入**，按 docs 的 NeoForge-only 保持现状）/ P2 = 14 / P3 = 12，结论见 §11，报告在 `.agents-work/parity2/analysis.md`；F5 暂停，待修复范围决定。**P3 小修复已执行**（2026-11-18，`224e0c2`）：C2S try/finally + server 守卫、world-submit 多监听、`ModIdentityTest` 第 14 包；`:common:test` 1193/1193、`:forge:compileJava` 实跑通过；P3-7 的 `CommonClient.onInit` once-guard 也已补（`e890578`），P3 代码项清零；轮盘选择提交 race 已修（`0f5db07`，见 §11.18）。
 > 分支：`26.3-Forge`（完成后合并回 `26.3`）
 > 目标：恢复 Forge 26.3 的核心 ping/marker/配置/网络/HUD/outline；首轮不追求 Create/Flywheel 等可选集成 parity。
 > 参考：`MIGRATION-26.3-NEOFORGE.md`、`AGENTS.md`、`docs/`（产品行为 owner；本文件不替代 docs）
@@ -772,7 +772,7 @@ F7 独立审查至少检查：
 | HUD marker 层视觉（图标/名字/距离/方向/状态） | 静态：2 层已注册；HUD 不写正信号日志 | 进世界观察/截图（F5） |
 | toggle notice 视觉/时序 | 静态：第 2 层 + common 状态机 | 按两个 toggle 键观察 2s 不透明 + 1s 淡出 |
 | F1 隐藏 HUD | 源码：Forge 有 `!gui.isHidden()` gate | 按 F1 观察 marker/wheel 是否消失；再开背包/聊天确认界面层叠 |
-| wheel 视觉/选择/取消 | 日志有 10 次 open/close（`latest.log:123-145`），非视觉 | 开轮盘点选 3 种 ping、中心取消、超时 |
+| wheel 视觉/选择/取消 | 轮盘打开已验证；选择提交 race 已修（`0f5db07`），日志出现 `wheel select`；中心取消/超时仍非视觉 | 开轮盘点选 3 种 ping、中心取消、超时 |
 | ping 声音（音量/方向/同维度过滤） | 静态：`DirectionalSoundInstance` + 维度过滤 | 听觉确认；异维度 marker 不应发声 |
 | `/pingforit help` / `channel` / `config` 输出 | 静态：注册路径已接 | 游戏内执行看聊天行/前缀/颜色 |
 | 配置界面打开/保存/server settings | 静态：extension point + common screen | 打开 mods 列表配置按钮、改值、重连 |
@@ -818,6 +818,14 @@ F7 独立审查至少检查：
 - **未验证**：多人版本不一致提示、channel 握手兼容性仍归 F5；P1-2（Create/Simulated resolver）已于 2026-11-18 裁决 B（不纳入），按 docs NeoForge-only 保持现状。
 
 两组证据合起来的边界：**产物与链路已证，效果未证**。§11.14 的每一项都必须在 F5 会话里单独取得观察，不能引用本节代替。
+
+### 11.18 轮盘选择提交 race 修复（2026-11-19，`0f5db07`）
+
+- **现象**：按住 ping 键打开轮盘、把鼠标移到扇区后松手，Forge 端始终 `wheel close reason=no-selection`，没有 ping；`debug.log` 能看到 `wheel selection: ... Sector(...)` 的悬停记录，但提交时读到 `None`。
+- **根因**：Forge 的 `RenderTickEvent.Pre`（HUD 之前）先推进状态机并消费/清空 `wheelSelection`；原始释放事件若落在“状态机推进之后、HUD 刷新之前”，`onRelease` 读到空值，`updateWheelOpen` 又用它覆盖 `machine.selection`，于是按无选择关闭。
+- **修复**：`ClientPingRuntime` 增加 `wheelSelectionFresh`；HUD `setWheelSelection` 置 fresh；`advanceInteraction` 在 `!keyDown && phase==WHEEL_OPEN && !fresh` 时回退到最后一次 HUD 选择（`machine.selection()`）；abort/空闲/超时仍清空。释放时打印 `wheel release: no fresh HUD selection, using last=...` 作为诊断。
+- **验证（实跑 2026-11-19 21:35）**：轮盘选择 attention / danger / go_to 均出现 `wheel select pingType=...` + `send ping` + `marker created`；一次 `last=None` 仍按 no-selection 取消（符合“松手时无选择”的预期）；`:common:test` **1193/1193** 通过。
+- **未验证**：轮盘视觉高亮/中心取消/超时、HUD/声音/多人仍属 F5；本修复不改变这些项的结论。
 
 ### 11.17 P3-7 与运行完整性校验（2026-11-19）
 
