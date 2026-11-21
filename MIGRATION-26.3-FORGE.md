@@ -932,6 +932,7 @@ F7 独立审查至少检查：
 - **资源/安全**：`verifyModIdentity` 已检查 `assets/pingforit/` 存在、无 `assets/pingwheel/`、无 `pingwheel.mixins.json`、无 refmap、无旧 channel 字节串 `ping-wheel-c2s`/`ping-wheel-s2c`、lang/sounds 无外部 `pingwheel` 标识；三端各含 `LICENSE_pingforit` 与 `THIRD-PARTY-NOTICES.md`。Forge/NeoForge `pack.mcmeta` 的 `min_format=121`（Forge `max_format=121`；NeoForge `max_format=[121,0]`，MDG 生成格式）。
 
 - **边界**：`verifyModIdentity` 不包含 `:common:test`；F5 已实跑 1193/1193，本轮未改产品代码。Forge jar 时间为 2026-11-19 22:24（F5 后源码未变，Gradle UP-TO-DATE）；Fabric/NeoForge 为 2026-11-21 重建。
+- **P2-2 测试后复验（2026-11-21）**：F7 P2-2 focused test 合入工作区后，`:common:test` **1200/1200**、`:forge:build`、`verifyModIdentity` PASS；三端 jar 重建为 **827231 / 823408 / 831493 B**。上表 827079 / 823256 / 831341 是测试前 F6 产物；合并前以最新构建为准。
 
 - **出口**：F6 PASS；F7 独立审查见 §11.22，合并待用户批准。
 
@@ -941,7 +942,7 @@ F7 独立审查至少检查：
 - **独立审查 A（代码/实现）PASS**：报告 `.agents-work/f7/review-code.md`。P0=0、P1=0、P2=2、P3=5；核对 ForgeMain 14 channel/14 map/6 C2S、ForgeClient 8 S2C/命令/配置界面/reload 均在 mod 构造期注册、6 SPI + services 1:1、HUD `POST_SLEEP_STACK` + F1 门控、`LevelRendererSubmitMixin` 单一 RETURN + `checkPoseStack` 前提、jar 504 entries/432 classes/0 duplicate/6 services/9 mixins、`ModIdentityTest` 14 包。建议合并（P0/P1 为零），但按用户要求本轮不执行。
 - **独立审查 B（发布/产物）PASS**：报告 `.agents-work/f7/review-release.md`。三端 jar 精确名/字节/entries/classes/services/mixins/0 refmap/0 duplicate/0 test class 与 §11.21 完全一致；身份/metadata/pack/LICENSE/无旧命名空间均通过；421 个共享 common class 三端 SHA256 一致，Forge 仅多 `LevelRendererSubmitMixin`；`.agents-work/f6/verify.log` 成功行一致。
 - **P2-1（已修正文档）**：F7 代码审查发现 §11.18 的 hook 顺序写反了。Forge `RenderTickEvent.Pre` 实际在 extract/HUD **之后**触发（`Minecraft.java:1309` extract → `GameRenderer.java:464` → `Gui.java:157` → `ForgeLayeredDraw` 层同步执行 → `Minecraft.java:1316` 才触发），所以 `wheelSelectionFresh` 回退是 Forge 上的**主路径**，不是罕见 race；§11.18 已按此改写，并补日志行 654/690/724/1576/1604/1624。`CommonClient.java:275-281` 与 `IPlatformClientEventService.java:21` 的 javadoc 仍假设 frame hook 在 HUD 之前，列为后续注释修正项。
-- **P2-2（后续测试）**：`0f5db07` 的回退没有 focused test；建议补“release 无 fresh selection 时复用 `machine.selection`”以及 CENTER/no-selection 的单元测试，再合并或紧随合并后补。
+- **P2-2（已补测试）**：`0f5db07` 的回退已补 focused test：新增包内 seam `ClientPingRuntime.resolveWheelReleaseSelection`，并在 `ClientPingRuntimeTest` 覆盖 7 个分支（stale sector/center/none、fresh sector/outside-ring、hold、non-wheel）；`ClientPingRuntimeTest` 8/8，全量 `:common:test` **1200/1200**。测试后 `:forge:build` 与 `verifyModIdentity` PASS；三端 jar 重建为 827231 / 823408 / 831493 B（F6 §11.21 的 827079 / 823256 / 831341 为测试前数字）。
 - **P3（不阻塞）**：① F1 隐藏时轮盘释放会提交最后一次悬停扇区（跨 loader 边缘，未文档化）；② `PlatformNetworkServiceImpl.CHANNEL_MAP` 为可变 HashMap（构造期写入，当前线程启动晚于构造，安全但可改 COW）；③ Forge `pack.mcmeta` scalar 121 vs NeoForge `[121,0]`；④ `mods.toml` 硬编码 `[24,)`/`[66,)`，未使用 `forge_loader_version`；⑤ `prepareDevMod` 只匹配 `runClient`/`runServer`，未来新增 run 任务需同步。
 - **发布审查残余风险**：F6 `verifyModIdentity` 多数任务 UP-TO-DATE（仅 `:neoforge:jar` 执行）；`:common:test` 不在 verify 内（1193/1193 来自 F5）；Forge jar 2026-11-19 vs Fabric/NeoForge 2026-11-21 的混合构建来源；无 checksums/CI；可选集成 Create/Simulated 按裁决 B 仍为 NeoForge-only；Forge mixin `JAVA_21` + Java 25 字节码 + `require=0` 静默漂移风险。
-- **结论**：F7 独立审查 PASS（代码 + 发布），无 P0/P1；**未合并**。合并前建议至少完成 P2-1 文档修正（已完成）并决定 P2-2 测试是否在合并前补；P3 可记录为后续。
+- **结论**：F7 独立审查 PASS（代码 + 发布），无 P0/P1；P2-1 文档已修正、P2-2 focused test 已补；**未合并**，合并待用户批准；P3 记录为后续。

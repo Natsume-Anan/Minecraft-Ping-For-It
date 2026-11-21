@@ -6,11 +6,17 @@ import org.junit.jupiter.api.Test;
 
 import nx.pingwheel.common.client.marker.ClientMarkerStore;
 import nx.pingwheel.common.domain.MarkerId;
+import nx.pingwheel.common.domain.PingType;
+import nx.pingwheel.common.domain.PingTypeCatalog;
 import nx.pingwheel.common.domain.Target;
+import nx.pingwheel.common.interaction.state.PingInteractionPhase;
+import nx.pingwheel.common.interaction.wheel.WheelSelection;
 import nx.pingwheel.common.marker.MarkerAnchor;
 import nx.pingwheel.common.marker.MarkerSnapshot;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ClientPingRuntimeTest {
@@ -30,6 +36,76 @@ class ClientPingRuntimeTest {
 		assertFalse(ClientPingRuntime.isNewMarkerReceipt(store, markerId));
 		store.onCreated(snapshot(markerId, updated), 1L);
 		assertFalse(ClientPingRuntime.isNewMarkerReceipt(store, markerId));
+	}
+
+	@Test
+	void staleReleaseReusesLastHoveredSector() {
+		WheelSelection sector = WheelSelection.sector(pingType("attention"));
+
+		WheelSelection resolved = ClientPingRuntime.resolveWheelReleaseSelection(
+			false, PingInteractionPhase.WHEEL_OPEN, false, WheelSelection.NONE, sector);
+
+		assertEquals(sector, resolved);
+	}
+
+	@Test
+	void staleReleaseReusesCenter() {
+		WheelSelection resolved = ClientPingRuntime.resolveWheelReleaseSelection(
+			false, PingInteractionPhase.WHEEL_OPEN, false, WheelSelection.NONE, WheelSelection.CENTER);
+
+		assertSame(WheelSelection.CENTER, resolved);
+	}
+
+	@Test
+	void staleReleaseWithoutLastSelectionStaysNone() {
+		WheelSelection resolved = ClientPingRuntime.resolveWheelReleaseSelection(
+			false, PingInteractionPhase.WHEEL_OPEN, false, WheelSelection.NONE, WheelSelection.NONE);
+
+		assertSame(WheelSelection.NONE, resolved);
+	}
+
+	@Test
+	void freshReleaseKeepsConsumedSectorAndIgnoresLast() {
+		WheelSelection sector = WheelSelection.sector(pingType("attention"));
+
+		WheelSelection resolved = ClientPingRuntime.resolveWheelReleaseSelection(
+			false, PingInteractionPhase.WHEEL_OPEN, true, sector, WheelSelection.CENTER);
+
+		assertEquals(sector, resolved);
+	}
+
+	@Test
+	void freshOutsideRingReleaseDoesNotFallback() {
+		WheelSelection sector = WheelSelection.sector(pingType("attention"));
+
+		WheelSelection resolved = ClientPingRuntime.resolveWheelReleaseSelection(
+			false, PingInteractionPhase.WHEEL_OPEN, true, WheelSelection.NONE, sector);
+
+		assertSame(WheelSelection.NONE, resolved);
+	}
+
+	@Test
+	void holdDoesNotUseReleaseFallback() {
+		WheelSelection sector = WheelSelection.sector(pingType("attention"));
+
+		WheelSelection resolved = ClientPingRuntime.resolveWheelReleaseSelection(
+			true, PingInteractionPhase.WHEEL_OPEN, false, WheelSelection.NONE, sector);
+
+		assertSame(WheelSelection.NONE, resolved);
+	}
+
+	@Test
+	void nonWheelPhaseDoesNotUseReleaseFallback() {
+		WheelSelection sector = WheelSelection.sector(pingType("attention"));
+
+		WheelSelection resolved = ClientPingRuntime.resolveWheelReleaseSelection(
+			false, PingInteractionPhase.PRESSED, false, WheelSelection.NONE, sector);
+
+		assertSame(WheelSelection.NONE, resolved);
+	}
+
+	private static PingType pingType(String id) {
+		return PingTypeCatalog.builtIn().findById(id).orElseThrow();
 	}
 
 	private static MarkerSnapshot snapshot(MarkerId id, Target target) {

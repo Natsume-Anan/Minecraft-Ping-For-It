@@ -577,6 +577,29 @@ public final class ClientPingRuntime {
 		}
 	}
 
+	/**
+	 * Chooses the wheel selection used by one machine advance.
+	 *
+	 * <p>On Forge the HUD extraction runs before {@code RenderTickEvent.Pre}, so
+	 * a raw release can observe a selection that the previous frame already
+	 * consumed. In that case keep the last selection held by the state machine
+	 * instead of committing the empty sentinel (which would close the wheel
+	 * with no ping).
+	 */
+	static WheelSelection resolveWheelReleaseSelection(
+		boolean keyDown,
+		PingInteractionPhase phase,
+		boolean selectionFresh,
+		WheelSelection consumedSelection,
+		WheelSelection lastSelection
+	) {
+		if (!keyDown && phase == PingInteractionPhase.WHEEL_OPEN && !selectionFresh) {
+			return lastSelection;
+		}
+
+		return consumedSelection;
+	}
+
 	private Optional<PingInteractionAction> advanceInteraction(boolean keyDown) {
 		return advanceInteraction(keyDown, null);
 	}
@@ -592,11 +615,16 @@ public final class ClientPingRuntime {
 		boolean selectionFresh = wheelSelectionFresh;
 		clearWheelSelection();
 
-		if (!keyDown && machine.phase() == PingInteractionPhase.WHEEL_OPEN && !selectionFresh) {
+		boolean staleRelease = !keyDown
+			&& machine.phase() == PingInteractionPhase.WHEEL_OPEN
+			&& !selectionFresh;
+		consumedSelection = resolveWheelReleaseSelection(
+			keyDown, machine.phase(), selectionFresh, consumedSelection, machine.selection());
+
+		if (staleRelease) {
 			// A raw release can arrive after the render-frame advance but before the
 			// HUD pass has refreshed the selection. Reuse the last hovered value
 			// instead of committing an empty sample (which would close with no ping).
-			consumedSelection = machine.selection();
 			logger.debug("wheel release: no fresh HUD selection, using last={}", consumedSelection);
 		}
 		// Cancellation is resolved only when the open wheel is released.  While
