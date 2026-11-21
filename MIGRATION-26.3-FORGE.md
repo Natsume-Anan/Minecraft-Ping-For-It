@@ -1,6 +1,6 @@
 # Ping For It — 26.3 Forge 迁移方案
 
-> 状态：**F0–F3 已完成**（2026-11-14）；**F4 已完成**（2026-11-16，`204e42e`）。`26.3-Forge` 已从旧的 `407fbc6` 同步到 `26.3` @ `2954fcf`；本地原有的 `9a723c2` 仅重复添加 `.agents-work/`，rebase 时被安全跳过。F0 基线 `:forge:compileJava` 实跑成功（骨架 `NO-SOURCE`）；F1 已接好 common 依赖/资源合并、metadata、121 pack 和 8 条本地 mixin；F2 已添加入口、14 个 channel、6 个 SPI 实现和 6 个 services，`:forge:runServer` 实跑输出 `[PingForIt] Init` 与 `Done (1.937s)`。F3 已加入客户端入口、8 个 S2C handler、按键/reload/HUD/命令/配置界面与声音注册；`:forge:runClient` 进入主菜单，mixin 配置成功加载，outline pipeline 创建成功。F4 观察基线已记录（2026-11-15）：当前 runClient 已进入单人世界并完成 3 次 block ping，但 world-submit 仍是 no-op。**F4 已完成**（2026-11-16，`204e42e`）：Forge-local `LevelRendererSubmitMixin` 注入 `LevelRenderer#submitFeatures` 的 RETURN，取代 no-op；`:forge:compileJava` / `:forge:prepareDevMod` / `:forge:jar` 实跑通过，独立审查 PASS、无 P0/P1；22:13–22:14 的 runClient 已观察到 `bridge active` 与 `submitted=1..8`、无 routing/pass 失败。用户已确认普通方块/门床两半/entity_block 视觉正常，F4 门禁通过。**F5 暂停，进行 Forge/Fabric/NeoForge parity 审查（2026-11-16）**：结论见 §11（P0 = 0、P1 = 2、P2 = 14、P3 = 8），逐项报告在 `.agents-work/parity/parity-analysis.md`。**方案 A 已执行**（2026-11-17，`14c44f9`）：`mods.toml` 恢复 `displayTest`，`:forge:jar` 重建通过；P1-1 关闭，P1-2 于 2026-11-18 裁决 B（不纳入）关闭。**第二轮 parity 逐项复核完成（2026-11-18）**：P1 open = 0（P1-2 经用户裁决 **B：不纳入**，按 docs 的 NeoForge-only 保持现状）/ P2 = 14 / P3 = 12，结论见 §11，报告在 `.agents-work/parity2/analysis.md`；F5 暂停，待修复范围决定。**P3 小修复已执行**（2026-11-18，`224e0c2`）：C2S try/finally + server 守卫、world-submit 多监听、`ModIdentityTest` 第 14 包；`:common:test` 1193/1193、`:forge:compileJava` 实跑通过；P3-7 的 `CommonClient.onInit` once-guard 也已补（`e890578`），P3 代码项清零；轮盘选择提交 race 已修（`0f5db07`，见 §11.18）。**F5 已完成（2026-11-19 收口）**：单人流程由用户确认完成（未附截图）；日志证明核心 ping/marker、轮盘选择/中心取消/超时、entity outline、winner、配置保存；双客户端/跨玩家 winner/限流/取消他人 marker 与 `displayTest` 版本不一致未运行时验证，按 Fabric/Forge 源码 parity 审查替代（见 §11.20）。F6 打包已过、`verifyModIdentity` 未跑；F7 未开始。
+> 状态：**F0–F3 已完成**（2026-11-14）；**F4 已完成**（2026-11-16，`204e42e`）。`26.3-Forge` 已从旧的 `407fbc6` 同步到 `26.3` @ `2954fcf`；本地原有的 `9a723c2` 仅重复添加 `.agents-work/`，rebase 时被安全跳过。F0 基线 `:forge:compileJava` 实跑成功（骨架 `NO-SOURCE`）；F1 已接好 common 依赖/资源合并、metadata、121 pack 和 8 条本地 mixin；F2 已添加入口、14 个 channel、6 个 SPI 实现和 6 个 services，`:forge:runServer` 实跑输出 `[PingForIt] Init` 与 `Done (1.937s)`。F3 已加入客户端入口、8 个 S2C handler、按键/reload/HUD/命令/配置界面与声音注册；`:forge:runClient` 进入主菜单，mixin 配置成功加载，outline pipeline 创建成功。F4 观察基线已记录（2026-11-15）：当前 runClient 已进入单人世界并完成 3 次 block ping，但 world-submit 仍是 no-op。**F4 已完成**（2026-11-16，`204e42e`）：Forge-local `LevelRendererSubmitMixin` 注入 `LevelRenderer#submitFeatures` 的 RETURN，取代 no-op；`:forge:compileJava` / `:forge:prepareDevMod` / `:forge:jar` 实跑通过，独立审查 PASS、无 P0/P1；22:13–22:14 的 runClient 已观察到 `bridge active` 与 `submitted=1..8`、无 routing/pass 失败。用户已确认普通方块/门床两半/entity_block 视觉正常，F4 门禁通过。**F5 暂停，进行 Forge/Fabric/NeoForge parity 审查（2026-11-16）**：结论见 §11（P0 = 0、P1 = 2、P2 = 14、P3 = 8），逐项报告在 `.agents-work/parity/parity-analysis.md`。**方案 A 已执行**（2026-11-17，`14c44f9`）：`mods.toml` 恢复 `displayTest`，`:forge:jar` 重建通过；P1-1 关闭，P1-2 于 2026-11-18 裁决 B（不纳入）关闭。**第二轮 parity 逐项复核完成（2026-11-18）**：P1 open = 0（P1-2 经用户裁决 **B：不纳入**，按 docs 的 NeoForge-only 保持现状）/ P2 = 14 / P3 = 12，结论见 §11，报告在 `.agents-work/parity2/analysis.md`；F5 暂停，待修复范围决定。**P3 小修复已执行**（2026-11-18，`224e0c2`）：C2S try/finally + server 守卫、world-submit 多监听、`ModIdentityTest` 第 14 包；`:common:test` 1193/1193、`:forge:compileJava` 实跑通过；P3-7 的 `CommonClient.onInit` once-guard 也已补（`e890578`），P3 代码项清零；轮盘选择提交 race 已修（`0f5db07`，见 §11.18）。**F5 已完成（2026-11-19 收口）**：单人流程由用户确认完成（未附截图）；日志证明核心 ping/marker、轮盘选择/中心取消/超时、entity outline、winner、配置保存；双客户端/跨玩家 winner/限流/取消他人 marker 与 `displayTest` 版本不一致未运行时验证，按 Fabric/Forge 源码 parity 审查替代（见 §11.20）。**F6 已完成（2026-11-21）**：`verifyModIdentity` PASS，三端 jar 827079 / 823256 / 831341 B，精确名/身份/服务/mixin/pack 检查通过（见 §11.21）。F7 未开始。
 > 分支：`26.3-Forge`（完成后合并回 `26.3`）
 > 目标：恢复 Forge 26.3 的核心 ping/marker/配置/网络/HUD/outline；首轮不追求 Create/Flywheel 等可选集成 parity。
 > 参考：`MIGRATION-26.3-NEOFORGE.md`、`AGENTS.md`、`docs/`（产品行为 owner；本文件不替代 docs）
@@ -433,7 +433,7 @@ common 的 `BlockOutlinePass.onWorldSubmit(WorldSubmitContext)` 需要 `PoseStac
 | F3 | 客户端事件、HUD、按键、reload、配置界面 | **已完成**：`:forge:runClient` 进入 26.3 主菜单；mixin 配置加载、outline pipeline 创建；5 个按键进入 options；无 mod ERROR/FATAL |
 | F4 | outline / world-submit spike | **实现完成**（2026-11-16，`204e42e`，见 §1.6）：Forge-local `LevelRendererSubmitMixin` 注入 `LevelRenderer#submitFeatures` 的 RETURN，no-op 警告已删除；`:forge:compileJava`、`:forge:prepareDevMod`、`:forge:jar` 实跑通过（devmod/jar 9 条 mixin），独立审查 PASS、无 P0/P1。**已完成**（2026-11-16）：日志 `bridge active`、`submitted=1..8`、无 `routing mixin inactive`/`pass failed`；用户确认普通方块/门床两半/entity_block 视觉正常；F4 门禁通过 |
 | F5 | 客户端/服务端运行时验证 | **已完成**（2026-11-19 收口）：单人用户确认完成；日志证据见 §11.20；双客户端/跨玩家项按源码 parity 审查，未运行时验证 |
-| F6 | 打包/静态身份检查 | `:forge:build`；精确 jar 名、common classes/resources、6 services、9 mixin（8 common + 1 Forge-local）、metadata、pack、LICENSE |
+| F6 | 打包/静态身份检查 | **已完成**（2026-11-21）：`verifyModIdentity` PASS；三端精确 jar 名、common classes/resources、6 services、8/9/8 mixin、metadata、pack、LICENSE 已核对（见 §11.21） |
 | F7 | 独立审查 + 合并 | 审查 PASS；F0–F6 证据齐全；`26.3-Forge` 合并回 `26.3` |
 
 F1 的 metadata 门禁至少检查：
@@ -859,10 +859,10 @@ F7 独立审查至少检查：
 | improvedTransparency / after-terrain | 用户确认；分支未单独证明 | 用户确认单人无问题；本次日志无 `improved transparency is ON`，fallback 分支未由日志触发 |
 | 多人 / 专用服务器+客户端 / 重连 / winner / 限流 / syncDuration | 未运行时验证；源码 parity | 单玩家 winner 变化日志已证；双客户端/跨玩家项见 §11.20.3/§11.20.4 |
 | `displayTest` 版本不一致 | 静态已证；运行时未测 | `mods.toml:14 IGNORE_SERVER_VERSION`；影响 server-list 兼容标记，不是连接准入 |
-| F6 打包/身份 | 部分完成 | `:forge:build` 823256 B / 504 entries / 432 classes / 9 mixins / 6 services / 0 duplicate；`verifyModIdentity` 未跑 |
+| F6 打包/身份 | 已完成 | `verifyModIdentity` PASS（2026-11-21）；Fabric 827079 B / Forge 823256 B / NeoForge 831341 B；精确名、身份、6 services、8/9/8 mixins、0 duplicate/refmap/test class 已核对（见 §11.21） |
 | F7 独立审查 + 合并 | 未开始 | 需 F0–F6 证据 |
 
-结论：**F5 已完成**（2026-11-19 收口）。单人由用户确认，日志覆盖核心链路、轮盘取消/超时、entity outline、winner、配置保存；双客户端/跨玩家项以源码 parity 审查替代运行时验证，残余风险明示，不阻塞 F6；F6 的 `verifyModIdentity` 与 F7 仍未完成。
+结论：**F5 已完成**（2026-11-19 收口）。单人由用户确认，日志覆盖核心链路、轮盘取消/超时、entity outline、winner、配置保存；双客户端/跨玩家项以源码 parity 审查替代运行时验证，残余风险明示，不阻塞 F6。**F6 已完成**（2026-11-21，`verifyModIdentity` PASS）；F7 未开始。
 
 ### 11.20 F5 完成记录（2026-11-19）
 
@@ -900,5 +900,37 @@ F7 独立审查至少检查：
 #### 11.20.5 F5 出口与后续
 
 - F5 按用户裁决收口：单人已确认，双客户端/跨玩家项以源码 parity 审查替代运行时验证，残余风险已记录；F5 不因“无截图”被升级为视觉证据。
-- F6：`:forge:build` 已过（823256 B / 504 / 432 / 9 / 6 / 0 duplicate）；`verifyModIdentity` 未跑（需三端 build 与精确产物检查）。
-- F7：未开始；待 F6 完成后独立审查并合并 `26.3-Forge` → `26.3`。
+- F6：**已完成**（2026-11-21）；`verifyModIdentity` PASS，三端精确 jar 与身份检查通过，见 §11.21。
+- F7：未开始；待 F6 证据复核后独立审查并合并 `26.3-Forge` → `26.3`。
+
+### 11.21 F6 打包与身份检查（2026-11-21）
+
+- **命令与结果**：在仓库根执行
+
+  ```powershell
+  $env:JAVA_HOME = 'C:\Program Files\Java\jdk-25'
+  $env:GRADLE_USER_HOME = '<workspace>\.agents-work\gradle-home'
+  .\gradlew.bat --no-daemon --console=plain verifyModIdentity
+  ```
+
+  结果：`BUILD SUCCESSFUL in 21s`；任务输出 `verifyModIdentity: fabric/forge/neoforge jars carry the Ping For It identity (mod_id=pingforit, mod_name=Ping For It, mod_version=0.4.2-pfi-beta1).`。`verifyModIdentity` 依赖三端 build；本次 `:fabric:build`、`:forge:build`、`:neoforge:build` 均成功（`:forge:test`/`:neoforge:test` 按配置 SKIPPED）。
+
+- **环境备注（不是产品问题）**：Fabric Loom 在受限 workspace 沙箱下写 split zip 缓存时抛 `java.nio.file.ReadOnlyFileSystemException`；清理 `.gradle/loom-cache/minecraftMaven` 与 `caches/fabric-loom/*.lock` 后，以不受限方式完成 Fabric build/verify。Gradle 仍报告 `File watcher server ... Couldn't open current thread, error = 5`（沙箱文件监听限制），不影响构建与产物。
+
+- **精确产物**（`build/libs` 各只保留一个期望 jar）：
+
+  | loader | 文件 | 字节 | entries | classes | common classes | services | mixins | refmap | duplicate | test classes |
+  | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+  | Fabric | `Ping-For-It-0.4.2-pfi-beta1-fabric-26.3.jar` | 827079 | 500 | 429 | 421 | 6 | 8 | 0 | 0 | 0 |
+  | Forge | `Ping-For-It-0.4.2-pfi-beta1-forge-26.3.jar` | 823256 | 504 | 432 | 422 | 6 | 9 | 0 | 0 | 0 |
+  | NeoForge | `Ping-For-It-0.4.2-pfi-beta1-neoforge-26.3.jar` | 831341 | 508 | 433 | 421 | 6 | 8 | 0 | 0 | 0 |
+
+  Forge 的 common classes 比另两端多 1，是 Forge-local `nx.pingwheel.common.mixin.LevelRendererSubmitMixin`（仅 Forge 配置包含）；不是 common 源码重复。
+
+- **身份/元数据**：Fabric `fabric.mod.json` 为 `id=pingforit`、`name=Ping For It`、`version=0.4.2-pfi-beta1`、无 `breaks`；Forge `META-INF/mods.toml` 的 `modId`/`displayName`/`version` 同上，`loaderVersion="[24,)"`、`displayTest="IGNORE_SERVER_VERSION"`、Forge 依赖 `[66,)`、MC `[26.3]`，manifest `MixinConfigs: pingforit.mixins.json`；NeoForge `META-INF/neoforge.mods.toml` 的 `modId`/`displayName`/`version` 同上、`[[mixins]] config=pingforit.mixins.json`。
+
+- **资源/安全**：`verifyModIdentity` 已检查 `assets/pingforit/` 存在、无 `assets/pingwheel/`、无 `pingwheel.mixins.json`、无 refmap、无旧 channel 字节串 `ping-wheel-c2s`/`ping-wheel-s2c`、lang/sounds 无外部 `pingwheel` 标识；三端各含 `LICENSE_pingforit` 与 `THIRD-PARTY-NOTICES.md`。Forge/NeoForge `pack.mcmeta` 的 `min_format=121`（Forge `max_format=121`；NeoForge `max_format=[121,0]`，MDG 生成格式）。
+
+- **边界**：`verifyModIdentity` 不包含 `:common:test`；F5 已实跑 1193/1193，本轮未改产品代码。Forge jar 时间为 2026-11-19 22:24（F5 后源码未变，Gradle UP-TO-DATE）；Fabric/NeoForge 为 2026-11-21 重建。
+
+- **出口**：F6 PASS；F7 仍需独立审查并合并 `26.3-Forge` → `26.3`。
