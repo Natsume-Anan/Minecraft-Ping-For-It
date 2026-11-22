@@ -96,6 +96,18 @@ tasks.withType(JavaCompile).configureEach {
 // place of the two project output roots for client/server runs.
 def devModDir = layout.buildDirectory.dir('devmod')
 def devManifest = layout.buildDirectory.file('devmod/META-INF/MANIFEST.MF')
+
+// Forge's SecureModuleFinder logs a duplicate-module line for every LWJGL
+// natives jar whose classifier does not match the host. ForgeGradle puts both
+// amd64 and arm64 Windows natives on the dev classpath; drop the non-host set
+// on amd64 so the dev log stays focused. The shipped jar contains no natives.
+def hostArch = System.getProperty('os.arch')
+def dropForeignNatives = { files ->
+    if (hostArch != 'amd64' && hostArch != 'x86_64') {
+        return files
+    }
+    files.filter { file -> !file.name.endsWith('-natives-windows-arm64.jar') }
+}
 def prepareDevMod = tasks.register('prepareDevMod', Sync) {
     from sourceSets.main.output
     // Common classes must live in the same mod module as the Forge entrypoint;
@@ -120,12 +132,18 @@ def prepareDevMod = tasks.register('prepareDevMod', Sync) {
 tasks.matching { it.name == 'runClient' || it.name == 'runServer' }.configureEach { task ->
     task.dependsOn prepareDevMod
 
+    // JDK 25 prints a startup warning for Forge's Unsafe use. This flag
+    // applies to the dev run JVM only; the shipped mod jar is unaffected.
+    if (task.hasProperty('jvmArgs')) {
+        task.jvmArgs('--sun-misc-unsafe-memory-access=allow')
+    }
+
     def commonProject = project(':common')
     def commonJar = commonProject.tasks.named('jar').flatMap { it.archiveFile }
     def excludedOutputs = sourceSets.main.output.files + commonProject.sourceSets.main.output.files
-    def externalRuntimeClasspath = sourceSets.main.runtimeClasspath.filter { file ->
+    def externalRuntimeClasspath = dropForeignNatives(sourceSets.main.runtimeClasspath.filter { file ->
         !excludedOutputs.contains(file) && file != commonJar.get().asFile
-    }
+    })
 
     if (task.hasProperty('runtimeClasspath')) {
         task.runtimeClasspath.setFrom(files(devModDir) + externalRuntimeClasspath)
@@ -134,9 +152,9 @@ tasks.matching { it.name == 'runClient' || it.name == 'runServer' }.configureEac
     task.doFirst {
         def excluded = sourceSets.main.output.files + commonProject.sourceSets.main.output.files
         def commonJarFile = commonJar.get().asFile
-        task.classpath = files(devModDir) + task.classpath.filter { file ->
+        task.classpath = dropForeignNatives(files(devModDir) + task.classpath.filter { file ->
             !excluded.contains(file) && file != commonJarFile
-        }
+        })
     }
 }
 
