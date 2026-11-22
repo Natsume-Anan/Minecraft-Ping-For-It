@@ -132,10 +132,16 @@ def prepareDevMod = tasks.register('prepareDevMod', Sync) {
 tasks.matching { it.name == 'runClient' || it.name == 'runServer' }.configureEach { task ->
     task.dependsOn prepareDevMod
 
-    // JDK 25 prints a startup warning for Forge's Unsafe use. This flag
-    // applies to the dev run JVM only; the shipped mod jar is unaffected.
+    // JDK 25 prints startup warnings for Forge's Unsafe use and for native
+    // libraries loaded by JNA/JLine/LWJGL. The latter are named modules in a
+    // child layer created by ModLauncher; a launch-time --enable-native-access
+    // cannot name them. --illegal-native-access=allow is the JDK's interim
+    // global opt-out; keep it dev-run only and remove it once Forge calls
+    // ModuleLayer.Controller::enableNativeAccess upstream. The shipped jar is
+    // unaffected either way.
     if (task.hasProperty('jvmArgs')) {
         task.jvmArgs('--sun-misc-unsafe-memory-access=allow')
+        task.jvmArgs('--illegal-native-access=allow')
     }
 
     def commonProject = project(':common')
